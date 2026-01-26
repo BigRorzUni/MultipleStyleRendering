@@ -1,11 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using NUnit.Framework.Constraints;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
+    public bool debugStylisedID = false;
     List<ScriptableRenderPass> _passes = new();
     private IdPrepass _idPrepass;
     private SimpleOutlinePass _outlinePass;
@@ -17,6 +19,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
  
     // Internal material instance using the custom outline shader
     private Material _outlineMaterial;
+
+    // material for debug id viewing
+    Material _debugIdMat;
  
  
     /// <summary>
@@ -25,16 +30,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public override void Create()
     {
         // Find the custom outline shader (must exist in the project)
-        
         var outlineshader = Shader.Find("Custom/SimpleOutline");
         if (outlineshader == null)
         {
             Debug.LogError("Could not find shader 'Custom/SimpleOutline'");
             return;
         }
-        // Create the outline material and render pass
-        _outlineMaterial = new Material(outlineshader);
-        _outlinePass = new SimpleOutlinePass(_outlineMaterial);
+        // Create the outline render pass
+        _outlinePass = new SimpleOutlinePass(outlineshader);
 
         var idShader = Shader.Find("Custom/ID");
         if (idShader == null)
@@ -42,12 +45,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/ID'");
             return;
         }
-        var idMaterial = new Material(idShader);
-        _idPrepass = new IdPrepass(idMaterial, (LayerMask)(-1));
+        _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
 
         _passes.Clear();
+
         // this is execution order (maybe have an enqueue pass in each pass class to do it automatically)
         _passes.Add(_idPrepass);
+
         _passes.Add(_outlinePass);
     }
 
@@ -56,13 +60,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     {
         if (_idPrepass == null || _outlinePass == null) return;
 
-        if (_outlineMaterial != null)
-        {
-            _outlineMaterial.SetColor("_OutlineColor", _outlineColor);
-            _outlineMaterial.SetFloat("_OutlineThickness", _outlineThickness);
-        }
+        _idPrepass.debugToScreen = debugStylisedID;
 
-        foreach (var p in _passes)
-            renderer.EnqueuePass(p);
+        _outlinePass.outlineColor = _outlineColor;
+        _outlinePass.outlineThickness = _outlineThickness;
+
+        renderer.EnqueuePass(_idPrepass);
+        if (!debugStylisedID)
+            renderer.EnqueuePass(_outlinePass);
     }
 }

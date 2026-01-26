@@ -52,9 +52,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7ef253210840642e583b534fb8530d7d, type: 3}
-  m_Name: SimpleOutlineRendererFeature
+  m_Name: MultiStyleRendererFeature
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
+  debugStylisedID: 0
   _outlineColor: {r: 0.047169805, g: 0.046502307, b: 0.046502307, a: 1}
   _outlineThickness: 0.03
 --- !u!114 &11400000
@@ -141,7 +142,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f62c9c65cf3354c93be831c8bc075510, type: 3}
   m_Name: ScreenSpaceAmbientOcclusion
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   m_Settings:
     AOMethod: 0
     Downsample: 0

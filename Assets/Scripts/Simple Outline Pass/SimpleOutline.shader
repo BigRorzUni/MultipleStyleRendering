@@ -4,9 +4,6 @@ Shader "Custom/SimpleOutline"
     {
         _OutlineColor ("Outline Color", Color) = (0,0,0,1)
         _OutlineThickness ("Outline Thickness", Float) = 0.03
-
-        // per object id
-        _StylisedID ("Stylised ID (0-255)", Float) = 1
     }
 
     SubShader
@@ -26,10 +23,8 @@ Shader "Custom/SimpleOutline"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_StylisedIDTexture);
-
             CBUFFER_START(UnityPerMaterial)
-                float  _StylisedID;
+                float  _StylisedMask; // per renderer
                 float  _OutlineThickness;
                 float4 _OutlineColor;
             CBUFFER_END
@@ -62,8 +57,10 @@ Shader "Custom/SimpleOutline"
  
             half4 frag(Varyings input) : SV_Target
             {
-                if (_StylisedID != 1) discard; // need to make this not straight to 1 yk
+                uint mask = (uint)round(_StylisedMask);
+                const uint OUTLINE_BIT = 1u << 0;
 
+                if ((mask & OUTLINE_BIT) == 0u) discard;
                 return _OutlineColor;
             }
             ENDHLSL

@@ -1,12 +1,22 @@
 using UnityEngine;
+using System;
+
 
 [DisallowMultipleComponent]
 public class StylisedTag : MonoBehaviour
 {
-    [Range(0,255)]
-    public int stylisedID = 0;
+    [Flags]
+    public enum StylisedEffect : uint
+    {
+        None            = 0,
+        ConvexOutline   = 1u << 0,
+        ToonShading     = 1u << 1,
+        Hatching        = 1u << 2,
+    }
 
-    static readonly int StylisedID = Shader.PropertyToID("_StylisedID");
+    public StylisedEffect effects = StylisedEffect.None;
+
+    static readonly int StylisedMaskID = Shader.PropertyToID("_StylisedMask");
 
     Renderer[] _renderers;
     MaterialPropertyBlock _mpb;
@@ -30,7 +40,6 @@ public class StylisedTag : MonoBehaviour
     void OnValidate()
     {
         if (!isActiveAndEnabled) return;
-
         if (_mpb == null) _mpb = new MaterialPropertyBlock();
         _renderers = GetComponentsInChildren<Renderer>(true);
         Apply();
@@ -38,15 +47,16 @@ public class StylisedTag : MonoBehaviour
 
     void Apply()
     {
-        if (_renderers == null) return;
+        uint mask = (uint)effects; 
 
-        for (int i = 0; i < _renderers.Length; i++)
+        foreach (var r in _renderers)
         {
-            var r = _renderers[i];
             if (r == null) continue;
-
             r.GetPropertyBlock(_mpb);
-            _mpb.SetFloat(StylisedID, stylisedID);
+
+            // Use float for maximum shader compatibility (bitwise via uint() cast in HLSL).
+            _mpb.SetFloat(StylisedMaskID, mask);
+
             r.SetPropertyBlock(_mpb);
         }
     }
