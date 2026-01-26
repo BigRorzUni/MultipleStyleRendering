@@ -56,7 +56,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
   _outlineColor: {r: 0.047169805, g: 0.046502307, b: 0.046502307, a: 1}
-  _outlineThickness: 0.02
+  _outlineThickness: 0.03
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0

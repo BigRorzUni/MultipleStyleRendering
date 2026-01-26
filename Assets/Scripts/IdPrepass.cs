@@ -6,49 +6,66 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class SimpleOutlinePass : ScriptableRenderPass
+public class IdPrepass : ScriptableRenderPass
 {
     // Identifies which shader pass to use ("UniversalForward" in URP)
     private ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     // Filters what to render. In this case, only opaque objects
     private FilteringSettings _filteringSettings;
-    // Outline material to override the original materials
-    private Material _outlineMaterial;
+    private readonly Material _idMaterial;
 
     class PassData
     {
         public RendererListHandle rendererList;
         public TextureHandle idTexture;
     }
+    public struct IdPrepassResult
+    {
+        public TextureHandle idTexture;
+    }
 
     /// <summary>
     /// Constructor sets up filtering and render event.
     /// </summary>
-    public SimpleOutlinePass(Material mat)
+    public IdPrepass(Material idMaterial, LayerMask layerMask)
     {
-        // Run this pass after all opaque objects are rendered
+        _idMaterial = idMaterial;
+
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
-        // Only render opaque objects in this pass
-        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
-        // Store the outline material
-        _outlineMaterial = mat;
+        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask);
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
     {
-        if (_outlineMaterial == null) return;
+        if (_idMaterial == null) return;
         
-        // URP frame data
         var resources = frameData.Get<UniversalResourceData>();
         var cameraData = frameData.Get<UniversalCameraData>();
         var renderingData = frameData.Get<UniversalRenderingData>();
         var lightData = frameData.Get<UniversalLightData>();
 
-        // id of pixels
-        var nprData = frameData.Get<NprFrameData>();
-        var idTex   = nprData.idTexture;
+        // Allocate ID texture (match camera target size)
+        var desc = cameraData.cameraTargetDescriptor;
+        desc.depthBufferBits = 0;
+        desc.msaaSamples = 1;                // keep IDs stable/simple
+        desc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm; // 0..1 encoded
+        desc.sRGB = false;
 
-        // Build draw settings + override material (outline shader)
+        TextureHandle idTex = renderGraph.CreateTexture(
+            new TextureDesc(desc.width, desc.height)
+            {
+                name = "_StylisedIDTexture",
+                colorFormat = desc.graphicsFormat,
+                clearBuffer = true,
+                clearColor = Color.black, // ID = 0
+                filterMode = FilterMode.Point, // IDs should not blur
+                enableRandomWrite = false
+            });
+        
+        var npr = frameData.Create<NprFrameData>();
+        npr.idTexture = idTex;
+
+        // Build draw settings + override material
         var drawing = RenderingUtils.CreateDrawingSettings(
             _shaderTagId,
             renderingData,
@@ -57,28 +74,25 @@ public class SimpleOutlinePass : ScriptableRenderPass
             SortingCriteria.CommonOpaque
         );
 
-        drawing.overrideMaterial = _outlineMaterial;
+        drawing.overrideMaterial = _idMaterial;
         drawing.overrideMaterialPassIndex = 0;
 
-        // Create renderer list handle (RenderGraph-friendly)
         var rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
         var rl  = renderGraph.CreateRendererList(rlp);
 
-        using var builder = renderGraph.AddRasterRenderPass<PassData>("Simple Outline", out var passData);
+        using var builder = renderGraph.AddRasterRenderPass<PassData>("ID Prepass", out var passData);
 
-        // Render into the camera’s active color/depth
-        builder.SetRenderAttachment(resources.activeColorTexture, 0);
+        // Write ID into our texture, share the camera depth (so it matches visible surfaces)
+        builder.SetRenderAttachment(idTex, 0);
         builder.SetRenderAttachmentDepth(resources.activeDepthTexture);
-
-        builder.UseTexture(idTex, AccessFlags.Read);
 
         passData.rendererList = rl;
         passData.idTexture = idTex;
+
         builder.UseRendererList(passData.rendererList);
 
-        builder.SetRenderFunc( (PassData data, RasterGraphContext ctx) =>
+        builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
         {
-            _outlineMaterial.SetTexture("_StylisedIDTexture", data.idTexture);
             ctx.cmd.DrawRendererList(data.rendererList);
         });
     }
