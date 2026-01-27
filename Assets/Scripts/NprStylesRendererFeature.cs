@@ -8,8 +8,11 @@ using UnityEngine.Rendering.Universal;
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
     public bool debugStylisedID = false;
+    public bool debugNormals = false;
+
     List<ScriptableRenderPass> _passes = new();
     private IdPrepass _idPrepass;
+    private NormalsPrepass _normalsPrepass;
     private SimpleOutlinePass _outlinePass;
 
 
@@ -47,26 +50,43 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
 
+        var normalsShader = Shader.Find("Custom/Normals");
+        if (normalsShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Normals'");
+            return;
+        }
+        _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
+
         _passes.Clear();
 
         // this is execution order (maybe have an enqueue pass in each pass class to do it automatically)
-        _passes.Add(_idPrepass);
-
         _passes.Add(_outlinePass);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,
     ref RenderingData renderingData)
     {
-        if (_idPrepass == null || _outlinePass == null) return;
+        if (_idPrepass == null || _normalsPrepass == null || _outlinePass == null) return;
 
+        // set vars
         _idPrepass.debugToScreen = debugStylisedID;
+        _normalsPrepass.debugToScreen = debugNormals;    
 
         _outlinePass.outlineColor = _outlineColor;
         _outlinePass.outlineThickness = _outlineThickness;
 
+        // enqueue passes
         renderer.EnqueuePass(_idPrepass);
-        if (!debugStylisedID)
-            renderer.EnqueuePass(_outlinePass);
+        renderer.EnqueuePass(_normalsPrepass);
+
+        if (debugStylisedID || debugNormals)
+            return;
+
+        foreach (var p in _passes)
+        {
+            renderer.EnqueuePass(p);
+        }
+
     }
 }

@@ -56,7 +56,12 @@ public class IdPrepass : ScriptableRenderPass
                 useMipMap = false
             });
 
-            var npr = frameData.Create<NprFrameData>();
+            NprFrameData npr;
+            if (frameData.Contains<NprFrameData>())
+                npr = frameData.Get<NprFrameData>();
+            else
+                npr = frameData.Create<NprFrameData>();
+                
             npr.idTexture = idTex;
         }
 
