@@ -5,27 +5,38 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
+public enum NprDebugView
+{
+    None,
+    StylisedID,
+    Normals
+}
+
+[System.Serializable]
+public class NprSettings
+{
+    public Color outlineColor = Color.black;
+    public float outlineThickness = 0.03f;
+
+
+    public NprDebugView debugView = NprDebugView.None;
+}
+
+public interface INprPass
+{
+    void ApplySettings(NprSettings settings);
+}
+
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
-    public bool debugStylisedID = false;
-    public bool debugNormals = false;
 
-    List<ScriptableRenderPass> _passes = new();
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
+
+    List<ScriptableRenderPass> _stylePasses = new();
     private SimpleOutlinePass _outlinePass;
-
-
-    // Public parameters exposed in the Inspector for customization
-    public Color _outlineColor = Color.black;
-    public float _outlineThickness = 0.03f;
  
-    // Internal material instance using the custom outline shader
-    private Material _outlineMaterial;
-
-    // material for debug id viewing
-    Material _debugIdMat;
- 
+    public NprSettings settings = new();
  
     /// <summary>
     /// Called when the renderer feature is first created or reset.
@@ -58,35 +69,30 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
 
-        _passes.Clear();
-
+        _stylePasses.Clear();
         // this is execution order (maybe have an enqueue pass in each pass class to do it automatically)
-        _passes.Add(_outlinePass);
+        _stylePasses.Add(_outlinePass);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,
     ref RenderingData renderingData)
     {
-        if (_idPrepass == null || _normalsPrepass == null || _outlinePass == null) return;
+        if (_idPrepass == null || _normalsPrepass == null) return;
 
-        // set vars
-        _idPrepass.debugToScreen = debugStylisedID;
-        _normalsPrepass.debugToScreen = debugNormals;    
-
-        _outlinePass.outlineColor = _outlineColor;
-        _outlinePass.outlineThickness = _outlineThickness;
-
-        // enqueue passes
+        // Always produce shared buffers you rely on (pick what you want here)
+        _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
+
+        _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
-        if (debugStylisedID || debugNormals)
-            return;
-
-        foreach (var p in _passes)
+        // set vars
+        foreach (var pass in _stylePasses)
         {
-            renderer.EnqueuePass(p);
+            if (pass is INprPass nprPass)
+                nprPass.ApplySettings(settings);
+            if(settings.debugView == NprDebugView.None)
+                renderer.EnqueuePass(pass);
         }
-
     }
 }

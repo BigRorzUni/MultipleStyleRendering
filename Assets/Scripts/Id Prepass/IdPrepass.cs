@@ -4,13 +4,18 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class IdPrepass : ScriptableRenderPass
+public class IdPrepass : ScriptableRenderPass, INprPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     readonly FilteringSettings _filteringSettings;
     readonly Shader _idShader;
 
-    public bool debugToScreen = false;
+    public bool debugToScreen;
+
+    public void ApplySettings(NprSettings settings)
+    {
+        debugToScreen = settings.debugView == NprDebugView.StylisedID;
+    }  
 
     const string DebugKeyword = "_DEBUG_ID_COLOUR";
 
@@ -61,7 +66,7 @@ public class IdPrepass : ScriptableRenderPass
                 npr = frameData.Get<NprFrameData>();
             else
                 npr = frameData.Create<NprFrameData>();
-                
+
             npr.idTexture = idTex;
         }
 

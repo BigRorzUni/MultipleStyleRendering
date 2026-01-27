@@ -5,13 +5,17 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class NormalsPrepass : ScriptableRenderPass
+public class NormalsPrepass : ScriptableRenderPass, INprPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     readonly FilteringSettings _filtering;
     readonly Shader _normalsShader;
 
-    public bool debugToScreen = false;
+    public bool debugToScreen;
+    public void ApplySettings(NprSettings settings)
+    {
+        debugToScreen = settings.debugView == NprDebugView.Normals;
+    }
 
     class PassData { public RendererListHandle rl; }
     class DebugData { public TextureHandle normals; }

@@ -55,9 +55,13 @@ MonoBehaviour:
   m_Name: MultiStyleRendererFeature
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
-  debugStylisedID: 0
-  _outlineColor: {r: 0.047169805, g: 0.046502307, b: 0.046502307, a: 1}
-  _outlineThickness: 0.03
+  debugView: 0
+  _outlineColor: {r: 0.8018868, g: 0.8018868, b: 0.8018868, a: 1}
+  _outlineThickness: 0.5
+  settings:
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    outlineThickness: 0.03
+    debugView: 0
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
