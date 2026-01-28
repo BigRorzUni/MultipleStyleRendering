@@ -1,17 +1,21 @@
 using UnityEngine;
 using System;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [DisallowMultipleComponent]
+[ExecuteAlways]
 public class StylisedTag : MonoBehaviour
 {
     [Flags]
     public enum StylisedEffect : uint
     {
-        None            = 0,
-        ConvexOutline   = 1u << 0,
-        ToonShading     = 1u << 1,
-        Hatching        = 1u << 2,
+        None          = 0,
+        ConvexOutline = 1u << 0,
+        ToonShading   = 1u << 1,
+        Hatching      = 1u << 2,
     }
 
     public StylisedEffect effects = StylisedEffect.None;
@@ -21,43 +25,73 @@ public class StylisedTag : MonoBehaviour
     Renderer[] _renderers;
     MaterialPropertyBlock _mpb;
 
-    void Awake()
-    {
-        _mpb = new MaterialPropertyBlock();
-        _renderers = GetComponentsInChildren<Renderer>(true);
-        Apply();
-    }
-
     void OnEnable()
     {
-        if (_mpb == null) _mpb = new MaterialPropertyBlock();
-        if (_renderers == null || _renderers.Length == 0)
-            _renderers = GetComponentsInChildren<Renderer>(true);
-
+        Ensure();
         Apply();
+#if UNITY_EDITOR
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+#endif
+    }
+
+    void OnDisable()
+    {
+#if UNITY_EDITOR
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+#endif
     }
 
     void OnValidate()
     {
-        if (!isActiveAndEnabled) return;
-        if (_mpb == null) _mpb = new MaterialPropertyBlock();
-        _renderers = GetComponentsInChildren<Renderer>(true);
+        Ensure();
         Apply();
+    }
+
+    void OnTransformChildrenChanged()
+    {
+        Ensure(forceRefreshRenderers: true);
+        Apply();
+    }
+
+    void Ensure(bool forceRefreshRenderers = false)
+    {
+        if (_mpb == null) 
+            _mpb = new MaterialPropertyBlock();
+
+        if (forceRefreshRenderers || _renderers == null || _renderers.Length == 0)
+            _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
     void Apply()
     {
-        uint mask = (uint)effects; 
+        if (_renderers == null) return;
+
+        float mask = (uint)effects;
 
         foreach (var r in _renderers)
         {
-            if (r == null) continue;
+            if (!r) 
+                continue;
+
             r.GetPropertyBlock(_mpb);
-
-            // Use float for maximum shader compatibility (bitwise via uint() cast in HLSL).
             _mpb.SetFloat(StylisedMaskID, mask);
-
             r.SetPropertyBlock(_mpb);
         }
     }
+
+#if UNITY_EDITOR
+    static void OnPlayModeStateChanged(PlayModeStateChange s)
+    {
+        // When leaving play mode, MPBs get reset; re-apply them in edit mode.
+        if (s == PlayModeStateChange.EnteredEditMode)
+        {
+            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+            {
+                tag.Ensure(forceRefreshRenderers: true);
+                tag.Apply();
+            }
+        }
+    }
+#endif
 }

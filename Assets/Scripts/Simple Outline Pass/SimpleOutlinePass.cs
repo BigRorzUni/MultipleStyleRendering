@@ -6,14 +6,20 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class SimpleOutlinePass : ScriptableRenderPass
+public class SimpleOutlinePass : ScriptableRenderPass, INprPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     readonly FilteringSettings _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
     readonly Shader _outlineShader;
 
-    public Color outlineColor = Color.black;
-    public float outlineThickness = 0.03f;
+    public Color outlineColor;
+    public float outlineThickness;
+
+    public void ApplySettings(NprSettings settings)
+    {
+        outlineColor = settings.outlineColor;
+        outlineThickness = settings.outlineThickness;
+    }
 
     static readonly int OutlineColorID = Shader.PropertyToID("_OutlineColor");
     static readonly int OutlineThicknessID = Shader.PropertyToID("_OutlineThickness");
