@@ -4,6 +4,7 @@ Shader "Custom/SimpleOutline"
     {
         _OutlineColor ("Outline Color", Color) = (0,0,0,1)
         _OutlineThickness ("Outline Thickness", Float) = 0.03
+        _StylisedMask ("Style Mask", float) = 0
     }
 
     SubShader

@@ -1,5 +1,10 @@
 Shader "Custom/ID"
 {
+	Properties
+    {
+        _StylisedMask ("Style Mask", float) = 0
+    }
+
     SubShader
     {
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry" }
