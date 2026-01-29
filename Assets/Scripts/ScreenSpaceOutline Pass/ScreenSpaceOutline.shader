@@ -1,4 +1,0 @@
-Shader "Custom/ScreenSpaceOutlines"
-{
-
-}

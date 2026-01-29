@@ -10,26 +10,31 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
     Material _edgeMat;
 
     public bool debugToScreen;
-
+    public float outlineThickness;
 
     static readonly int _DepthTexId   = Shader.PropertyToID("_NprDepthTexture");
     static readonly int _NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
+    static readonly int _IdTexId = Shader.PropertyToID("_NprIdTexture");
 
-    static readonly int _ThicknessId      = Shader.PropertyToID("_ThicknessPx");
+    static readonly int _ThicknessId = Shader.PropertyToID("_ThicknessPx");
     static readonly int _DepthThresholdId = Shader.PropertyToID("_DepthThreshold");
-    static readonly int _DepthStrengthId  = Shader.PropertyToID("_DepthStrength");
+    static readonly int _DepthStrengthId = Shader.PropertyToID("_DepthStrength");
     static readonly int _NormalThresholdId = Shader.PropertyToID("_NormalThreshold");
-    static readonly int _NormalStrengthId  = Shader.PropertyToID("_NormalStrength");
+    static readonly int _NormalStrengthId = Shader.PropertyToID("_NormalStrength");
+
+
 
     public void ApplySettings(NprSettings settings)
     {
         debugToScreen = settings.debugView == NprDebugView.Edges;
+        outlineThickness = settings.outlineThickness;
     }
 
     class PassData
     {
         public TextureHandle depth;
         public TextureHandle normals;
+        public TextureHandle ids;
         public Material mat;
     }
 
@@ -47,7 +52,7 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
     {
         if (_edgeMat == null) return;
 
-        var resources  = frameData.Get<UniversalResourceData>();
+        var resources = frameData.Get<UniversalResourceData>();
         var cameraData = frameData.Get<UniversalCameraData>();
 
         // Get/create NPR frame data
@@ -79,10 +84,10 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
 
         npr.edgesTexture = edgesTex;
 
-        _edgeMat.SetFloat(_ThicknessId, 1f);
+        _edgeMat.SetFloat(_ThicknessId, outlineThickness);
 
         _edgeMat.SetFloat(_DepthThresholdId, 0.02f);
-        _edgeMat.SetFloat(_DepthStrengthId, 1.5f);
+        _edgeMat.SetFloat(_DepthStrengthId, 1.0f);
         
         _edgeMat.SetFloat(_NormalThresholdId, 0.12f);
         _edgeMat.SetFloat(_NormalStrengthId, 1.0f);
@@ -95,9 +100,11 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
             // declare reads (RenderGraph lifetime + barriers)
             builder.UseTexture(resources.activeDepthTexture, AccessFlags.Read);
             builder.UseTexture(npr.normalsTexture, AccessFlags.Read);
+            builder.UseTexture(npr.idTexture, AccessFlags.Read);
 
             passData.depth = resources.activeDepthTexture;
             passData.normals = npr.normalsTexture;
+            passData.ids = npr.idTexture;
             passData.mat = _edgeMat;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -105,6 +112,7 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
                 // bind textures expected by shader
                 data.mat.SetTexture(_DepthTexId, data.depth);
                 data.mat.SetTexture(_NormalsTexId, data.normals);
+                data.mat.SetTexture(_IdTexId, data.ids);
 
                 // fullscreen draw into edgesTex
                 CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);

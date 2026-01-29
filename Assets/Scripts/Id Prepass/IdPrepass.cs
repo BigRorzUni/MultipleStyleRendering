@@ -36,10 +36,10 @@ public class IdPrepass : ScriptableRenderPass, INprPass
     {
         if (_idShader == null) return;
 
-        var resources     = frameData.Get<UniversalResourceData>();
-        var cameraData    = frameData.Get<UniversalCameraData>();
+        var resources = frameData.Get<UniversalResourceData>();
+        var cameraData = frameData.Get<UniversalCameraData>();
         var renderingData = frameData.Get<UniversalRenderingData>();
-        var lightData     = frameData.Get<UniversalLightData>();
+        var lightData = frameData.Get<UniversalLightData>();
 
         TextureHandle idTex = TextureHandle.nullHandle;
 
@@ -76,7 +76,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         drawing.overrideShaderPassIndex = 0;
 
         var rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
-        var rl  = renderGraph.CreateRendererList(rlp);
+        var rl = renderGraph.CreateRendererList(rlp);
 
         using var builder = renderGraph.AddRasterRenderPass<PassData>("ID Prepass", out var passData);
 
@@ -89,7 +89,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
         builder.UseRendererList(rl);
 
-        // We toggle a global keyword => must allow
+        // for the global keyword in id shader
         builder.AllowGlobalStateModification(true);
 
         passData.rendererList = rl;
@@ -104,7 +104,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
             ctx.cmd.DrawRendererList(data.rendererList);
 
-            // clean up so keyword doesn't leak into later passes
+            // clean up global keyword
             if (data.debug) ctx.cmd.DisableShaderKeyword(DebugKeyword);
         });
     }

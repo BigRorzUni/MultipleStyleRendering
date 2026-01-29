@@ -17,13 +17,8 @@ public enum NprDebugView
 [System.Serializable]
 public class NprSettings
 {
-    public Color outlineColor = Color.black;
-    public float outlineThickness = 0.03f;
-
-    public Color ssOutlineColour = Color.darkRed;
-    public float ssOutlineThickness = 0.03f;
-
-
+    public Color outlineColour = Color.black;
+    public float outlineThickness = 1f;
     public NprDebugView debugView = NprDebugView.None;
 }
 
@@ -42,7 +37,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     // style passes
     List<ScriptableRenderPass> _stylePasses = new();
-    private SimpleOutlinePass _outlinePass;
+    // private SimpleOutlinePass _outlinePass;
+    private ScreenspaceOutlinesPass _ssOutlinesPass;
  
     // settings
     public NprSettings settings = new();
@@ -51,14 +47,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public override void Create()
     {
         // find the custom outline shader 
-        var outlineshader = Shader.Find("Custom/SimpleOutline");
-        if (outlineshader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/SimpleOutline'");
-            return;
-        }
-        // create the outline render pass
-        _outlinePass = new SimpleOutlinePass(outlineshader);
+        // var outlineshader = Shader.Find("Custom/SimpleOutline");
+        // if (outlineshader == null)
+        // {
+        //     Debug.LogError("Could not find shader 'Custom/SimpleOutline'");
+        //     return;
+        // }
+        // // create the outline render pass
+        // _outlinePass = new SimpleOutlinePass(outlineshader);
 
         // same for id pass
         var idShader = Shader.Find("Custom/ID");
@@ -87,10 +83,19 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _edgesPrepass = new EdgesPrepass(edgesShader);
 
+        var ssOutlinesShader = Shader.Find("Custom/ScreenspaceOutlines");
+        if (ssOutlinesShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
+            return;
+        }
+        _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
+
         _stylePasses.Clear();
 
         // this is execution order (maybe have an enqueue pass in each pass class to do it automatically)
-        _stylePasses.Add(_outlinePass);
+        _stylePasses.Add(_ssOutlinesPass);
+        //_stylePasses.Add(outlinePass);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,

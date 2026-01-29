@@ -19,6 +19,7 @@ Shader "Custom/Edges"
 
             TEXTURE2D(_NprDepthTexture);
             TEXTURE2D(_NprNormalsTexture);
+            TEXTURE2D(_NprIdTexture);
 
             float _ThicknessPx;    
 
@@ -60,8 +61,20 @@ Shader "Custom/Edges"
                 return Linear01Depth(raw, _ZBufferParams);
             }
 
+            uint ReadMask8(float2 uv)
+            {
+                float r = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv).r;
+                return (uint)round(saturate(r) * 255.0);
+            }
+
             float Frag(Varyings i) : SV_Target
             {
+                // discard if pixel is not tagged for outlining in id tex
+                const uint SS_OUTLINE_BIT = 1u << 0;
+                uint mask = ReadMask8(i.uv);
+                if ((mask & SS_OUTLINE_BIT) == 0u)
+                    return 0;
+
                 float2 texel  = 1.0 / _ScreenParams.xy;
                 float2 stepUV = texel * max(1.0, _ThicknessPx);
 
@@ -83,10 +96,10 @@ Shader "Custom/Edges"
                 float zD = getDepth(i.uv + float2(0, -stepUV.y));
 
                 float lap = abs(zR + zL + zU + zD - 4.0 * zC);
-                float lapN = lap / max(zC, 1e-3);            // normalise by depth
+                float lapN = lap / max(zC, 1e-3); // normalise by depth
                 depthEdge = lapN * _DepthStrength;
 
-                float depthMask = smoothstep(_DepthThreshold, _DepthThreshold * 1.5, depthEdge);
+                float depthMask = step(_DepthThreshold, depthEdge);
 
                 // normal discontinuity
                 float3 nC = getNormal(i.uv);
@@ -102,7 +115,7 @@ Shader "Custom/Edges"
                 normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nD)));
                 normalEdge *= _NormalStrength;
 
-                float normalMask = smoothstep(_NormalThreshold, _NormalThreshold * 1.5, normalEdge);
+                float normalMask = step(_NormalThreshold, normalEdge);
 
                 return max(depthMask, normalMask);
             }
