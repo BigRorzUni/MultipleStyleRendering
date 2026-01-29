@@ -47,10 +47,9 @@ Shader "Custom/ID"
                 return output;
             }
 
-            // hashing colours for debugging
-            float3 HashColour(float x) // x ~ 0..255
+            // hashing colours for debugging got from ChatGPT
+            float3 HashColour(float x)
             {
-                // Cheap stable hash -> RGB in [0,1)
                 float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
                 p += dot(p, p.yzx + 19.19);
                 return frac((p.xxy + p.yzz) * p.zyx);
@@ -58,20 +57,22 @@ Shader "Custom/ID"
 
             half4 frag(Varyings input) : SV_Target
             {
-                float id8 = round(clamp(_StylisedMask, 0.0, 255.0));
+                uint mask = (uint)round(_StylisedMask);
+                uint low8 = mask & 255u;
 
-                // NORMAL: encode ID into 0..1 so it can be decoded latur
-                #ifndef _DEBUG_ID_COLOUR
-                    float idNorm = id8 / 255.0;
-                    return half4(idNorm, 0, 0, 1);
-                #else
-                // DEBUG: false colour display
-                    if (id8 < 0.5) return half4(0,0,0,1);
-                    float3 c = HashColour(id8);
+                #ifndef _DEBUG_ID_COLOUR  // NORMAL: encode ID into 0..1 so it can be decoded latur
+                    float r = (float)low8 / 255.0;
+                    return half4(r, 0, 0, 1);
+                #else   // DEBUG: display different colour per id
+                    if (low8 == 0u) return half4(0,0,0,1);
+                    float3 c = HashColour((float)low8);
                     return half4(c, 1);
                 #endif
             }
             ENDHLSL
+
+
+
         }
     }
 }

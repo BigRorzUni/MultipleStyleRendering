@@ -12,12 +12,12 @@ public class SimpleOutlinePass : ScriptableRenderPass, INprPass
     readonly FilteringSettings _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
     readonly Shader _outlineShader;
 
-    public Color outlineColor;
+    public Color outlineColour;
     public float outlineThickness;
 
     public void ApplySettings(NprSettings settings)
     {
-        outlineColor = settings.outlineColor;
+        outlineColour = settings.outlineColour;
         outlineThickness = settings.outlineThickness;
     }
 
@@ -36,10 +36,10 @@ public class SimpleOutlinePass : ScriptableRenderPass, INprPass
     {
         if (_outlineShader == null) return;
 
-        var res  = fd.Get<UniversalResourceData>();
-        var cam  = fd.Get<UniversalCameraData>();
-        var rnd  = fd.Get<UniversalRenderingData>();
-        var lgt  = fd.Get<UniversalLightData>();
+        var res = fd.Get<UniversalResourceData>();
+        var cam = fd.Get<UniversalCameraData>();
+        var rnd = fd.Get<UniversalRenderingData>();
+        var lgt = fd.Get<UniversalLightData>();
 
         var drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, rnd, cam, lgt, SortingCriteria.CommonOpaque);
 
@@ -56,11 +56,11 @@ public class SimpleOutlinePass : ScriptableRenderPass, INprPass
 
         b.UseRendererList(rl);
 
-        // We set globals -> allow it
+        // allow setting of globals
         b.AllowGlobalStateModification(true);
 
         pd.rl = rl;
-        pd.col = outlineColor;
+        pd.col = outlineColour;
         pd.thk = outlineThickness;
 
         b.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>

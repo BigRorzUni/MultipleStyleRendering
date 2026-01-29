@@ -12,10 +12,10 @@ public class StylisedTag : MonoBehaviour
     [Flags]
     public enum StylisedEffect : uint
     {
-        None          = 0,
-        ConvexOutline = 1u << 0,
-        ToonShading   = 1u << 1,
-        Hatching      = 1u << 2,
+        None = 0,
+        ScreenSpaceOutline = 1u << 0,
+        ToonShading = 1u << 1,
+        Hatching = 1u << 2
     }
 
     public StylisedEffect effects = StylisedEffect.None;
@@ -83,7 +83,7 @@ public class StylisedTag : MonoBehaviour
 #if UNITY_EDITOR
     static void OnPlayModeStateChanged(PlayModeStateChange s)
     {
-        // When leaving play mode, MPBs get reset; re-apply them in edit mode.
+        // re-apply MPBs upon leaving play mode as they get reset
         if (s == PlayModeStateChange.EnteredEditMode)
         {
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
