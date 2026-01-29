@@ -31,21 +31,20 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
     {
         if (_normalsShader == null) return;
 
+        // get data from URP
         var resources     = frameData.Get<UniversalResourceData>();
         var cameraData    = frameData.Get<UniversalCameraData>();
         var renderingData = frameData.Get<UniversalRenderingData>();
         var lightData     = frameData.Get<UniversalLightData>();
 
-        // Allocate normals texture
+        // allocate normals texture
         var desc = cameraData.cameraTargetDescriptor;
         desc.depthBufferBits = 0;
         desc.msaaSamples = 1;
         desc.sRGB = false;
 
-        // URP-like choice (good default)
-        var fmt = SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_UNorm, GraphicsFormatUsage.Render)
-            ? GraphicsFormat.R8G8B8A8_UNorm
-            : GraphicsFormat.R16G16B16A16_SFloat;
+        // format for texture
+        var fmt = SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_UNorm, GraphicsFormatUsage.Render) ? GraphicsFormat.R8G8B8A8_UNorm : GraphicsFormat.R16G16B16A16_SFloat;
 
         var normalsTex = renderGraph.CreateTexture(new TextureDesc(desc.width, desc.height)
         {
@@ -56,7 +55,7 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
             filterMode = FilterMode.Point
         });
 
-        // Publish in NprFrameData, this has already been created in ID pass
+        // publish in NprFrameData, this has already been created in ID pass
         NprFrameData npr;
             if (frameData.Contains<NprFrameData>())
                 npr = frameData.Get<NprFrameData>();
@@ -64,9 +63,8 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
                 npr = frameData.Create<NprFrameData>();
         npr.normalsTexture = normalsTex;
 
-        // Draw opaque objects with override shader
-        var drawing = RenderingUtils.CreateDrawingSettings(
-            _shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
+        // draw objects with override shader
+        var drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
 
         drawing.overrideShader = _normalsShader;
         drawing.overrideShaderPassIndex = 0;
@@ -89,7 +87,7 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
             });
         }
 
-        // Debug view (blit normals to camera colour)
+        // debug view (blit normals to camera colour)
         if (debugToScreen)
         {
             using var builder = renderGraph.AddRasterRenderPass<DebugData>("NPR Normals Debug", out var dbg);

@@ -46,7 +46,7 @@ Shader "Custom/SimpleOutline"
             {
                 Varyings output;
  
-                // Expand vertex position along its normal in object space
+                // expand vertex position along its normal in object space
                 float3 expandedOS = input.positionOS.xyz + normalize(input.normalOS) * _OutlineThickness;
  
                 float3 positionWS = TransformObjectToWorld(expandedOS);
@@ -59,6 +59,7 @@ Shader "Custom/SimpleOutline"
             half4 frag(Varyings input) : SV_Target
             {
                 uint mask = (uint)round(_StylisedMask);
+                // only display on renderers that have the right mask, this needs to be sorted
                 const uint OUTLINE_BIT = 1u << 0;
 
                 if ((mask & OUTLINE_BIT) == 0u) discard;

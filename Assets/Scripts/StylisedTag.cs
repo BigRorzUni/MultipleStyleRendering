@@ -16,6 +16,7 @@ public class StylisedTag : MonoBehaviour
         ConvexOutline = 1u << 0,
         ToonShading   = 1u << 1,
         Hatching      = 1u << 2,
+        ScreenSpaceOutline = 1u << 3,
     }
 
     public StylisedEffect effects = StylisedEffect.None;

@@ -5,10 +5,12 @@ public sealed class NprFrameData : ContextItem
 {
     public TextureHandle idTexture;
     public TextureHandle normalsTexture;
+    public TextureHandle edgesTexture;
 
     public override void Reset()
     {
         idTexture = TextureHandle.nullHandle;
         normalsTexture = TextureHandle.nullHandle;
+        edgesTexture = TextureHandle.nullHandle;
     }
 }

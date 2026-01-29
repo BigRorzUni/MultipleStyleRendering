@@ -31,12 +31,12 @@ Shader "Custom/Normals"
 
             Varyings vert(Attributes v)
             {
-                Varyings o;
+                Varyings output;
                 float3 posWS = TransformObjectToWorld(v.positionOS.xyz);
-                o.positionHCS = TransformWorldToHClip(posWS);
+                output.positionHCS = TransformWorldToHClip(posWS);
 
-                o.normalWS = TransformObjectToWorldNormal(v.normalOS);
-                return o;
+                output.normalWS = TransformObjectToWorldNormal(v.normalOS);
+                return output;
             }
 
             half4 frag(Varyings i) : SV_Target

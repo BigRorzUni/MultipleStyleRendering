@@ -47,10 +47,9 @@ Shader "Custom/ID"
                 return output;
             }
 
-            // hashing colours for debugging
-            float3 HashColour(float x) // x ~ 0..255
+            // hashing colours for debugging got from ChatGPT
+            float3 HashColour(float x)
             {
-                // Cheap stable hash -> RGB in [0,1)
                 float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
                 p += dot(p, p.yzx + 19.19);
                 return frac((p.xxy + p.yzz) * p.zyx);
@@ -65,7 +64,7 @@ Shader "Custom/ID"
                     float idNorm = id8 / 255.0;
                     return half4(idNorm, 0, 0, 1);
                 #else
-                // DEBUG: false colour display
+                // DEBUG: display different colour per id
                     if (id8 < 0.5) return half4(0,0,0,1);
                     float3 c = HashColour(id8);
                     return half4(c, 1);
