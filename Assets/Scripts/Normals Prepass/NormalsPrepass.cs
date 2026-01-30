@@ -1,5 +1,5 @@
+using System.Net.Mail;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -17,8 +17,14 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
         debugToScreen = settings.debugView == NprDebugView.Normals;
     }
 
-    class PassData { public RendererListHandle rl; }
-    class DebugData { public TextureHandle normals; }
+    class PassData 
+    { 
+        public RendererListHandle rl; 
+    }
+    class DebugData 
+    { 
+        public TextureHandle normals; 
+    }
 
     public NormalsPrepass(Shader normalsShader, LayerMask layerMask)
     {
@@ -27,58 +33,60 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 
-    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
+    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (_normalsShader == null) return;
 
         // get data from URP
-        var resources     = frameData.Get<UniversalResourceData>();
-        var cameraData    = frameData.Get<UniversalCameraData>();
-        var renderingData = frameData.Get<UniversalRenderingData>();
-        var lightData     = frameData.Get<UniversalLightData>();
+        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
+        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
+        UniversalRenderingData renderingData = frameContext.Get<UniversalRenderingData>();
+        UniversalLightData lightData = frameContext.Get<UniversalLightData>();
 
-        // allocate normals texture
-        var desc = cameraData.cameraTargetDescriptor;
-        desc.depthBufferBits = 0;
-        desc.msaaSamples = 1;
-        desc.sRGB = false;
+        // get/create NPR frame data
+        NprFrameData nprFrameData;
+        if (frameContext.Contains<NprFrameData>())
+            nprFrameData = frameContext.Get<NprFrameData>();
+        else
+            nprFrameData = frameContext.Create<NprFrameData>();
 
-        // format for texture
-        var fmt = SystemInfo.IsFormatSupported(GraphicsFormat.R8G8B8A8_UNorm, GraphicsFormatUsage.Render) ? GraphicsFormat.R8G8B8A8_UNorm : GraphicsFormat.R16G16B16A16_SFloat;
+        // match normal texture to camera resolution + settings
+        RenderTextureDescriptor normalsTexDescriptor = cameraData.cameraTargetDescriptor;
 
-        var normalsTex = renderGraph.CreateTexture(new TextureDesc(desc.width, desc.height)
+        // tweak format to fit what a normal texture needs
+        normalsTexDescriptor.depthBufferBits = 0;
+        normalsTexDescriptor.msaaSamples = 1;
+        normalsTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm;
+        normalsTexDescriptor.sRGB = false;
+
+        // allocate normal texture
+        TextureHandle normalsTex = renderGraph.CreateTexture(new TextureDesc(normalsTexDescriptor.width, normalsTexDescriptor.height)
         {
             name = "_NprNormalsTexture",
-            colorFormat = fmt,
+            colorFormat = normalsTexDescriptor.graphicsFormat,
             clearBuffer = true,
             clearColor = Color.black,
             filterMode = FilterMode.Point
         });
+        nprFrameData.normalsTexture = normalsTex;
 
-        // publish in NprFrameData, this has already been created in ID pass
-        NprFrameData npr;
-            if (frameData.Contains<NprFrameData>())
-                npr = frameData.Get<NprFrameData>();
-            else
-                npr = frameData.Create<NprFrameData>();
-        npr.normalsTexture = normalsTex;
-
-        // draw objects with override shader
-        var drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
+        // draw objects with normal shader
+        DrawingSettings drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
 
         drawing.overrideShader = _normalsShader;
         drawing.overrideShaderPassIndex = 0;
         drawing.perObjectData = PerObjectData.None;
 
-        var rlp = new RendererListParams(renderingData.cullResults, drawing, _filtering);
-        var rl  = renderGraph.CreateRendererList(rlp);
+        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, _filtering);
+        RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
-        using (var builder = renderGraph.AddRasterRenderPass<PassData>("NPR Normals Prepass", out var passData))
+        // draw to normal tex
+        using (var builder = renderGraph.AddRasterRenderPass("NPR Normals Prepass", out PassData passData))
         {
             builder.SetRenderAttachment(normalsTex, 0, AccessFlags.Write);
-            builder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
+            builder.SetRenderAttachmentDepth(frameData.activeDepthTexture, AccessFlags.ReadWrite);
 
-            passData.rl = rl;
+            passData.rl = rendererList;
             builder.UseRendererList(passData.rl);
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -90,8 +98,8 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
         // debug view (blit normals to camera colour)
         if (debugToScreen)
         {
-            using var builder = renderGraph.AddRasterRenderPass<DebugData>("NPR Normals Debug", out var dbg);
-            builder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.Write);
+            using var builder = renderGraph.AddRasterRenderPass("NPR Normals Debug", out DebugData dbg);
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
             builder.UseTexture(normalsTex, AccessFlags.Read);
 
             dbg.normals = normalsTex;
