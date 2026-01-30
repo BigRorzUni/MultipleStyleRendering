@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -12,7 +11,7 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
     public bool debugToScreen;
     public float outlineThickness;
 
-    static readonly int _DepthTexId   = Shader.PropertyToID("_NprDepthTexture");
+    static readonly int _DepthTexId  = Shader.PropertyToID("_NprDepthTexture");
     static readonly int _NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
     static readonly int _IdTexId = Shader.PropertyToID("_NprIdTexture");
 
@@ -38,7 +37,10 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
         public Material mat;
     }
 
-    class DebugData { public TextureHandle edges; }
+    class DebugData 
+    { 
+        public TextureHandle edges; 
+    }
 
     public EdgesPrepass(Shader edgesShader)
     {
@@ -48,41 +50,42 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 
-    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
+    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (_edgeMat == null) return;
 
-        var resources = frameData.Get<UniversalResourceData>();
-        var cameraData = frameData.Get<UniversalCameraData>();
+        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
+        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
-        // Get/create NPR frame data
-        NprFrameData npr;
-        if (frameData.Contains<NprFrameData>())
-            npr = frameData.Get<NprFrameData>();
+        // get/create NPR frame data
+        NprFrameData nprFrameData;
+        if (frameContext.Contains<NprFrameData>())
+            nprFrameData = frameContext.Get<NprFrameData>();
         else
-            npr = frameData.Create<NprFrameData>();
+            nprFrameData = frameContext.Create<NprFrameData>();
 
-        if (!npr.normalsTexture.IsValid())
+        if (!nprFrameData.normalsTexture.IsValid())
             return;
 
-        // Allocate edges texture 
-        var desc = cameraData.cameraTargetDescriptor;
-        desc.depthBufferBits = 0;
-        desc.msaaSamples = 1;
-        desc.sRGB = false;
+        // match edge texture to camera resolution + settings
+        RenderTextureDescriptor edgesTexDescriptor = cameraData.cameraTargetDescriptor;
 
-        var edgeFmt = SystemInfo.IsFormatSupported(GraphicsFormat.R8_UNorm, GraphicsFormatUsage.Render) ? GraphicsFormat.R8_UNorm : GraphicsFormat.R16_SFloat;
+       // tweak format to fit what an edges texture needs
+        edgesTexDescriptor.depthBufferBits = 0;
+        edgesTexDescriptor.msaaSamples = 1;
+        edgesTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
+        edgesTexDescriptor.sRGB = false;
 
-        var edgesTex = renderGraph.CreateTexture(new TextureDesc(desc.width, desc.height)
+        // allocate edges texture 
+        TextureHandle edgesTex = renderGraph.CreateTexture(new TextureDesc(edgesTexDescriptor)
         {
             name = "_NprEdgesTexture",
-            colorFormat = edgeFmt,
+            colorFormat = edgesTexDescriptor.graphicsFormat,
             clearBuffer = true,
             clearColor = Color.black,
             filterMode = FilterMode.Point
         });
-
-        npr.edgesTexture = edgesTex;
+        nprFrameData.edgesTexture = edgesTex;
 
         _edgeMat.SetFloat(_ThicknessId, outlineThickness);
 
@@ -93,18 +96,19 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
         _edgeMat.SetFloat(_NormalStrengthId, 1.0f);
 
         // edge detection fullscreen pass
-        using (var builder = renderGraph.AddRasterRenderPass<PassData>("NPR Edges (Screenspace)", out var passData))
+        using (var builder = renderGraph.AddRasterRenderPass("NPR Edges (Screenspace)", out PassData passData))
         {
+            // write to edge texture
             builder.SetRenderAttachment(edgesTex, 0, AccessFlags.Write);
 
-            // declare reads (RenderGraph lifetime + barriers)
-            builder.UseTexture(resources.activeDepthTexture, AccessFlags.Read);
-            builder.UseTexture(npr.normalsTexture, AccessFlags.Read);
-            builder.UseTexture(npr.idTexture, AccessFlags.Read);
+            // read from depth, normals and id textures
+            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+            builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
+            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
 
-            passData.depth = resources.activeDepthTexture;
-            passData.normals = npr.normalsTexture;
-            passData.ids = npr.idTexture;
+            passData.depth = frameData.activeDepthTexture;
+            passData.normals = nprFrameData.normalsTexture;
+            passData.ids = nprFrameData.idTexture;
             passData.mat = _edgeMat;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -114,7 +118,6 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
                 data.mat.SetTexture(_NormalsTexId, data.normals);
                 data.mat.SetTexture(_IdTexId, data.ids);
 
-                // fullscreen draw into edgesTex
                 CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
 
             });
@@ -123,16 +126,21 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
         // debug view
         if (debugToScreen)
         {
-            using var builder = renderGraph.AddRasterRenderPass<DebugData>("NPR Edges Debug", out var dbg);
-            builder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.Write);
-            builder.UseTexture(edgesTex, AccessFlags.Read);
-            dbg.edges = edgesTex;
-
-            builder.SetRenderFunc(static (DebugData data, RasterGraphContext ctx) =>
+            using (var builder = renderGraph.AddRasterRenderPass("NPR Edges Debug", out DebugData debugData))
             {
-                // red lines as only using red channel since the tex is stored as an R8_UNorm
-                Blitter.BlitTexture(ctx.cmd, data.edges, new Vector4(1, 1, 0, 0), 0, false);
-            });
+                // write to screen colour
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+                // read from edge texture
+                builder.UseTexture(edgesTex, AccessFlags.Read);
+                debugData.edges = edgesTex;
+
+                builder.SetRenderFunc(static (DebugData data, RasterGraphContext ctx) =>
+                {
+                    // red lines as only using red channel since the tex is stored as an R8_UNorm
+                    Blitter.BlitTexture(ctx.cmd, data.edges, new Vector4(1, 1, 0, 0), 0, false);
+                });
+            }
         }
     }
 }

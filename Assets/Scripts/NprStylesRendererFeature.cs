@@ -1,9 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
-using NUnit.Framework.Constraints;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -35,9 +31,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private EdgesPrepass _edgesPrepass;
 
-    // style passes
-    List<ScriptableRenderPass> _stylePasses = new();
+    // STYLES: object passes
+    List<ScriptableRenderPass> _objectPasses = new();
+    private ToonPass _toonPass;
     // private SimpleOutlinePass _outlinePass;
+
+    // STYLES: screen passes
+    List<ScriptableRenderPass> _screenPasses = new();
     private ScreenspaceOutlinesPass _ssOutlinesPass;
  
     // settings
@@ -46,7 +46,41 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // Called when the renderer feature is first created or reset.
     public override void Create()
     {
-        // find the custom outline shader 
+        // find associated shaders and create passes
+        // prepasses:
+        Shader idShader = Shader.Find("Custom/ID");
+        if (idShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/ID'");
+            return;
+        }
+        _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
+
+        Shader normalsShader = Shader.Find("Custom/Normals");
+        if (normalsShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Normals'");
+            return;
+        }
+        _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
+
+        Shader edgesShader = Shader.Find("Custom/Edges");
+        if (edgesShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Edges'");
+            return;
+        }
+        _edgesPrepass = new EdgesPrepass(edgesShader);
+
+        // object passes
+        Shader toonShader = Shader.Find("Custom/Toon");
+        if (toonShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Toon'");
+            return;
+        }
+        _toonPass = new ToonPass(toonShader);
+
         // var outlineshader = Shader.Find("Custom/SimpleOutline");
         // if (outlineshader == null)
         // {
@@ -56,34 +90,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // // create the outline render pass
         // _outlinePass = new SimpleOutlinePass(outlineshader);
 
-        // same for id pass
-        var idShader = Shader.Find("Custom/ID");
-        if (idShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/ID'");
-            return;
-        }
-        _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
-
-        // same for normal pass
-        var normalsShader = Shader.Find("Custom/Normals");
-        if (normalsShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Normals'");
-            return;
-        }
-        _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
-
-        // same for edges pass
-        var edgesShader = Shader.Find("Custom/Edges");
-        if (edgesShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Edges'");
-            return;
-        }
-        _edgesPrepass = new EdgesPrepass(edgesShader);
-
-        var ssOutlinesShader = Shader.Find("Custom/ScreenspaceOutlines");
+        // screen passes
+        Shader ssOutlinesShader = Shader.Find("Custom/ScreenspaceOutlines");
         if (ssOutlinesShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
@@ -91,11 +99,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
 
-        _stylePasses.Clear();
+        // add object passes in their execution order
+        _objectPasses.Clear();
+        _objectPasses.Add(_toonPass);
+        //_objectPasses.Add(outlinePass);
 
-        // this is execution order (maybe have an enqueue pass in each pass class to do it automatically)
-        _stylePasses.Add(_ssOutlinesPass);
-        //_stylePasses.Add(outlinePass);
+        // add screenpasses in their execution order
+        _screenPasses.Clear();
+        _screenPasses.Add(_ssOutlinesPass);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,
@@ -115,8 +126,17 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _edgesPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_edgesPrepass);
 
-        // effect passes
-        foreach (var pass in _stylePasses)
+        // object passes
+        foreach (var pass in _objectPasses)
+        {
+            if (pass is INprPass nprPass)
+                nprPass.ApplySettings(settings);
+            if(settings.debugView == NprDebugView.None)
+                renderer.EnqueuePass(pass);
+        }
+
+        // screen passes
+        foreach (var pass in _screenPasses)
         {
             if (pass is INprPass nprPass)
                 nprPass.ApplySettings(settings);

@@ -17,13 +17,13 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         debugToScreen = settings.debugView == NprDebugView.StylisedID;
     }  
 
-    const string DebugKeyword = "_DEBUG_ID_COLOUR";
-
     class PassData
     {
         public RendererListHandle rendererList;
         public bool debug;
     }
+
+    const string DebugKeyword = "_DEBUG_ID_COLOUR";
 
     public IdPrepass(Shader idShader, LayerMask layerMask)
     {
@@ -32,80 +32,83 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         _filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask);
     }
 
-    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
+    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (_idShader == null) return;
 
-        var resources = frameData.Get<UniversalResourceData>();
-        var cameraData = frameData.Get<UniversalCameraData>();
-        var renderingData = frameData.Get<UniversalRenderingData>();
-        var lightData = frameData.Get<UniversalLightData>();
+        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
+        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
+        UniversalRenderingData renderingData = frameContext.Get<UniversalRenderingData>();
+        UniversalLightData lightData = frameContext.Get<UniversalLightData>();
 
-        TextureHandle idTex = TextureHandle.nullHandle;
+        // get/create NPR frame data
+        NprFrameData nprFrameData;
+        if (frameContext.Contains<NprFrameData>())
+            nprFrameData = frameContext.Get<NprFrameData>();
+        else
+            nprFrameData = frameContext.Create<NprFrameData>();
 
-        if (!debugToScreen)
+        // match id texture to camera resolution + settings
+        RenderTextureDescriptor idTexDescriptor = cameraData.cameraTargetDescriptor;
+
+       // tweak format to fit what an id texture needs
+        idTexDescriptor.depthBufferBits = 0;
+        idTexDescriptor.msaaSamples = 1;
+        idTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
+        idTexDescriptor.sRGB = false;
+
+        // allocate id texture
+        TextureHandle idTex = renderGraph.CreateTexture(new TextureDesc(idTexDescriptor)
         {
-            var desc = cameraData.cameraTargetDescriptor;
-            desc.depthBufferBits = 0;
-            desc.msaaSamples = 1;
-            desc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
-            desc.sRGB = false;
+            name = "_StylisedIDTexture",
+            colorFormat = idTexDescriptor.graphicsFormat,
+            clearBuffer = true,
+            clearColor = Color.black,
+            filterMode = FilterMode.Point,
+            useMipMap = false
+        });
+        nprFrameData.idTexture = idTex;
 
-            idTex = renderGraph.CreateTexture(new TextureDesc(desc.width, desc.height)
-            {
-                name = "_StylisedIDTexture",
-                colorFormat = desc.graphicsFormat,
-                clearBuffer = true,
-                clearColor = Color.black,
-                filterMode = FilterMode.Point,
-                useMipMap = false
-            });
-
-            NprFrameData npr;
-            if (frameData.Contains<NprFrameData>())
-                npr = frameData.Get<NprFrameData>();
-            else
-                npr = frameData.Create<NprFrameData>();
-
-            npr.idTexture = idTex;
-        }
-
-        var drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
+        // draw objects with id shader
+        DrawingSettings drawing = RenderingUtils.CreateDrawingSettings(_shaderTagId, renderingData, cameraData, lightData, SortingCriteria.CommonOpaque);
 
         drawing.overrideShader = _idShader;
         drawing.overrideShaderPassIndex = 0;
 
-        var rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
-        var rl = renderGraph.CreateRendererList(rlp);
+        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
+        RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
-        using var builder = renderGraph.AddRasterRenderPass<PassData>("ID Prepass", out var passData);
-
-        if (debugToScreen)
-            builder.SetRenderAttachment(resources.activeColorTexture, 0);
-        else
-            builder.SetRenderAttachment(idTex, 0);
-
-        builder.SetRenderAttachmentDepth(resources.activeDepthTexture);
-
-        builder.UseRendererList(rl);
-
-        // for the global keyword in id shader
-        builder.AllowGlobalStateModification(true);
-
-        passData.rendererList = rl;
-        passData.debug = debugToScreen;
-
-        builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+        // can't just blit for debugging as the unhashed values are all <10
+        using (var builder = renderGraph.AddRasterRenderPass("ID Prepass", out PassData passData))
         {
-            if (data.debug) 
-                ctx.cmd.EnableShaderKeyword(DebugKeyword);
-            else            
-                ctx.cmd.DisableShaderKeyword(DebugKeyword);
+            if (debugToScreen)
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0);
+            else
+                builder.SetRenderAttachment(idTex, 0);
 
-            ctx.cmd.DrawRendererList(data.rendererList);
+            builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
 
-            // clean up global keyword
-            if (data.debug) ctx.cmd.DisableShaderKeyword(DebugKeyword);
-        });
+            builder.UseRendererList(rendererList);
+
+            // for the global keyword in id shader
+            builder.AllowGlobalStateModification(true);
+
+            passData.rendererList = rendererList;
+            passData.debug = debugToScreen;
+
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+            {
+                if (data.debug) 
+                    ctx.cmd.EnableShaderKeyword(DebugKeyword);
+                else            
+                    ctx.cmd.DisableShaderKeyword(DebugKeyword);
+
+                ctx.cmd.DrawRendererList(data.rendererList);
+
+                // clean up global keyword
+                if (data.debug) 
+                    ctx.cmd.DisableShaderKeyword(DebugKeyword);
+            });
+        }
     }
 }
