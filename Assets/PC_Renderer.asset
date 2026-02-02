@@ -56,7 +56,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
   settings:
-    outlineColour: {r: 1, g: 0, b: 0, a: 1}
+    outlineColour: {r: 1, g: 1, b: 1, a: 1}
     outlineThickness: 1
     debugView: 0
 --- !u!114 &11400000
@@ -110,7 +110,7 @@ MonoBehaviour:
     failOperation: 0
     zFailOperation: 0
   m_ShadowTransparentReceive: 1
-  m_RenderingMode: 2
+  m_RenderingMode: 0
   m_DepthPrimingMode: 0
   m_CopyDepthMode: 0
   m_DepthAttachmentFormat: 0
