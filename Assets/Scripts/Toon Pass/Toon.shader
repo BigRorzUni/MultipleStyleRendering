@@ -32,9 +32,11 @@ Shader "Custom/Toon"
             #pragma vertex vert
             #pragma fragment frag 
 
-            #pragma multi_compile _ _mainLight_LIGHT_SHADOWS
-            #pragma multi_compile _ _mainLight_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -81,6 +83,28 @@ Shader "Custom/Toon"
                 return o;
             }
 
+            float3 LightContribution(Light L, float3 normal, float3 worldPos)
+            {
+                float3 lightDir = normalize(L.direction);
+
+                float attentuation = L.distanceAttenuation * L.shadowAttenuation;
+                
+                float NdotL = saturate(dot(lightDir, normal));
+                float toon = smoothstep(0.05, 0.1, NdotL * attentuation);
+                float3 diffuse = L.color.rgb * toon;
+
+                float3 viewDir = normalize(GetWorldSpaceViewDir(worldPos));
+                float3 halfVector = normalize(lightDir + viewDir);
+                float NdotH = saturate(dot(normal, halfVector));
+                float specularIntensity = pow(NdotH, 64 * _Smoothness);
+                float3 spec = specularIntensity * _SpecColor.rgb * toon * L.color.rgb;
+
+                float rim = 1 - dot(viewDir, normal);
+                rim *= pow(diffuse, 0.1) * toon;
+
+                return diffuse + max(spec, rim);
+            }
+
             half4 frag(Varyings i) : SV_Target
             {
                 uint mask = (uint)round(_StylisedMask);
@@ -89,37 +113,29 @@ Shader "Custom/Toon"
                     discard;
 
                 float3 normal = normalize(i.worldNormal);
+                float3 worldPos = i.posWS;
 
-                Light mainLight = GetMainLight();
-                float3 lightDir = normalize(mainLight.direction);
+                float3 lit = 0;
 
-                float shadow = mainLight.shadowAttenuation;
+                Light mainLight = GetMainLight(i.shadowCoord);
 
                 float3 ambient = 0.1 * mainLight.color.rgb;
-                
-                float NdotL = saturate(dot(lightDir, normal));
-                //float lightIntensity = (NdotL > 0.66) ? 1.0 : (NdotL > 0.33 ? 0.5 : 0.01);
-                // float b1 = smoothstep(0.005, 0.01, NdotL);
-                // float b2 = smoothstep(0.66, 0.67, NdotL);
-                float lightIntensity = smoothstep(0.05, 0.1, NdotL * shadow);
-                float3 diffuse = lightIntensity * mainLight.color.rgb;
+                lit += ambient; 
 
-                float3 viewDir = normalize(GetWorldSpaceViewDir(i.posWS));
-                float3 halfVector = normalize(lightDir + viewDir);
-                float NdotH = saturate(dot(normal, halfVector));
-                float specularIntensity = pow(NdotH, 64 * _Smoothness);
-                float3 spec = specularIntensity * lightIntensity * _SpecColor.rgb * mainLight.color.rgb;
+                lit += LightContribution(mainLight, normal, worldPos);
 
-                float rim = 1 - dot(viewDir, normal);
-                rim *= pow(diffuse, 0.1);
+                #ifdef _ADDITIONAL_LIGHTS
+                    int lightCount = GetAdditionalLightsCount();
+                    for(int li = 0; li < lightCount; li++)
+                    {
+                        Light l = GetAdditionalLight(li, worldPos);
+                        lit += LightContribution(l, normal, worldPos);
+                    }
+                #endif
 
                 float4 tex = SAMPLE_TEXTURE2D(_BaseTex, sampler_BaseTex, i.uv);
 
-                //return float4(NdotL.xxx, 1);
-                //return float4(specularIntensity.xxx, 1);
-
-                return tex * _BaseColor  * float4((ambient + diffuse + max(spec, rim)), 1);
-                //return tex * _BaseColor * (float4(ambient + diffuse,1) + specularIntensity);
+                return tex * _BaseColor * float4(lit, 1);
             }
             ENDHLSL
         }
