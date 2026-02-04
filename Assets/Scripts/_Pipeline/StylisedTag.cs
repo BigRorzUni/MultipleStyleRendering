@@ -9,21 +9,28 @@ using UnityEditor;
 [ExecuteAlways]
 public class StylisedTag : MonoBehaviour
 {
+    // Map these to Rendering Layer bits (0..31).
     [Flags]
     public enum StylisedEffect : uint
     {
         None = 0,
-        ScreenSpaceOutline = 1u << 0,
-        ToonShading = 1u << 1,
-        Hatching = 1u << 2
+        ToonShading       = 1u << 1,
+        ScreenSpaceOutline = 1u << 2,
+        Hatching          = 1u << 3,
     }
 
+    [Tooltip("Styles to apply to this object.")]
     public StylisedEffect effects = StylisedEffect.None;
 
-    static readonly int StylisedMaskID = Shader.PropertyToID("_StylisedMask");
-
     Renderer[] _renderers;
-    MaterialPropertyBlock _mpb;
+
+    // All bits this component controls (update if you add effects)
+    const uint ControlledBits =
+        (uint)(StylisedEffect.ScreenSpaceOutline |
+               StylisedEffect.ToonShading |
+               StylisedEffect.Hatching);
+
+    const uint DefaultLayerBit = 1u << 0;
 
     void OnEnable()
     {
@@ -56,9 +63,6 @@ public class StylisedTag : MonoBehaviour
 
     void Ensure(bool forceRefreshRenderers = false)
     {
-        if (_mpb == null) 
-            _mpb = new MaterialPropertyBlock();
-
         if (forceRefreshRenderers || _renderers == null || _renderers.Length == 0)
             _renderers = GetComponentsInChildren<Renderer>(true);
     }
@@ -67,23 +71,40 @@ public class StylisedTag : MonoBehaviour
     {
         if (_renderers == null) return;
 
-        float mask = (uint)effects;
+        uint desired = (uint)effects;
+
+        if(desired == uint.MaxValue)
+            desired = ControlledBits;
+
+        desired &= ControlledBits;
 
         foreach (var r in _renderers)
         {
             if (!r) 
                 continue;
 
-            r.GetPropertyBlock(_mpb);
-            _mpb.SetFloat(StylisedMaskID, mask);
-            r.SetPropertyBlock(_mpb);
+            uint current = r.renderingLayerMask;
+            uint next;
+            
+            if (desired == 0)
+            {
+                // None => Default only
+                next = DefaultLayerBit;
+            }
+            else
+            {
+                // Any style bits => style bits only (no Default, no other bits)
+                next = desired;
+            }
+
+            if (current != next)
+                r.renderingLayerMask = next;
         }
     }
 
 #if UNITY_EDITOR
     static void OnPlayModeStateChanged(PlayModeStateChange s)
     {
-        // re-apply MPBs upon leaving play mode as they get reset
         if (s == PlayModeStateChange.EnteredEditMode)
         {
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))

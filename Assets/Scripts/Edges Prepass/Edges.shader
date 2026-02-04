@@ -70,7 +70,7 @@ Shader "Custom/Edges"
             float Frag(Varyings i) : SV_Target
             {
                 // discard if pixel is not tagged for outlining in id tex
-                const uint SS_OUTLINE_BIT = 1u << 0;
+                const uint SS_OUTLINE_BIT = 1u << 2;
                 uint mask = ReadMask8(i.uv);
                 if ((mask & SS_OUTLINE_BIT) == 0u)
                     return 0;

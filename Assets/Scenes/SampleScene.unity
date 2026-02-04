@@ -622,7 +622,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 2
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: fb8f3281ab27f47eaad7cfb12b2f5016, type: 2}
@@ -666,7 +666,7 @@ Transform:
   m_GameObject: {fileID: 1009401957}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.13, y: 1.56, z: -6.15}
+  m_LocalPosition: {x: -2.32, y: 1.56, z: -6.15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -749,7 +749,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 2
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: d1db7f793fb2f4ddea2ca7b1ba965643, type: 2}
@@ -811,7 +811,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 0
+  effects: 2
 --- !u!1 &1198851680
 GameObject:
   m_ObjectHideFlags: 0
@@ -877,7 +877,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 2
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 123076cbbb0604355a2ab1941031a033, type: 2}
@@ -939,7 +939,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 3
+  effects: 2
 --- !u!1 &1512478178
 GameObject:
   m_ObjectHideFlags: 0
@@ -972,7 +972,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 1
+  effects: 2
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1016,7 +1016,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
+  m_RenderingLayerMask: 2
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: fc0c12a24d4514e42aff22dbcf17c684, type: 2}
@@ -1060,7 +1060,7 @@ Transform:
   m_GameObject: {fileID: 1512478178}
   serializedVersion: 2
   m_LocalRotation: {x: -0.07764501, y: 0.0010345355, z: 0.053237773, w: 0.9955581}
-  m_LocalPosition: {x: -0.16, y: 1.56, z: -3.84}
+  m_LocalPosition: {x: 0.87, y: 1.56, z: -3.84}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -2,8 +2,6 @@ Shader "Custom/Toon"
 {
     Properties
     {
-        _StylisedMask ("Style Mask", float) = 0
-
         // take in unity's base properties
         _BaseTex ("mainLight Texture", 2D) = "white" {}
         _BaseColor ("Colour", Color) = (1,1,1,1)
@@ -46,7 +44,6 @@ Shader "Custom/Toon"
             SAMPLER(sampler_BaseTex);
 
             CBUFFER_START(UnityPerMaterial)
-                float  _StylisedMask;
                 float4 _BaseColor;
                 float4 _SpecColor;
                 float _Smoothness;
@@ -72,13 +69,13 @@ Shader "Custom/Toon"
             {
                 Varyings o;
 
-                o.posCS = TransformObjectToHClip(v.positionOS.xyz);
                 o.uv = v.uv;
                 o.worldNormal = TransformObjectToWorldNormal(v.normal);
-                o.posWS = TransformObjectToWorld(v.positionOS.xyz);
-
+                
                 VertexPositionInputs posInputs = GetVertexPositionInputs(v.positionOS.xyz);
+                o.posCS = posInputs.positionCS;
                 o.shadowCoord = GetShadowCoord(posInputs);
+                o.posWS = posInputs.positionWS;
 
                 return o;
             }
@@ -107,11 +104,6 @@ Shader "Custom/Toon"
 
             half4 frag(Varyings i) : SV_Target
             {
-                uint mask = (uint)round(_StylisedMask);
-                const uint TOON_BIT = 1u << 1;
-                if ((mask & TOON_BIT) == 0u)
-                    discard;
-
                 float3 normal = normalize(i.worldNormal);
                 float3 worldPos = i.posWS;
 
