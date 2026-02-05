@@ -62,7 +62,6 @@ Shader "Custom/Toon"
                 float2 uv : TEXCOORD0;
                 float3 worldNormal : TEXCOORD1;
                 float3 posWS : TEXCOORD2;
-                float4 shadowCoord : TEXCOORD3;
             };
 
             Varyings vert(Attributes v)
@@ -74,7 +73,6 @@ Shader "Custom/Toon"
                 
                 VertexPositionInputs posInputs = GetVertexPositionInputs(v.positionOS.xyz);
                 o.posCS = posInputs.positionCS;
-                o.shadowCoord = GetShadowCoord(posInputs);
                 o.posWS = posInputs.positionWS;
 
                 return o;
@@ -107,9 +105,10 @@ Shader "Custom/Toon"
                 float3 normal = normalize(i.worldNormal);
                 float3 worldPos = i.posWS;
 
-                float3 lit = 0;
+                float4 shadowCoord = TransformWorldToShadowCoord(worldPos);
+                Light mainLight = GetMainLight(shadowCoord);
 
-                Light mainLight = GetMainLight(i.shadowCoord);
+                float3 lit = 0;
 
                 float3 ambient = 0.1 * mainLight.color.rgb;
                 lit += ambient; 
