@@ -1,8 +1,8 @@
-Shader "Custom/ScreenspaceOutlines"
+Shader "Custom/Dithering"
 {
     Properties
     {
-        _OutlineColour ("Outline Colour", Color) = (0,0,0,1)
+
     }
 
     SubShader
@@ -10,7 +10,7 @@ Shader "Custom/ScreenspaceOutlines"
         Tags { "RenderPipeline"="UniversalPipeline" }
         Pass
         {
-            Name "ScreenspaceOutlines"
+            Name "Dithering"
             ZTest Always
             ZWrite Off
             Cull Off
@@ -23,10 +23,16 @@ Shader "Custom/ScreenspaceOutlines"
             #pragma fragment Frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_NprEdgesTexture);
+
+            TEXTURE2D(_NprIdTexture);
+            SAMPLER(sampler_NprIdTexture);
+
+            TEXTURE2D(_SourceTex);
+            SAMPLER(sampler_SourceTex);
+
 
             CBUFFER_START(UnityPerMaterial)
-                float4 _OutlineColour;
+
             CBUFFER_END
 
             struct Attributes 
@@ -48,13 +54,27 @@ Shader "Custom/ScreenspaceOutlines"
                 return o;
             }
 
+            uint ReadMask8(float2 uv)
+            {
+                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
+                return (uint)round(saturate(m) * 255.0);
+            }
+
             float4 Frag (Varyings i) : SV_Target
             {
-                float edge = SAMPLE_TEXTURE2D(_NprEdgesTexture, sampler_PointClamp, i.uv).r;
+                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
 
-                // return the highlighted edges only
-                float a = saturate(edge) * _OutlineColour.a;
-                return float4(_OutlineColour.rgb, a);
+                // if pixels aren't tagged for dithering then leave them unchanged
+                const uint DITHERING_BIT = 1u << 3;
+                uint mask = ReadMask8(i.uv);
+                if ((mask & DITHERING_BIT) == 0u)
+                    return col;
+
+                // convert pixels to greyscale 
+                // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
+                float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
+
+                return float4(greyscale, greyscale, greyscale, col.a);
             }
             ENDHLSL
         }

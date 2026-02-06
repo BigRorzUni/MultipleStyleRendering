@@ -43,7 +43,14 @@ public class ToonPass : ScriptableRenderPass, INprPass
         drawing.overrideShader = _toonShader;
         drawing.overrideShaderPassIndex = 0;
 
-        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
+        const uint TOON_BIT = 1u << 1;
+
+        FilteringSettings filtering = new FilteringSettings(RenderQueueRange.opaque)
+        {
+            renderingLayerMask = TOON_BIT
+        };
+
+        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, filtering);
         RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
         using (var builder = renderGraph.AddRasterRenderPass("Toon", out PassData passData))

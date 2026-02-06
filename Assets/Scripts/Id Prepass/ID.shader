@@ -1,10 +1,5 @@
 Shader "Custom/ID"
 {
-	Properties
-    {
-        _StylisedMask ("Style Mask", float) = 0
-    }
-
     SubShader
     {
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="Geometry" }
@@ -14,7 +9,7 @@ Shader "Custom/ID"
             Name "ID"
             Tags { "LightMode" = "UniversalForward" }
 
-            Cull Back // lets effects work when viewed from past a backface
+            Cull Back
             ZWrite On
             ZTest LEqual
             Blend Off
@@ -23,31 +18,21 @@ Shader "Custom/ID"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile _ _DEBUG_ID_COLOUR
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
 
-            CBUFFER_START(UnityPerMaterial)
-                float _StylisedMask;
-            CBUFFER_END
-
-            struct Attributes
-            {
-                float4 positionOS : POSITION;
-            };
-
-            struct Varyings
-            {
-                float4 positionHCS : SV_POSITION;
-            };
+            struct Attributes { float4 positionOS : POSITION; };
+            struct Varyings { float4 positionHCS : SV_POSITION; };
 
             Varyings vert(Attributes input)
             {
                 Varyings output;
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
-                output.positionHCS = TransformWorldToHClip(positionWS);
+                output.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
                 return output;
             }
 
-            // hashing colours for debugging got from ChatGPT
+            // copilot generated function
             float3 HashColour(float x)
             {
                 float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
@@ -57,22 +42,19 @@ Shader "Custom/ID"
 
             half4 frag(Varyings input) : SV_Target
             {
-                uint mask = (uint)round(_StylisedMask);
+                uint mask = GetMeshRenderingLayer(); 
                 uint low8 = mask & 255u;
 
-                #ifndef _DEBUG_ID_COLOUR  // NORMAL: encode ID into 0..1 so it can be decoded latur
+                #ifndef _DEBUG_ID_COLOUR
                     float r = (float)low8 / 255.0;
                     return half4(r, 0, 0, 1);
-                #else   // DEBUG: display different colour per id
+                #else
                     if (low8 == 0u) return half4(0,0,0,1);
                     float3 c = HashColour((float)low8);
                     return half4(c, 1);
                 #endif
             }
             ENDHLSL
-
-
-
         }
     }
 }

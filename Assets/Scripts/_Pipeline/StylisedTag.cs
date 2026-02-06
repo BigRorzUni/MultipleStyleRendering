@@ -12,54 +12,48 @@ public class StylisedTag : MonoBehaviour
     [Flags]
     public enum StylisedEffect : uint
     {
-        None = 0,
-        ScreenSpaceOutline = 1u << 0,
-        ToonShading = 1u << 1,
-        Hatching = 1u << 2
+        None              = 0,
+        Toon              = 1u << 1, 
+        Outline           = 1u << 2, 
+        Dithering          = 1u << 3, 
     }
 
     public StylisedEffect effects = StylisedEffect.None;
 
-    static readonly int StylisedMaskID = Shader.PropertyToID("_StylisedMask");
-
     Renderer[] _renderers;
-    MaterialPropertyBlock _mpb;
 
-    void OnEnable()
-    {
-        Ensure();
-        Apply();
-#if UNITY_EDITOR
-        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
-        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
-#endif
+    const uint DefaultBit = 1u << 0;
+
+    const uint ControlledBits =
+        DefaultBit |
+        (uint)StylisedEffect.Toon |
+        (uint)StylisedEffect.Outline |
+        (uint)StylisedEffect.Dithering;
+
+    void OnEnable() 
+    { 
+        Ensure(); 
+        Apply(); 
+        Hook(); 
+    }
+    void OnDisable() 
+    { 
+        Unhook(); 
+    }
+    void OnValidate() 
+    { 
+        Ensure(); 
+        Apply(); 
+    }
+    void OnTransformChildrenChanged() 
+    { 
+        Ensure(true); 
+        Apply(); 
     }
 
-    void OnDisable()
+    void Ensure(bool force = false)
     {
-#if UNITY_EDITOR
-        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
-#endif
-    }
-
-    void OnValidate()
-    {
-        Ensure();
-        Apply();
-    }
-
-    void OnTransformChildrenChanged()
-    {
-        Ensure(forceRefreshRenderers: true);
-        Apply();
-    }
-
-    void Ensure(bool forceRefreshRenderers = false)
-    {
-        if (_mpb == null) 
-            _mpb = new MaterialPropertyBlock();
-
-        if (forceRefreshRenderers || _renderers == null || _renderers.Length == 0)
+        if (force || _renderers == null || _renderers.Length == 0)
             _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
@@ -67,28 +61,43 @@ public class StylisedTag : MonoBehaviour
     {
         if (_renderers == null) return;
 
-        float mask = (uint)effects;
+        uint desired = DefaultBit | ((uint)effects);
+
+        // prevent 'everything' option from including non-stylisation bits
+        desired &= ControlledBits;
 
         foreach (var r in _renderers)
         {
-            if (!r) 
-                continue;
+            if (!r) continue;
 
-            r.GetPropertyBlock(_mpb);
-            _mpb.SetFloat(StylisedMaskID, mask);
-            r.SetPropertyBlock(_mpb);
+            // preserves unrelated layers
+            uint keep = r.renderingLayerMask & ~ControlledBits;
+            uint next = keep | desired;
+
+            if (r.renderingLayerMask != next)
+                r.renderingLayerMask = next;
         }
     }
 
 #if UNITY_EDITOR
+    void Hook()
+    {
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+    }
+
+    void Unhook()
+    {
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+    }
+
     static void OnPlayModeStateChanged(PlayModeStateChange s)
     {
-        // re-apply MPBs upon leaving play mode as they get reset
         if (s == PlayModeStateChange.EnteredEditMode)
         {
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
             {
-                tag.Ensure(forceRefreshRenderers: true);
+                tag.Ensure(true);
                 tag.Apply();
             }
         }
