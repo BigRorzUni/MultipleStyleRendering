@@ -15,7 +15,7 @@ public class StylisedTag : MonoBehaviour
         None              = 0,
         Toon              = 1u << 1, 
         Outline           = 1u << 2, 
-        Hatching          = 1u << 3, 
+        Dithering          = 1u << 3, 
     }
 
     public StylisedEffect effects = StylisedEffect.None;
@@ -28,7 +28,7 @@ public class StylisedTag : MonoBehaviour
         DefaultBit |
         (uint)StylisedEffect.Toon |
         (uint)StylisedEffect.Outline |
-        (uint)StylisedEffect.Hatching;
+        (uint)StylisedEffect.Dithering;
 
     void OnEnable() 
     { 

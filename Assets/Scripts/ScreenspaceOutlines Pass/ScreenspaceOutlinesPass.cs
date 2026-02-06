@@ -11,8 +11,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
     public Color outlineColour;
     
-    static readonly int OutlineColourID  = Shader.PropertyToID("_OutlineColour");
-    static readonly int EdgesTexID  = Shader.PropertyToID("_NprEdgesTexture");
+    static readonly int OutlineColourID = Shader.PropertyToID("_OutlineColour");
+    static readonly int EdgesTexID = Shader.PropertyToID("_NprEdgesTexture");
 
     public void ApplySettings(NprSettings settings)
     {

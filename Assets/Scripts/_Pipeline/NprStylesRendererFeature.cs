@@ -39,6 +39,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // STYLES: screen passes
     List<ScriptableRenderPass> _screenPasses = new();
     private ScreenspaceOutlinesPass _ssOutlinesPass;
+    private DitheringPass _ditheringPass;
  
     // settings
     public NprSettings settings = new();
@@ -99,6 +100,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
 
+        Shader ditheringShader = Shader.Find("Custom/Dithering");
+        if (ssOutlinesShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Dithering'");
+            return;
+        }
+        _ditheringPass = new DitheringPass(ditheringShader);
+
         // add object passes in their execution order
         _objectPasses.Clear();
         _objectPasses.Add(_toonPass);
@@ -107,6 +116,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // add screenpasses in their execution order
         _screenPasses.Clear();
         _screenPasses.Add(_ssOutlinesPass);
+        _screenPasses.Add(_ditheringPass);
+        
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,
