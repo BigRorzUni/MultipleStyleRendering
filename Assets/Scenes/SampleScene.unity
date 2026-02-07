@@ -972,7 +972,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 4
+  effects: 8
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1016,7 +1016,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 5
+  m_RenderingLayerMask: 9
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: fc0c12a24d4514e42aff22dbcf17c684, type: 2}

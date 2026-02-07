@@ -60,6 +60,14 @@ Shader "Custom/Dithering"
                 return (uint)round(saturate(m) * 255.0);
             }
 
+            static const uint Bayer4x4[16] =
+            {
+                0, 8, 2, 10,
+                12, 4, 14, 6,
+                3, 11, 1, 9,
+                15, 7, 13, 5
+            };
+
             float4 Frag (Varyings i) : SV_Target
             {
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
@@ -74,7 +82,21 @@ Shader "Custom/Dithering"
                 // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
                 float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
 
-                return float4(greyscale, greyscale, greyscale, col.a);
+
+                uint2 pixelXY = (uint2)(i.uv * _ScreenParams.xy);
+
+                // flatten pixelXY
+                pixelXY = pixelXY % 4;
+                uint idx = pixelXY.y * 4 + pixelXY.x;
+
+                // get 
+                float threshold = (Bayer4x4[idx] + 0.5) / 16.0;
+
+                float outV = step(threshold, greyscale);
+
+                return float4(outV, outV, outV, col.a);
+
+                //return float4(greyscale, greyscale, greyscale, col.a);
             }
             ENDHLSL
         }
