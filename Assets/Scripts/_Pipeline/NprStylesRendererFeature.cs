@@ -156,6 +156,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 renderer.EnqueuePass(pass);
         }
 
+        // get source texture pass
+
+
         // screen passes
         foreach (var pass in _screenPasses)
         {

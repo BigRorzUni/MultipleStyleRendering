@@ -54,24 +54,64 @@ Shader "Custom/Pixelisation"
                 return o;
             }
 
-            uint ReadMask8(float2 uv)
+            uint ReadMask(float2 uv)
             {
                 float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
                 return (uint)round(saturate(m) * 255.0);
+            }
+
+            float2 BlockOrigin(float2 uv, float blockSize)
+            {
+                float2 res = _ScreenParams.xy;
+                float2 pixel = uv * res;
+
+                float2 blockIndex = floor(pixel / blockSize);
+                float2 blockOrigin = blockIndex * blockSize;
+
+                // return uv coords
+                return blockOrigin / res;
             }
 
             float4 Frag (Varyings i) : SV_Target
             {
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
 
-                // if pixels aren't tagged for pixelisation then leave them unchanged
                 const uint PIXELISATION_BIT = 1u << 4;
-                uint mask = ReadMask8(i.uv);
-                if ((mask & PIXELISATION_BIT) == 0u)
-                    return col;
 
+                float blockSize = 6.0;
 
-                return float4(1, 1, 1, col.a);
+                // get centre and size of block for this fragment
+                float2 blockOriginUV = BlockOrigin(i.uv, blockSize);
+                float2 blockSizeUV = float2(blockSize, blockSize) / _ScreenParams.xy;
+
+                // TODO: look into bilinear downsampling but for now this is ok
+                // https://bartwronski.com/2021/02/15/bilinear-down-upsampling-pixel-grids-and-that-half-pixel-offset/
+                float2 points[5];
+                points[0] = blockOriginUV + blockSizeUV * 0.5; // centre
+                points[1] = blockOriginUV; // bottom left
+                points[2] = blockOriginUV + float2(blockSizeUV.x, 0); // bottom right
+                points[3] = blockOriginUV + float2(0, blockSizeUV.y); // top left
+                points[4] = blockOriginUV + blockSizeUV; // top right
+
+                // if points of the pixel are in the mask then average their colours for pixcolour
+                float4 sumCol = 0;
+                int count = 0;
+                [unroll] for (int i = 0; i < 5; i++)
+                {
+                    uint m = ReadMask(points[i]);
+                    if((m & PIXELISATION_BIT) != 0u)
+                    {
+                        sumCol += SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, points[i]);
+                        count++;
+                    }
+                }
+
+                // if pixel overlaps mask then return the pixelated colour
+                if(count > 0)
+                    return sumCol / count;
+
+                // else return the unpixelated colour
+                return col;
             }
             ENDHLSL
         }
