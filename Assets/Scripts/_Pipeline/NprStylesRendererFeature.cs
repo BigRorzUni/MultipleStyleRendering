@@ -40,6 +40,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     List<ScriptableRenderPass> _screenPasses = new();
     private ScreenspaceOutlinesPass _ssOutlinesPass;
     private DitheringPass _ditheringPass;
+    private PixelisationPass _pixelisationPass;
  
     // settings
     public NprSettings settings = new();
@@ -101,12 +102,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
 
         Shader ditheringShader = Shader.Find("Custom/Dithering");
-        if (ssOutlinesShader == null)
+        if (ditheringShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Dithering'");
             return;
         }
         _ditheringPass = new DitheringPass(ditheringShader);
+
+        Shader pixelisationhader = Shader.Find("Custom/Pixelisation");
+        if (pixelisationhader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Pixelisation'");
+            return;
+        }
+        _pixelisationPass = new PixelisationPass(pixelisationhader);
 
         // add object passes in their execution order
         _objectPasses.Clear();
@@ -117,6 +126,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _screenPasses.Clear();
         _screenPasses.Add(_ssOutlinesPass);
         _screenPasses.Add(_ditheringPass);
+        _screenPasses.Add(_pixelisationPass);
         
     }
 
@@ -145,6 +155,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             if(settings.debugView == NprDebugView.None)
                 renderer.EnqueuePass(pass);
         }
+
+        // get source texture pass
+
 
         // screen passes
         foreach (var pass in _screenPasses)

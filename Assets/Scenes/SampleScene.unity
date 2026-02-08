@@ -877,7 +877,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 3
+  m_RenderingLayerMask: 17
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 123076cbbb0604355a2ab1941031a033, type: 2}
@@ -939,7 +939,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 2
+  effects: 16
 --- !u!1 &1512478178
 GameObject:
   m_ObjectHideFlags: 0

@@ -12,10 +12,11 @@ public class StylisedTag : MonoBehaviour
     [Flags]
     public enum StylisedEffect : uint
     {
-        None              = 0,
-        Toon              = 1u << 1, 
-        Outline           = 1u << 2, 
-        Dithering          = 1u << 3, 
+        None = 0,
+        Toon = 1u << 1, 
+        Outline = 1u << 2, 
+        Dithering = 1u << 3, 
+        Pixelisation = 1u << 4
     }
 
     public StylisedEffect effects = StylisedEffect.None;
@@ -28,7 +29,8 @@ public class StylisedTag : MonoBehaviour
         DefaultBit |
         (uint)StylisedEffect.Toon |
         (uint)StylisedEffect.Outline |
-        (uint)StylisedEffect.Dithering;
+        (uint)StylisedEffect.Dithering |
+        (uint)StylisedEffect.Pixelisation;
 
     void OnEnable() 
     { 
