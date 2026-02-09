@@ -31,7 +31,7 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
-        renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)

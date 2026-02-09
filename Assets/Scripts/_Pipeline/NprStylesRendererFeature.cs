@@ -28,7 +28,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // prepasses
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
-    private EdgesPrepass _edgesPrepass;
+    // private EdgesPrepass _edgesPrepass;
+    private SourcePrepass _sourcePrepass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -65,13 +66,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
 
-        Shader edgesShader = Shader.Find("Custom/Edges");
-        if (edgesShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Edges'");
-            return;
-        }
-        _edgesPrepass = new EdgesPrepass(edgesShader);
+        // Shader edgesShader = Shader.Find("Custom/Edges");
+        // if (edgesShader == null)
+        // {
+        //     Debug.LogError("Could not find shader 'Custom/Edges'");
+        //     return;
+        // }
+        // _edgesPrepass = new EdgesPrepass(edgesShader);
 
         // object passes
         Shader toonShader = Shader.Find("Custom/Toon");
@@ -108,13 +109,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _ditheringPass = new DitheringPass(ditheringShader);
 
-        Shader pixelisationhader = Shader.Find("Custom/Pixelisation");
-        if (pixelisationhader == null)
+        Shader pixelisationShader = Shader.Find("Custom/Pixelisation");
+        if (pixelisationShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Pixelisation'");
             return;
         }
-        _pixelisationPass = new PixelisationPass(pixelisationhader);
+        _pixelisationPass = new PixelisationPass(pixelisationShader);
 
         // add object passes in their execution order
         _objectPasses.Clear();
@@ -123,9 +124,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         // add screenpasses in their execution order
         _screenPasses.Clear();
-        _screenPasses.Add(_ssOutlinesPass);
-        _screenPasses.Add(_ditheringPass);
         _screenPasses.Add(_pixelisationPass);
+        _screenPasses.Add(_ditheringPass);
+        _screenPasses.Add(_ssOutlinesPass);
         
     }
 
@@ -142,9 +143,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
-        //TODO: check if edges are needed
-        _edgesPrepass.ApplySettings(settings);
-        renderer.EnqueuePass(_edgesPrepass);
+        // _edgesPrepass.ApplySettings(settings);
+        // renderer.EnqueuePass(_edgesPrepass);
 
         // object passes
         foreach (var pass in _objectPasses)
@@ -155,8 +155,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 renderer.EnqueuePass(pass);
         }
 
-        // get source texture pass
-
+        // get source texture pass ?
+        
 
         // screen passes
         foreach (var pass in _screenPasses)

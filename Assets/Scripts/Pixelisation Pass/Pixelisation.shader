@@ -2,7 +2,7 @@ Shader "Custom/Pixelisation"
 {
     Properties
     {
-
+        _SourceTex("Source", 2D) = "white" {}
     }
 
     SubShader
@@ -16,9 +16,6 @@ Shader "Custom/Pixelisation"
             Cull Off
             Blend Off
 
-            Blend SrcAlpha OneMinusSrcAlpha
-            ColorMask RGB
-
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
@@ -28,11 +25,7 @@ Shader "Custom/Pixelisation"
             TEXTURE2D(_NprIdTexture);
             TEXTURE2D(_NprDepthTexture);
             TEXTURE2D(_SourceTex);
-<<<<<<< Updated upstream
-            SAMPLER(sampler_SourceTex);
-=======
             float4 _SourceTex_TexelSize;
->>>>>>> Stashed changes
 
 
             CBUFFER_START(UnityPerMaterial)
@@ -73,7 +66,7 @@ Shader "Custom/Pixelisation"
 
             float2 BlockOrigin(float2 uv, float blockSize)
             {
-                float2 res = _ScreenParams.xy;
+                float2 res = _SourceTex_TexelSize.zw;
                 float2 pixel = uv * res;
 
                 float2 blockIndex = floor(pixel / blockSize);
@@ -89,18 +82,19 @@ Shader "Custom/Pixelisation"
 
                 const uint PIXELISATION_BIT = 1u << 4;
 
-                float blockSize = 6.0;
+                float2 texel = _SourceTex_TexelSize.xy;   
+                float2 res = _SourceTex_TexelSize.zw;
+
+
+                // look more into this
+                // https://bartwronski.com/2021/02/15/bilinear-down-upsampling-pixel-grids-and-that-half-pixel-offset/
+                //float blocksFrac = 0.01; // what fraction of the screen (width) the blocks take up
+                float blockSize = 6;  // square size in pixels
 
                 // get centre and size of block for this fragment
                 float2 blockOriginUV = BlockOrigin(i.uv, blockSize);
-<<<<<<< Updated upstream
-                float2 blockSizeUV = float2(blockSize, blockSize) / _ScreenParams.xy;
-=======
                 float2 blockSizeUV = float2(blockSize, blockSize) * texel;
->>>>>>> Stashed changes
 
-                // TODO: look into bilinear downsampling but for now this is ok
-                // https://bartwronski.com/2021/02/15/bilinear-down-upsampling-pixel-grids-and-that-half-pixel-offset/
                 float2 points[5];
                 points[0] = blockOriginUV + blockSizeUV * 0.5; // centre
                 points[1] = blockOriginUV; // bottom left
