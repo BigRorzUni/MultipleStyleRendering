@@ -25,7 +25,6 @@ public interface INprPass
 
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
-
     // prepasses
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
