@@ -26,6 +26,7 @@ Shader "Custom/ScreenspaceOutlines"
             TEXTURE2D(_NprNormalsTexture);
             TEXTURE2D(_NprIdTexture);
             TEXTURE2D(_NprSourceTexture);
+            float4 _NprSourceTexture_TexelSize;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _OutlineColour;
@@ -85,7 +86,7 @@ Shader "Custom/ScreenspaceOutlines"
                 if ((mask & SS_OUTLINE_BIT) == 0u)
                     return col;
 
-                float2 texel  = 1.0 / _ScreenParams.xy;
+                float2 texel = _NprSourceTexture_TexelSize.xy;
                 float2 stepUV = texel * max(1.0, _ThicknessPx);
 
                 // skip borders
