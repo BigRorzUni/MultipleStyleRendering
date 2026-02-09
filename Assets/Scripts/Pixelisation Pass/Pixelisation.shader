@@ -14,6 +14,7 @@ Shader "Custom/Pixelisation"
             ZTest Always
             ZWrite Off
             Cull Off
+            Blend Off
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -22,10 +23,8 @@ Shader "Custom/Pixelisation"
 
 
             TEXTURE2D(_NprIdTexture);
-            SAMPLER(sampler_NprIdTexture);
-
+            TEXTURE2D(_NprDepthTexture);
             TEXTURE2D(_SourceTex);
-            SAMPLER(sampler_SourceTex);
             float4 _SourceTex_TexelSize;
 
 
@@ -54,8 +53,15 @@ Shader "Custom/Pixelisation"
 
             uint ReadMask(float2 uv)
             {
-                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
+                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv).r;
                 return (uint)round(saturate(m) * 255.0);
+            }
+
+            // get linear depth from raw depth to perform operations on
+            float getDepth(float2 uv)
+            {
+                float raw = SAMPLE_TEXTURE2D(_NprDepthTexture, sampler_PointClamp, uv).r;
+                return Linear01Depth(raw, _ZBufferParams);
             }
 
             float2 BlockOrigin(float2 uv, float blockSize)
@@ -72,13 +78,13 @@ Shader "Custom/Pixelisation"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
+                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_PointClamp, i.uv);
 
                 const uint PIXELISATION_BIT = 1u << 4;
 
-                // float2 texel = _SourceTex_TexelSize.xy;
-                float2 res = _SourceTex_TexelSize.zw;
                 float2 texel = _SourceTex_TexelSize.xy;   
+                float2 res = _SourceTex_TexelSize.zw;
+
 
                 // look more into this
                 // https://bartwronski.com/2021/02/15/bilinear-down-upsampling-pixel-grids-and-that-half-pixel-offset/
@@ -87,7 +93,7 @@ Shader "Custom/Pixelisation"
 
                 // get centre and size of block for this fragment
                 float2 blockOriginUV = BlockOrigin(i.uv, blockSize);
-                float2 blockSizeUV = float2(blockSize, blockSize) / res;
+                float2 blockSizeUV = float2(blockSize, blockSize) * texel;
 
                 float2 points[5];
                 points[0] = blockOriginUV + blockSizeUV * 0.5; // centre
@@ -99,22 +105,34 @@ Shader "Custom/Pixelisation"
                 // if points of the pixel are in the mask then average their colours for pixcolour
                 float4 sumCol = 0;
                 int count = 0;
-                [unroll] for (int i = 0; i < 5; i++)
+                float zTaggedMin = 1.0;
+
+                [unroll] for (int j = 0; j < 5; j++)
                 {
-                    uint m = ReadMask(points[i]);
+                    uint m = ReadMask(points[j]);
                     if((m & PIXELISATION_BIT) != 0u)
                     {
-                        sumCol += SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, points[i]);
+                        sumCol += SAMPLE_TEXTURE2D(_SourceTex, sampler_PointClamp, points[j]);
                         count++;
+
+                        float zPoint = getDepth(points[j]);
+                        zTaggedMin = min(zTaggedMin, zPoint);
                     }
                 }
 
-                // if pixel overlaps mask then return the pixelated colour
-                if(count > 0)
-                    return sumCol / count;
+                // if no point in block overlaps mask then skip pixel
+                if(count == 0)
+                    return col;
 
-                // else return the unpixelated colour
-                return col;
+                // get current frag depth
+                float zI = getDepth(i.uv);
+
+                // if current frag is in front of the pixelised object then do not pixelise over it
+                if (zI < zTaggedMin)
+                    return col;
+
+                // otherwise apply the average colour of the block
+                return sumCol / count;
             }
             ENDHLSL
         }

@@ -11,7 +11,7 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
 
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
-
+    static readonly int DepthTexId = Shader.PropertyToID("_NprDepthTexture");
 
     // public void ApplySettings(NprSettings settings)
     // {
@@ -22,6 +22,7 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
     {
         public TextureHandle src;
         public TextureHandle ids;
+        public TextureHandle depth;
         public Material mat;
     }
 
@@ -47,6 +48,8 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
                 nprFrameData = frameContext.Create<NprFrameData>();
 
         if (!nprFrameData.idTexture.IsValid())
+            return;
+        if (!frameData.activeDepthTexture.IsValid()) 
             return;
 
         // copy frame into a texture
@@ -83,18 +86,21 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
             // write to screen colour
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
-            // read from id and screen textures
+            // read from id, depth and screen textures
             builder.UseTexture(srcCopy, AccessFlags.Read);
             builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
+            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
 
             passData.src = srcCopy;
             passData.ids = nprFrameData.idTexture;
+            passData.depth = frameData.activeDepthTexture;
             passData.mat = _mat;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(SourceTexID, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
+                data.mat.SetTexture(DepthTexId, data.depth);
 
                 CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
             });
