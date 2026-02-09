@@ -85,7 +85,7 @@ public class EdgesPrepass : ScriptableRenderPass, INprPass
             clearColor = Color.black,
             filterMode = FilterMode.Point
         });
-        nprFrameData.edgesTexture = edgesTex;
+        // nprFrameData.edgesTexture = edgesTex;
 
         _edgeMat.SetFloat(_ThicknessId, outlineThickness);
 

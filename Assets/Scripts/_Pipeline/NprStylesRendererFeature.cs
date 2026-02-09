@@ -30,6 +30,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
     // private EdgesPrepass _edgesPrepass;
+    private SourcePrepass _sourcePrepass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -156,13 +157,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
 
         // get source texture pass ?
-
+        
 
         // screen passes
         foreach (var pass in _screenPasses)
         {
-            // maybe run source texture pass before each of these?
-            
             if (pass is INprPass nprPass)
                 nprPass.ApplySettings(settings);
             if(settings.debugView == NprDebugView.None)
