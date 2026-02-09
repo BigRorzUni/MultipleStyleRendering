@@ -2,7 +2,7 @@ Shader "Custom/Dithering"
 {
     Properties
     {
-
+        _SourceTex("Source", 2D) = "white" {}
     }
 
     SubShader
@@ -15,9 +15,6 @@ Shader "Custom/Dithering"
             ZWrite Off
             Cull Off
 
-            Blend SrcAlpha OneMinusSrcAlpha
-            ColorMask RGB
-
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
@@ -29,6 +26,7 @@ Shader "Custom/Dithering"
 
             TEXTURE2D(_SourceTex);
             SAMPLER(sampler_SourceTex);
+            float4 _SourceTex_TexelSize;
 
 
             CBUFFER_START(UnityPerMaterial)
@@ -82,8 +80,7 @@ Shader "Custom/Dithering"
                 // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
                 float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
 
-
-                uint2 pixelXY = (uint2)(i.uv * _ScreenParams.xy);
+                uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
                 // flatten pixelXY
                 pixelXY = pixelXY % 4;

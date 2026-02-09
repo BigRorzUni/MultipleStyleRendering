@@ -124,9 +124,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         // add screenpasses in their execution order
         _screenPasses.Clear();
-        _screenPasses.Add(_ssOutlinesPass);
-        _screenPasses.Add(_ditheringPass);
         _screenPasses.Add(_pixelisationPass);
+        _screenPasses.Add(_ditheringPass);
+        _screenPasses.Add(_ssOutlinesPass);
         
     }
 
