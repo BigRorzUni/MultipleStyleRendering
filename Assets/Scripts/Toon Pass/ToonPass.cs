@@ -9,7 +9,6 @@ using UnityEngine.Rendering.Universal;
 public class ToonPass : ScriptableRenderPass, INprPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
-    readonly FilteringSettings _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
     readonly Shader _toonShader;
 
     public void ApplySettings(NprSettings settings)

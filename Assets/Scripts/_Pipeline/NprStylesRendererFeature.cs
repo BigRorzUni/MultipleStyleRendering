@@ -41,6 +41,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private ScreenspaceOutlinesPass _ssOutlinesPass;
     private DitheringPass _ditheringPass;
     private PixelisationPass _pixelisationPass;
+
+    // shaders
+    [SerializeField] private Shader idShader;
+    [SerializeField] private Shader normalsShader;
+    [SerializeField] private Shader toonShader;
+    [SerializeField] private Shader ssOutlinesShader;
+    [SerializeField] private Shader ditheringShader;
+    [SerializeField] private Shader pixelisationShader;
  
     // settings
     public NprSettings settings = new();
@@ -50,7 +58,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     {
         // find associated shaders and create passes
         // prepasses:
-        Shader idShader = Shader.Find("Custom/ID");
         if (idShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ID'");
@@ -58,7 +65,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
 
-        Shader normalsShader = Shader.Find("Custom/Normals");
         if (normalsShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Normals'");
@@ -75,7 +81,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // _edgesPrepass = new EdgesPrepass(edgesShader);
 
         // object passes
-        Shader toonShader = Shader.Find("Custom/Toon");
         if (toonShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Toon'");
@@ -93,7 +98,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // _outlinePass = new SimpleOutlinePass(outlineshader);
 
         // screen passes
-        Shader ssOutlinesShader = Shader.Find("Custom/ScreenspaceOutlines");
         if (ssOutlinesShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
@@ -101,7 +105,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
 
-        Shader ditheringShader = Shader.Find("Custom/Dithering");
         if (ditheringShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Dithering'");
@@ -109,7 +112,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _ditheringPass = new DitheringPass(ditheringShader);
 
-        Shader pixelisationShader = Shader.Find("Custom/Pixelisation");
         if (pixelisationShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Pixelisation'");
