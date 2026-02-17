@@ -165,8 +165,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TestRunner
   testScenes:
   - TestScene1
+  - TestScene2
+  - TestScene3
+  - TestScene4
+  startupFrames: 100
   framesToCapture: 500
-  profilingLabels: []
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
