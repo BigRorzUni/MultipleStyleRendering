@@ -13,11 +13,6 @@ public class PixelisationPass : ScriptableRenderPass//, INprPass
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
     static readonly int DepthTexId = Shader.PropertyToID("_NprDepthTexture");
 
-    // public void ApplySettings(NprSettings settings)
-    // {
-
-    // }
-
     class PassData
     {
         public TextureHandle src;

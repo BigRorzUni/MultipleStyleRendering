@@ -55,6 +55,12 @@ MonoBehaviour:
   m_Name: MultiStyleRendererFeature
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
+  idShader: {fileID: 4800000, guid: 2a86b63b867924207b8993bd13664d22, type: 3}
+  normalsShader: {fileID: 4800000, guid: 7531a20cc0aaf43fd9dc742d5f1cad1b, type: 3}
+  toonShader: {fileID: 4800000, guid: 528aa40c3cc914cd2a1663ef11aab3a4, type: 3}
+  ssOutlinesShader: {fileID: 4800000, guid: fc32685630a9b421dbddd0213a3fc17e, type: 3}
+  ditheringShader: {fileID: 4800000, guid: 36849cc1d9e8a4040860295c35a4bdd7, type: 3}
+  pixelisationShader: {fileID: 4800000, guid: 100b8d584aa3e4c258079976e38e1a86, type: 3}
   settings:
     outlineColour: {r: 0.8867924, g: 0.0292809, b: 0.0292809, a: 1}
     outlineThickness: 2

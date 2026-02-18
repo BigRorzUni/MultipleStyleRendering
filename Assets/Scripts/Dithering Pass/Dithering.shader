@@ -58,16 +58,21 @@ Shader "Custom/Dithering"
                 return (uint)round(saturate(m) * 255.0);
             }
 
-            static const uint Bayer4x4[16] =
+            static const uint Bayer8x8[8*8] =
             {
-                0, 8, 2, 10,
-                12, 4, 14, 6,
-                3, 11, 1, 9,
-                15, 7, 13, 5
+                0, 32, 8, 40, 2, 43, 10, 42,
+                48, 16, 56, 24, 50, 18, 58, 26,
+                12, 44, 4, 36, 14, 46, 6, 38, 
+                60, 28, 52, 20, 62, 30, 54, 22,
+                3, 35, 11, 43, 1, 33, 9, 41,
+                51, 19, 59, 27, 49, 17, 57, 25,
+                15, 47, 7, 39, 13, 45, 5, 37,
+                63, 31, 55, 23, 61, 29, 53, 21 
             };
 
             float4 Frag (Varyings i) : SV_Target
             {
+                // TODO: dither across all colour channels
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
@@ -76,20 +81,21 @@ Shader "Custom/Dithering"
                 if ((mask & DITHERING_BIT) == 0u)
                     return col;
 
+                // TODO: move this to another shader
                 // convert pixels to greyscale 
                 // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
-                float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
+                // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
 
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
                 // flatten pixelXY
-                pixelXY = pixelXY % 4;
-                uint idx = pixelXY.y * 4 + pixelXY.x;
+                pixelXY = pixelXY % 8;
+                uint idx = pixelXY.y * 8 + pixelXY.x;
 
                 // get 
-                float threshold = (Bayer4x4[idx] + 0.5) / 16.0;
+                float threshold = (Bayer8x8[idx] + 0.5) / 16.0;
 
-                float outV = step(threshold, greyscale);
+                float outV = step(threshold, col);
 
                 return float4(outV, outV, outV, col.a);
 

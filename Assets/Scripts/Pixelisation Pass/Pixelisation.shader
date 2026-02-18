@@ -81,6 +81,8 @@ Shader "Custom/Pixelisation"
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_PointClamp, i.uv);
 
                 const uint PIXELISATION_BIT = 1u << 4;
+                // if((ReadMask(i.uv) & PIXELISATION_BIT) == 0u)
+                //     return col;
 
                 float2 texel = _SourceTex_TexelSize.xy;   
                 float2 res = _SourceTex_TexelSize.zw;
@@ -120,11 +122,13 @@ Shader "Custom/Pixelisation"
                     }
                 }
 
-                // if no point in block overlaps mask then skip pixel
+                // This commented section is for an extended pixelated outline
+
+                //if no point in block overlaps mask then skip pixel
                 if(count == 0)
                     return col;
 
-                // get current frag depth
+                //get current frag depth
                 float zI = getDepth(i.uv);
 
                 // if current frag is in front of the pixelised object then do not pixelise over it

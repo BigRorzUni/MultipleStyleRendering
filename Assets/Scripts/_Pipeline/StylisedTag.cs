@@ -36,11 +36,15 @@ public class StylisedTag : MonoBehaviour
     { 
         Ensure(); 
         Apply(); 
+        #if UNITY_EDITOR
         Hook(); 
+        #endif
     }
     void OnDisable() 
     { 
+        #if UNITY_EDITOR
         Unhook(); 
+        #endif
     }
     void OnValidate() 
     { 
