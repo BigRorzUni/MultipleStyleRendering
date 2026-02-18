@@ -1,5 +1,15 @@
+using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
+using UnityEngine.Rendering.Universal;
+using UnityEngine;
+
+public class BoundingBox
+{
+    public int objectId;
+    public List<ScriptableRenderPass> passes;
+    public RectInt box;
+}
 
 public sealed class NprFrameData : ContextItem
 {
@@ -8,6 +18,7 @@ public sealed class NprFrameData : ContextItem
     //public TextureHandle edgesTexture;
     public TextureHandle sourceTexture;
     public TextureHandle currentColour;
+    public List<BoundingBox> bboxes;
 
     public override void Reset()
     {
@@ -16,5 +27,7 @@ public sealed class NprFrameData : ContextItem
         //edgesTexture = TextureHandle.nullHandle;
         sourceTexture = TextureHandle.nullHandle;
         currentColour = TextureHandle.nullHandle;
+        if(bboxes != null)
+            bboxes.Clear();
     }
 }

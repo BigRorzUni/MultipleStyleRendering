@@ -135,6 +135,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public override void AddRenderPasses(ScriptableRenderer renderer,
     ref RenderingData renderingData)
     {
+
+        // object passes
+        foreach (var pass in _objectPasses)
+        {
+            if (pass is INprPass nprPass)
+                nprPass.ApplySettings(settings);
+            if(settings.debugView == NprDebugView.None)
+                renderer.EnqueuePass(pass);
+        }
+        
         if (_idPrepass == null) return;
 
         // always produce id texture
@@ -147,17 +157,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         // _edgesPrepass.ApplySettings(settings);
         // renderer.EnqueuePass(_edgesPrepass);
-
-        // object passes
-        foreach (var pass in _objectPasses)
-        {
-            if (pass is INprPass nprPass)
-                nprPass.ApplySettings(settings);
-            if(settings.debugView == NprDebugView.None)
-                renderer.EnqueuePass(pass);
-        }
-
-        // get source texture pass ?
         
 
         // screen passes
