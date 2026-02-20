@@ -31,7 +31,7 @@ public class bboxPrepass : ScriptableRenderPass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-        nprFrameData.bboxes = new List<BoundingBox>(); // maybe preallocate for performacne
+        nprFrameData.bboxes = new List<BoundingBox>(); // maybe preallocate for performance?
 
         // get all active tagged objects using the attached StylisedTag component
         StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
@@ -88,11 +88,19 @@ public class bboxPrepass : ScriptableRenderPass
 
                 RectInt screenBox = new RectInt((int)minX, (int)minY, (int)(maxX - minX), (int)(maxY - minY));
                 //Debug.Log($"Screen bounding box for {renderer.name}: {screenBox}");
-            }
 
+                BoundingBox bbox = new BoundingBox();
+                bbox.styles = (uint)tag.imageEffects;
+                bbox.box = screenBox;
+
+                nprFrameData.bboxes.Add(bbox);
+            }
         }
         
-
-
+        Debug.Log("BBOX LIST:");
+        foreach (BoundingBox bb in nprFrameData.bboxes)
+        {
+            Debug.Log($"BBox: {bb.box}, styles: {bb.styles}");
+        }
     }
 }
