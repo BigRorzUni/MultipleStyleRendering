@@ -9,52 +9,50 @@ using UnityEditor;
 [ExecuteAlways]
 public class StylisedTag : MonoBehaviour
 {
-    [Flags]
-    public enum StylisedEffect : uint
-    {
-        None = 0,
-        Toon = 1u << 1, 
-        Outline = 1u << 2, 
-        Dithering = 1u << 3, 
-        Pixelisation = 1u << 4
-    }
 
-    public StylisedEffect effects = StylisedEffect.None;
+
+    [Header("Object Space")]
+    public StyleBits.ObjectSpaceEffect objectEffects = StyleBits.ObjectSpaceEffect.None;
+
+    [Header("Image Space")]
+    public StyleBits.ImageSpaceEffect imageEffects = StyleBits.ImageSpaceEffect.None;
 
     Renderer[] _renderers;
 
-    const uint DefaultBit = 1u << 0;
+    // make sure that no other render layers are interacted with
+    const uint ObjectControlledBits =
+        StyleBits.DefaultBit |
+        (uint)StyleBits.ObjectSpaceEffect.Toon;
 
-    const uint ControlledBits =
-        DefaultBit |
-        (uint)StylisedEffect.Toon |
-        (uint)StylisedEffect.Outline |
-        (uint)StylisedEffect.Dithering |
-        (uint)StylisedEffect.Pixelisation;
+    static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
 
-    void OnEnable() 
-    { 
-        Ensure(); 
-        Apply(); 
-        #if UNITY_EDITOR
-        Hook(); 
-        #endif
+
+    void OnEnable()
+    {
+        Ensure();
+        Apply();
+#if UNITY_EDITOR
+        Hook();
+#endif
     }
-    void OnDisable() 
-    { 
-        #if UNITY_EDITOR
-        Unhook(); 
-        #endif
+
+    void OnDisable()
+    {
+#if UNITY_EDITOR
+        Unhook();
+#endif
     }
-    void OnValidate() 
-    { 
-        Ensure(); 
-        Apply(); 
+
+    void OnValidate()
+    {
+        Ensure(true);
+        Apply();
     }
-    void OnTransformChildrenChanged() 
-    { 
-        Ensure(true); 
-        Apply(); 
+
+    void OnTransformChildrenChanged()
+    {
+        Ensure(true);
+        Apply();
     }
 
     void Ensure(bool force = false)
@@ -65,24 +63,69 @@ public class StylisedTag : MonoBehaviour
 
     void Apply()
     {
+        ApplyObjectSpace();
+        ApplyImageSpace();
+    }
+
+    // object space effects - render layers
+    void ApplyObjectSpace()
+    {
         if (_renderers == null) return;
 
-        uint desired = DefaultBit | ((uint)effects);
-
-        // prevent 'everything' option from including non-stylisation bits
-        desired &= ControlledBits;
+        uint desired = StyleBits.DefaultBit | (uint)objectEffects;
+        desired &= ObjectControlledBits;
 
         foreach (var r in _renderers)
         {
             if (!r) continue;
 
-            // preserves unrelated layers
-            uint keep = r.renderingLayerMask & ~ControlledBits;
+            uint keep = r.renderingLayerMask & ~ObjectControlledBits;
             uint next = keep | desired;
 
             if (r.renderingLayerMask != next)
                 r.renderingLayerMask = next;
         }
+    }
+
+    // image space effects - mpbs
+    void ApplyImageSpace()
+    {
+        if (_renderers == null) return;
+
+        foreach (var r in _renderers)
+        {
+            if (!r) continue;
+
+            uint mask = r.renderingLayerMask;
+
+            if (imageEffects != StyleBits.ImageSpaceEffect.None)
+                mask |= StyleBits.ImageSpaceBit;
+            else
+                mask &= ~StyleBits.ImageSpaceBit;
+
+            r.renderingLayerMask = mask;
+
+            var mpb = new MaterialPropertyBlock();
+            r.GetPropertyBlock(mpb);
+
+            if (imageEffects != StyleBits.ImageSpaceEffect.None)
+            {
+                mpb.SetInt(ImageStyleId, (int)imageEffects);
+            }
+            else
+            {
+                mpb.SetInt(ImageStyleId, 0);
+            }
+
+            r.SetPropertyBlock(mpb);
+        }
+    }
+
+    static void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform t in obj.transform)
+            SetLayerRecursive(t.gameObject, layer);
     }
 
 #if UNITY_EDITOR

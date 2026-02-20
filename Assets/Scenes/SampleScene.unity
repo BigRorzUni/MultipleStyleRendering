@@ -673,7 +673,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 7
+  m_RenderingLayerMask: 3
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: fb8f3281ab27f47eaad7cfb12b2f5016, type: 2}
@@ -735,7 +735,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 6
+  objectEffects: 4294967295
+  imageEffects: 0
 --- !u!1 &1114048485
 GameObject:
   m_ObjectHideFlags: 0
@@ -862,7 +863,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 0
+  objectEffects: 0
+  imageEffects: 0
 --- !u!1 &1198851680
 GameObject:
   m_ObjectHideFlags: 0
@@ -928,7 +930,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 21
+  m_RenderingLayerMask: 257
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 123076cbbb0604355a2ab1941031a033, type: 2}
@@ -990,7 +992,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 20
+  objectEffects: 0
+  imageEffects: 1
 --- !u!1 &1512478178
 GameObject:
   m_ObjectHideFlags: 0
@@ -1023,7 +1026,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  effects: 8
+  objectEffects: 0
+  imageEffects: 2
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1067,7 +1071,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 9
+  m_RenderingLayerMask: 257
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: fc0c12a24d4514e42aff22dbcf17c684, type: 2}

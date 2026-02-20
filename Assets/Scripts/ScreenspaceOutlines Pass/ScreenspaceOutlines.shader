@@ -81,7 +81,7 @@ Shader "Custom/ScreenspaceOutlines"
             {
                 float4 col = SAMPLE_TEXTURE2D(_NprSourceTexture, sampler_PointClamp, i.uv);
                 // discard if pixel is not tagged for outlining in id tex
-                const uint SS_OUTLINE_BIT = 1u << 2;
+                const uint SS_OUTLINE_BIT = 1u << 0;
                 uint mask = ReadMask8(i.uv);
                 if ((mask & SS_OUTLINE_BIT) == 0u)
                     return col;

@@ -55,7 +55,7 @@ Shader "Custom/Dithering"
             uint ReadMask8(float2 uv)
             {
                 float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0);
+                return (uint)round(saturate(m) * 255.0); // unnormalise texture
             }
 
             static const uint Bayer8x8[8*8] =
@@ -76,16 +76,17 @@ Shader "Custom/Dithering"
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
-                const uint DITHERING_BIT = 1u << 3;
+                const uint DITHERING_BIT = 1u << 1;
                 uint mask = ReadMask8(i.uv);
                 if ((mask & DITHERING_BIT) == 0u)
                     return col;
 
-                // TODO: move this to another shader
+                // TODO: move this to an object space shader
                 // convert pixels to greyscale 
                 // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
                 // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
 
+                // TODO: preserve colour channels
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
                 // flatten pixelXY

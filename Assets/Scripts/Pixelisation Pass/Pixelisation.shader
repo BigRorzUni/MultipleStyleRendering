@@ -80,9 +80,9 @@ Shader "Custom/Pixelisation"
             {
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_PointClamp, i.uv);
 
-                const uint PIXELISATION_BIT = 1u << 4;
-                // if((ReadMask(i.uv) & PIXELISATION_BIT) == 0u)
-                //     return col;
+                const uint PIXELISATION_BIT = 1u << 2;
+                if((ReadMask(i.uv) & PIXELISATION_BIT) == 0u)
+                     return col;
 
                 float2 texel = _SourceTex_TexelSize.xy;   
                 float2 res = _SourceTex_TexelSize.zw;
