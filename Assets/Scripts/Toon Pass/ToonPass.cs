@@ -9,6 +9,7 @@ using UnityEngine.Rendering.Universal;
 public class ToonPass : ScriptableRenderPass, INprPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
+    FilteringSettings _filteringSettings;
     readonly Shader _toonShader;
 
     public void ApplySettings(NprSettings settings)
@@ -25,6 +26,11 @@ public class ToonPass : ScriptableRenderPass, INprPass
     {
         _toonShader = toonShader;
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+
+        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque)
+        {
+            renderingLayerMask = (uint)StyleBits.ObjectSpaceEffect.Toon
+        };
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -42,14 +48,7 @@ public class ToonPass : ScriptableRenderPass, INprPass
         drawing.overrideShader = _toonShader;
         drawing.overrideShaderPassIndex = 0;
 
-        const uint TOON_BIT = 1u << 1;
-
-        FilteringSettings filtering = new FilteringSettings(RenderQueueRange.opaque)
-        {
-            renderingLayerMask = TOON_BIT
-        };
-
-        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, filtering);
+        RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
         RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
         using (var builder = renderGraph.AddRasterRenderPass("Toon", out PassData passData))

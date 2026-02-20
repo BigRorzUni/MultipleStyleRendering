@@ -29,7 +29,10 @@ public class IdPrepass : ScriptableRenderPass, INprPass
     {
         _idShader = idShader;
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
-        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask);
+        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask)
+        {
+            renderingLayerMask = StyleBits.ImageSpaceBit
+        };
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -78,7 +81,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         RendererListParams rlp = new RendererListParams(renderingData.cullResults, drawing, _filteringSettings);
         RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
-        // can't just blit for debugging as the unhashed values are all <10
+        // can't just blit for debugging as the unhashed values are all small and wont show up
         using (var builder = renderGraph.AddRasterRenderPass("ID Prepass", out PassData passData))
         {
             if (debugToScreen)
