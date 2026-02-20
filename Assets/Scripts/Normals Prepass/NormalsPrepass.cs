@@ -26,10 +26,10 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
         public TextureHandle normals; 
     }
 
-    public NormalsPrepass(Shader normalsShader, LayerMask layerMask)
+    public NormalsPrepass(Shader normalsShader)
     {
         _normalsShader = normalsShader;
-        _filtering = new FilteringSettings(RenderQueueRange.opaque, layerMask);
+        _filtering = new FilteringSettings(RenderQueueRange.opaque);
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 

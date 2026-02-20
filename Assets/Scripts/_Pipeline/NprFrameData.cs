@@ -1,13 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
-using UnityEngine.Rendering.Universal;
 using UnityEngine;
 
 public class BoundingBox
 {
-    public int objectId;
-    public List<ScriptableRenderPass> passes;
+    public uint styles;
     public RectInt box;
 }
 

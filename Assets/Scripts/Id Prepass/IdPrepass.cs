@@ -25,11 +25,11 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
     const string DebugKeyword = "_DEBUG_ID_COLOUR";
 
-    public IdPrepass(Shader idShader, LayerMask layerMask)
+    public IdPrepass(Shader idShader)
     {
         _idShader = idShader;
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
-        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque, layerMask)
+        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque)
         {
             renderingLayerMask = StyleBits.ImageSpaceBit
         };

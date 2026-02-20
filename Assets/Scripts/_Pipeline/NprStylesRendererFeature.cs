@@ -30,6 +30,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     // private EdgesPrepass _edgesPrepass;
     private SourcePrepass _sourcePrepass;
+    private bboxPrepass _bbboxPrepass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -63,14 +64,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/ID'");
             return;
         }
-        _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
+        _idPrepass = new IdPrepass(idShader);
 
         if (normalsShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Normals'");
             return;
         }
-        _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
+        _normalsPrepass = new NormalsPrepass(normalsShader);
+
+        _bbboxPrepass = new bboxPrepass();
 
         // Shader edgesShader = Shader.Find("Custom/Edges");
         // if (edgesShader == null)
@@ -151,12 +154,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
+        // need to compute bounding boxes after id texture is created
+        renderer.EnqueuePass(_bbboxPrepass);
+
         //TODO: check if normals are needed
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
         // _edgesPrepass.ApplySettings(settings);
         // renderer.EnqueuePass(_edgesPrepass);
+        
         
 
         // screen passes

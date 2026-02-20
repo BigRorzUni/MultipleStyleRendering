@@ -1027,7 +1027,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
-  imageEffects: 2
+  imageEffects: 1
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
