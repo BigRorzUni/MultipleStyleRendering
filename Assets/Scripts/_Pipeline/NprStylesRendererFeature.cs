@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -29,8 +30,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
     // private EdgesPrepass _edgesPrepass;
-    private SourcePrepass _sourcePrepass;
-    private bboxPrepass _bbboxPrepass;
+    // private SourcePrepass _sourcePrepass;
+    private bboxPrepass _bboxPrepass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -50,7 +51,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
- 
+    [SerializeField] private Shader bboxShader;
+
+    private Material bboxMaterial;
+  
     // settings
     public NprSettings settings = new();
  
@@ -73,7 +77,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader);
 
-        _bbboxPrepass = new bboxPrepass();
+        if(bboxShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/bbox'");
+            return;
+        }
+        bboxMaterial = CoreUtils.CreateEngineMaterial(bboxShader);
+        _bboxPrepass = new bboxPrepass(bboxMaterial);
 
         // Shader edgesShader = Shader.Find("Custom/Edges");
         // if (edgesShader == null)
@@ -155,7 +165,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         renderer.EnqueuePass(_idPrepass);
 
         // need to compute bounding boxes after id texture is created
-        renderer.EnqueuePass(_bbboxPrepass);
+        renderer.EnqueuePass(_bboxPrepass);
 
         //TODO: check if normals are needed
         _normalsPrepass.ApplySettings(settings);

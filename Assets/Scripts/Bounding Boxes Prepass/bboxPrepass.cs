@@ -3,16 +3,28 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using Unity.Mathematics;
+using UnityEngine.Experimental.Rendering;
 
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
 {
-    readonly FilteringSettings _filteringSettings;
+    // readonly FilteringSettings _filteringSettings;
+    static readonly int RectId = Shader.PropertyToID("_Rect");
+    static readonly int SrcTexelSizeId = Shader.PropertyToID("_SrcTexelSize");
+    Material _copyMat;
 
-
-    public bboxPrepass()
+    class PassData
     {
+        public TextureHandle src;
+        public TextureHandle dst;
+        public Material copyMat;
+        public RectInt rect;
+        public Vector2 srcTexelSize;
+    }
+
+    public bboxPrepass(Material copyMat)
+    {
+        _copyMat = copyMat;
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 
@@ -37,7 +49,6 @@ public class bboxPrepass : ScriptableRenderPass
         StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
         foreach (var tag in tags)
         {
-            
             GameObject obj = tag.gameObject;
             Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
 
@@ -89,18 +100,105 @@ public class bboxPrepass : ScriptableRenderPass
                 RectInt screenBox = new RectInt((int)minX, (int)minY, (int)(maxX - minX), (int)(maxY - minY));
                 //Debug.Log($"Screen bounding box for {renderer.name}: {screenBox}");
 
-                BoundingBox bbox = new BoundingBox();
-                bbox.styles = (uint)tag.imageEffects;
-                bbox.box = screenBox;
+                BoundingBox bbox = new BoundingBox((uint)tag.imageEffects, screenBox);
+
 
                 nprFrameData.bboxes.Add(bbox);
             }
         }
-        
+
         Debug.Log("BBOX LIST:");
         foreach (BoundingBox bb in nprFrameData.bboxes)
         {
             Debug.Log($"BBox: {bb.box}, styles: {bb.styles}");
         }
+
+        // ----- allocate the source textures in each bounding box ------
+
+        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+            return;
+
+        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
+        TextureHandle camColour = frameData.activeColorTexture;
+
+        // for each bounding box
+        foreach (var bbox in nprFrameData.bboxes)
+        {
+            if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                continue;
+
+            var desc = new TextureDesc(bbox.box.width, bbox.box.height)
+            {
+                name = $"BBoxSrc_{bbox.box.x}_{bbox.box.y}",
+                colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
+                clearBuffer = false,    
+                filterMode = FilterMode.Point
+            };
+
+            using (var builder = renderGraph.AddRasterRenderPass($"BBox Source Copy ({bbox.box})", out PassData passData))
+            {
+                builder.AllowPassCulling(false);
+
+                passData.src = frameData.activeColorTexture;
+                passData.dst = renderGraph.CreateTexture(desc);
+                passData.copyMat = _copyMat;
+                passData.rect = bbox.box;
+
+                var camDesc = cameraData.cameraTargetDescriptor;
+                passData.srcTexelSize = new Vector2(1.0f / camDesc.width, 1.0f / camDesc.height);
+
+                // store on bbox so later passes can use it
+                bbox.sourceTex = passData.dst;
+
+                builder.UseTexture(passData.src, AccessFlags.Read);
+                builder.SetRenderAttachment(passData.dst, 0, AccessFlags.Write);
+
+                builder.AllowGlobalStateModification(true);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                {
+                    data.copyMat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+                    data.copyMat.SetVector(SrcTexelSizeId, data.srcTexelSize);
+
+                    Blitter.BlitTexture(ctx.cmd, data.src, Vector4.one, data.copyMat, 0);
+                });
+            }
+        }   
+
+        // debug pass to see the bbox texture in frame debugger!!
+        // if (nprFrameData.bboxes != null && nprFrameData.bboxes.Count > 0)
+        // {
+        //     // Find the first bbox that actually has a valid source texture
+        //     TextureHandle firstSrc = TextureHandle.nullHandle;
+        //     for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+        //     {
+        //         if (nprFrameData.bboxes[i].sourceTex.IsValid())
+        //         {
+        //             firstSrc = nprFrameData.bboxes[i].sourceTex;
+        //             break;
+        //         }
+        //     }
+
+        //     if (firstSrc.IsValid())
+        //     {
+        //         using (var builder = renderGraph.AddRasterRenderPass("DEBUG: Show First BBox Texture", out PassData passData))
+        //         {
+        //             builder.AllowPassCulling(false);
+
+        //             passData.src = firstSrc;
+
+        //             // Declare dependency: read bbox texture, write camera colour
+        //             builder.UseTexture(passData.src, AccessFlags.Read);
+        //             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+        //             builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+        //             {
+        //                 // This will stretch the bbox RT to fullscreen (fine for debugging)
+        //                 Blitter.BlitTexture(ctx.cmd, data.src, Vector4.one, 0, false);
+        //             });
+        //         }
+        //     }
+        // }
+
     }
 }
