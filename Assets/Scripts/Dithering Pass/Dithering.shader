@@ -28,6 +28,9 @@ Shader "Custom/Dithering"
             SAMPLER(sampler_SourceTex);
             float4 _SourceTex_TexelSize;
 
+            float4 _Rect;  // xy origin, zw width height
+            float2 _ScreenTexelSize;
+
 
             CBUFFER_START(UnityPerMaterial)
 
@@ -73,11 +76,16 @@ Shader "Custom/Dithering"
             float4 Frag (Varyings i) : SV_Target
             {
                 // TODO: dither across all colour channels
+                // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
 
+                // convert bbox uvs to fullscreen uvs for id sampling
+                float2 screenPixel = _Rect.xy + i.uv * _Rect.zw;
+                float2 screenUV = screenPixel * _ScreenTexelSize;
+                uint mask = ReadMask8(screenUV);
+
                 // if pixels aren't tagged for dithering then leave them unchanged
-                const uint DITHERING_BIT = 1u << 1;
-                uint mask = ReadMask8(i.uv);
+                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
                     return col;
 
@@ -94,7 +102,7 @@ Shader "Custom/Dithering"
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
                 // get 
-                float threshold = (Bayer8x8[idx] + 0.5) / 16.0;
+                float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outV = step(threshold, col);
 

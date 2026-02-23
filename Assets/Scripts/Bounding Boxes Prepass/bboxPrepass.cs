@@ -25,7 +25,7 @@ public class bboxPrepass : ScriptableRenderPass
     public bboxPrepass(Material copyMat)
     {
         _copyMat = copyMat;
-        renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
+        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -127,7 +127,7 @@ public class bboxPrepass : ScriptableRenderPass
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
                 continue;
 
-            var desc = new TextureDesc(bbox.box.width, bbox.box.height)
+            bbox.desc = new TextureDesc(bbox.box.width, bbox.box.height)
             {
                 name = $"BBoxSrc_{bbox.box.x}_{bbox.box.y}",
                 colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
@@ -140,7 +140,7 @@ public class bboxPrepass : ScriptableRenderPass
                 builder.AllowPassCulling(false);
 
                 passData.src = frameData.activeColorTexture;
-                passData.dst = renderGraph.CreateTexture(desc);
+                passData.dst = renderGraph.CreateTexture(bbox.desc);
                 passData.copyMat = _copyMat;
                 passData.rect = bbox.box;
 
@@ -148,7 +148,7 @@ public class bboxPrepass : ScriptableRenderPass
                 passData.srcTexelSize = new Vector2(1.0f / camDesc.width, 1.0f / camDesc.height);
 
                 // store on bbox so later passes can use it
-                bbox.sourceTex = passData.dst;
+                bbox.currentTex = passData.dst;
 
                 builder.UseTexture(passData.src, AccessFlags.Read);
                 builder.SetRenderAttachment(passData.dst, 0, AccessFlags.Write);

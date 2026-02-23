@@ -35,21 +35,11 @@ Shader "Custom/Bbox"
                 float2 uv : TEXCOORD0; 
             };
 
-            Varyings Vert(Attributes v)
+            Varyings Vert (Attributes v)
             {
                 Varyings o;
-
-                // fullscreen triangle 
-                float2 uv[3] =
-                {
-                    float2(0.0, 0.0),
-                    float2(2.0, 0.0),
-                    float2(0.0, 2.0)
-                };
-
-                o.uv = uv[v.vertexID];
-                o.posCS = float4(o.uv * 2.0 - 1.0, 0.0, 1.0);
-
+                o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
+                o.uv = GetFullScreenTriangleTexCoord(v.vertexID);
                 return o;
             }
 

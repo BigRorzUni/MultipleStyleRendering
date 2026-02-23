@@ -7,14 +7,14 @@ public class BoundingBox
 {
     public StyleBits.ImageSpaceEffect styles;
     public RectInt box;
-    public TextureHandle sourceTex;
-    public TextureHandle outTex;
-
+    public TextureDesc desc;
+    public TextureHandle currentTex;
 
     public BoundingBox(uint s, RectInt b)
     {
         styles = (StyleBits.ImageSpaceEffect)s;
         box = b;
+        currentTex = TextureHandle.nullHandle;
     }
 }
 
