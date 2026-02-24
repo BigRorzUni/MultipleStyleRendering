@@ -1,4 +1,3 @@
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -70,14 +69,9 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             if(!bbox.currentTex.IsValid())
                 continue;
 
-            if(bbox.desc.IsUnityNull())
-                continue;
-
             TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
             using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
             {
-                builder.AllowPassCulling(false);
-
                 passData.src = bbox.currentTex;
                 passData.ids = nprFrameData.idTexture;
                 passData.mat = Object.Instantiate(_mat);

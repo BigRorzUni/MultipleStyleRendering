@@ -24,7 +24,10 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     static readonly int _NormalStrengthId = Shader.PropertyToID("_NormalStrength");
     
     static readonly int OutlineColourId = Shader.PropertyToID("_OutlineColour");
-    //static readonly int EdgesTexID = Shader.PropertyToID("_NprEdgesTexture");
+    
+
+    static readonly int RectId = Shader.PropertyToID("_Rect");
+    static readonly int ScreenTexelSizeId = Shader.PropertyToID("_ScreenTexelSize");
 
     [SerializeField] 
     float _depthThreshold = 0.02f;
@@ -61,6 +64,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public float depthStrength;
         public float normalThreshold;
         public float normalStrength;
+
+        public RectInt rect;
+        public Vector2 screenTexelSize;
     }
 
     public ScreenspaceOutlinesPass(Shader shader)
@@ -68,7 +74,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
-        renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
+        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -93,79 +99,78 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         // using urp camera depth texture
         if (!frameData.activeDepthTexture.IsValid()) 
             return;
+        
+        if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+            return;
 
-        // copy frame into a texture
-        RenderTextureDescriptor srcDesc = cameraData.cameraTargetDescriptor;
-        srcDesc.depthBufferBits = 0;
-        srcDesc.msaaSamples = 1;
-        srcDesc.sRGB = false;
+        var camDesc = cameraData.cameraTargetDescriptor;
+        Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
 
-        TextureHandle srcCopy = renderGraph.CreateTexture(new TextureDesc(srcDesc)
+        foreach(var bbox in nprFrameData.bboxes)
         {
-            name = "_NprOutlinesSourceCopy",
-            colorFormat = srcDesc.graphicsFormat,
-            clearBuffer = false,
-            filterMode = FilterMode.Point
-        });
+            if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                continue;
+            
+            if((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
+                continue;
 
-        // blit frame into a copy for sampling in outlines pass
-        using (var builder = renderGraph.AddRasterRenderPass("NPR Outlines Copy Pass", out CopyData copyData))
-        {
-            builder.SetRenderAttachment(srcCopy, 0, AccessFlags.Write);
-            builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
+            if(!bbox.currentTex.IsValid())
+                continue;
 
-            copyData.src = frameData.activeColorTexture;
-
-            builder.SetRenderFunc(static (CopyData data, RasterGraphContext ctx) =>
+            TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
+            using (var builder = renderGraph.AddRasterRenderPass($"BBox Outline ({bbox.box})", out PassData passData))
             {
-                Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1,1,0,0), 0, false);
-            });
-        }
+                // write to bbox colour
+                builder.SetRenderAttachment(outTex, 0, AccessFlags.Write);
 
-        using (var builder = renderGraph.AddRasterRenderPass("Screenspace Outline Composite", out PassData passData))
-        {
-            // write to screen colour
-            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                // passData.source = nprFrameData.sourceTexture;
+                passData.source = bbox.currentTex;
+                passData.ids = nprFrameData.idTexture;
+                passData.normals = nprFrameData.normalsTexture;
+                passData.depth = frameData.activeDepthTexture;
+                passData.rect = bbox.box;
+                passData.screenTexelSize = screenTexelSize;
 
-            // read from normal, id, depth and source textures
-            // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
-            builder.UseTexture(srcCopy, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
-            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+                passData.mat = Object.Instantiate(_mat);
 
-            // passData.source = nprFrameData.sourceTexture;
-            passData.source = srcCopy;
-            passData.ids = nprFrameData.idTexture;
-            passData.normals = nprFrameData.normalsTexture;
-            passData.depth = frameData.activeDepthTexture;
+                passData.outlineCol = outlineColour;
+                passData.thicknessPx = outlineThickness;
+                passData.depthThreshold = _depthThreshold;
+                passData.depthStrength = _depthStrength;
+                passData.normalThreshold = _normalThreshold;
+                passData.normalStrength = _normalStrength;
 
-            passData.mat = _mat;
+                // read from normal, id, depth and source textures
+                // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
+                builder.UseTexture(passData.source, AccessFlags.Read);
+                builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
+                builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
+                builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
 
-            passData.outlineCol = outlineColour;
-            passData.thicknessPx = outlineThickness;
-            passData.depthThreshold = _depthThreshold;
-            passData.depthStrength = _depthStrength;
-            passData.normalThreshold = _normalThreshold;
-            passData.normalStrength = _normalStrength;
 
-            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-            {
-                data.mat.SetTexture(_SourceTexId, data.source);
-                data.mat.SetTexture(_IdTexId, data.ids);
-                data.mat.SetTexture(_NormalsTexId, data.normals);
-                data.mat.SetTexture(_DepthTexId, data.depth);
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(_SourceTexId, data.source);
+                    data.mat.SetTexture(_IdTexId, data.ids);
+                    data.mat.SetTexture(_NormalsTexId, data.normals);
+                    data.mat.SetTexture(_DepthTexId, data.depth);
 
-                data.mat.SetColor(OutlineColourId, data.outlineCol);
+                    data.mat.SetColor(OutlineColourId, data.outlineCol);
 
-                data.mat.SetFloat(_ThicknessId, data.thicknessPx);
-                data.mat.SetFloat(_DepthThresholdId, data.depthThreshold);
-                data.mat.SetFloat(_DepthStrengthId, data.depthStrength);
-                data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
-                data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
+                    data.mat.SetFloat(_ThicknessId, data.thicknessPx);
+                    data.mat.SetFloat(_DepthThresholdId, data.depthThreshold);
+                    data.mat.SetFloat(_DepthStrengthId, data.depthStrength);
+                    data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
+                    data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
 
-                CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
-            });
+                    data.mat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+                    data.mat.SetVector(ScreenTexelSizeId, data.screenTexelSize);
+
+                    CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                });
+            }
+
+            bbox.currentTex = outTex;
         }
     }
 }

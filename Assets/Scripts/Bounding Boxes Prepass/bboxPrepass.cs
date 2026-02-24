@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.Experimental.Rendering;
 
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
@@ -49,6 +48,7 @@ public class bboxPrepass : ScriptableRenderPass
         else 
             nprFrameData.bboxes.Clear();
 
+
         // get all active tagged objects using the attached StylisedTag component
         StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
         foreach (var tag in tags)
@@ -59,7 +59,7 @@ public class bboxPrepass : ScriptableRenderPass
             foreach(Renderer renderer in renderers)
             {
                 // check that the object wants an image effect applied and is visible, otherwise skip
-                if(renderer == null || (renderer.renderingLayerMask & (uint)StyleBits.ImageSpaceBit) == 0 || !renderer.isVisible)
+                if(renderer == null || (renderer.renderingLayerMask & (uint)StyleBits.ImageSpaceBit) == 0)
                     continue;
                 
                 Bounds rendererBounds = renderer.bounds;

@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;

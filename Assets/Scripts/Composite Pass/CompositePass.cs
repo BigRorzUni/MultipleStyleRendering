@@ -1,6 +1,4 @@
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -74,8 +72,6 @@ public class CompositePass : ScriptableRenderPass
 
         using (var builder = renderGraph.AddRasterRenderPass("Composite Pass: Copy Source", out CopyData copyData))
         {
-            builder.AllowPassCulling(false);
-
             builder.SetRenderAttachment(srcCopy, 0, AccessFlags.Write);
             builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
 
@@ -87,18 +83,18 @@ public class CompositePass : ScriptableRenderPass
             });
         }
 
-        using (var builder = renderGraph.AddRasterRenderPass("DEBUG: Show srcCopy", out CopyData pd))
-        {
-            builder.AllowPassCulling(false);
-            pd.srcTex = srcCopy;
-            builder.UseTexture(pd.srcTex, AccessFlags.Read);
-            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+        // using (var builder = renderGraph.AddRasterRenderPass("DEBUG: Show srcCopy", out CopyData pd))
+        // {
+        //     builder.AllowPassCulling(false);
+        //     pd.srcTex = srcCopy;
+        //     builder.UseTexture(pd.srcTex, AccessFlags.Read);
+        //     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
-            builder.SetRenderFunc(static (CopyData data, RasterGraphContext ctx) =>
-            {
-                Blitter.BlitTexture(ctx.cmd, data.srcTex, new Vector4(1, 1, 0, 0), 0, false);
-            });
-        }
+        //     builder.SetRenderFunc(static (CopyData data, RasterGraphContext ctx) =>
+        //     {
+        //         Blitter.BlitTexture(ctx.cmd, data.srcTex, new Vector4(1, 1, 0, 0), 0, false);
+        //     });
+        // }
 
         Vector2 screenTexelSize = new Vector2(1.0f / Mathf.Max(1, srcDesc.width), 1.0f / Mathf.Max(1, srcDesc.height));
         int i = 0;
@@ -121,8 +117,6 @@ public class CompositePass : ScriptableRenderPass
 
             using (var builder = renderGraph.AddRasterRenderPass($"Composite Pass ({bbox.box})", out PassData passData))
             {
-                builder.AllowPassCulling(false);
-
                 passData.srcTex = currentTex;
                 passData.bboxTex = bbox.currentTex;
                 passData.mat = Object.Instantiate(_mat);
