@@ -49,6 +49,7 @@ Shader "Custom/Bbox"
                 float2 srcUV = srcPixel * _SrcTexelSize;
 
                 return SAMPLE_TEXTURE2D(_BlitTexture, sampler_BlitTexture, srcUV);
+                //return half4(frac(_Rect.x / 1000.0), frac(_Rect.y / 1000.0), 0, 1); // DEBUG + this looks cool as well
             }
             ENDHLSL
         }

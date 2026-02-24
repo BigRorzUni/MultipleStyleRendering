@@ -32,6 +32,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // private EdgesPrepass _edgesPrepass;
     // private SourcePrepass _sourcePrepass;
     private bboxPrepass _bboxPrepass;
+    private CompositePass _compositePass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -52,8 +53,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
     [SerializeField] private Shader bboxShader;
-
-    private Material bboxMaterial;
+    [SerializeField] private Shader compositeShader;
   
     // settings
     public NprSettings settings = new();
@@ -82,8 +82,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/bbox'");
             return;
         }
-        bboxMaterial = CoreUtils.CreateEngineMaterial(bboxShader);
-        _bboxPrepass = new bboxPrepass(bboxMaterial);
+        _bboxPrepass = new bboxPrepass(bboxShader);
+
+        if(compositeShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Composite'");
+            return;
+        }
+        _compositePass = new CompositePass(compositeShader);   
 
         // Shader edgesShader = Shader.Find("Custom/Edges");
         // if (edgesShader == null)
@@ -184,5 +190,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             if(settings.debugView == NprDebugView.None)
                 renderer.EnqueuePass(pass);
         }
+
+        // composite pass
+        renderer.EnqueuePass(_compositePass);
     }
 }

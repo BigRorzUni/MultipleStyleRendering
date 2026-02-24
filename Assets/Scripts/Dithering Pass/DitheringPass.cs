@@ -1,6 +1,5 @@
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -57,19 +56,8 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
-        // copy frame into a texture
-        // RenderTextureDescriptor srcDesc = cameraData.cameraTargetDescriptor;
-        // srcDesc.depthBufferBits = 0;
-        // srcDesc.msaaSamples = 1;
-        // srcDesc.sRGB = false;
-
-        // TextureHandle srcCopy = renderGraph.CreateTexture(new TextureDesc(srcDesc)
-        // {
-        //     name = "_NprDitherSourceCopy",
-        //     colorFormat = srcDesc.graphicsFormat,
-        //     clearBuffer = false,
-        //     filterMode = FilterMode.Point
-        // });
+        var camDesc = cameraData.cameraTargetDescriptor;
+        Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
 
         foreach(var bbox in nprFrameData.bboxes)
         {
@@ -86,17 +74,13 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 continue;
 
             TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
-
-            var camDesc = cameraData.cameraTargetDescriptor;
-            Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
-
             using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
             {
                 builder.AllowPassCulling(false);
 
                 passData.src = bbox.currentTex;
                 passData.ids = nprFrameData.idTexture;
-                passData.mat = _mat;
+                passData.mat = Object.Instantiate(_mat);
                 passData.rect = bbox.box;
                 passData.screenTexelSize = screenTexelSize;
 
@@ -107,13 +91,11 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
-                    // Set inputs
                     data.mat.SetTexture(SourceTexID, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
                     data.mat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                     data.mat.SetVector(ScreenTexelSizeId, data.screenTexelSize);
 
-                    // Render fullscreen into bbox-sized RT
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                 });
             }
@@ -121,42 +103,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             bbox.currentTex = outTex;
         }
 
-        // debug pass to see the bbox texture in frame debugger!!
-        // if (nprFrameData.bboxes != null && nprFrameData.bboxes.Count > 0)
-        // {
-        //     // Find the first bbox that actually has a valid source texture
-        //     TextureHandle firstSrc = TextureHandle.nullHandle;
-        //     for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-        //     {
-        //         if (nprFrameData.bboxes[i].currentTex.IsValid())
-        //         {
-        //             firstSrc = nprFrameData.bboxes[i].currentTex;
-        //             break;
-        //         }
-        //     }
-
-        //     if (firstSrc.IsValid())
-        //     {
-        //         using (var builder = renderGraph.AddRasterRenderPass("DEBUG: Show First BBox Texture", out PassData passData))
-        //         {
-        //             builder.AllowPassCulling(false);
-
-        //             passData.src = firstSrc;
-
-        //             // Declare dependency: read bbox texture, write camera colour
-        //             builder.UseTexture(passData.src, AccessFlags.Read);
-        //             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-        //             builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-        //             {
-        //                 // This will stretch the bbox RT to fullscreen (fine for debugging)
-        //                 Blitter.BlitTexture(ctx.cmd, data.src, Vector4.one, 0, false);
-        //             });
-        //         }
-        //     }
-        // }
-           
-
+#region OLD METHOD
         // blit frame into a copy for sampling in dithering pass
         // using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Copy Pass", out PassData copyData))
         // {
@@ -193,5 +140,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         //         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
         //     });
         // }
+#endregion
     }
 }
