@@ -25,7 +25,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public TextureHandle ids;
         public Material mat;
         public RectInt rect;
-        public Vector2 screenTexelSize;
     }
 
     public DitheringPass(Shader shader)
@@ -51,12 +50,29 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
         if (!nprFrameData.idTexture.IsValid())
             return;
-
+        if(!nprFrameData.sourceTexture.IsValid())
+            return;
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
-        var camDesc = cameraData.cameraTargetDescriptor;
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
+
+
+        // copy camera color into srcCopy
+        using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Source Copy", out PassData copyPass))
+        {
+            builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
+            builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
+
+            copyPass.src = frameData.activeColorTexture;
+
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+            {
+                Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
+            });
+        }
+
 
         foreach(var bbox in nprFrameData.bboxes)
         {
@@ -66,35 +82,34 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             if((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
                 continue;
 
-            if(!bbox.currentTex.IsValid())
-                continue;
+            // if(!bbox.currentTex.IsValid())
+            //     continue;
 
-            TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
+            // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
             using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
             {
-                passData.src = bbox.currentTex;
+                passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
-                passData.mat = Object.Instantiate(_mat);
+                passData.mat = _mat;
                 passData.rect = bbox.box;
-                passData.screenTexelSize = screenTexelSize;
 
                 builder.UseTexture(passData.src, AccessFlags.Read);
                 builder.UseTexture(passData.ids, AccessFlags.Read);
 
-                builder.SetRenderAttachment(outTex, 0, AccessFlags.Write);
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
                     data.mat.SetTexture(SourceTexID, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
-                    data.mat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                    data.mat.SetVector(ScreenTexelSizeId, data.screenTexelSize);
 
+                    ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                    ctx.cmd.DisableScissorRect();
                 });
             }
 
-            bbox.currentTex = outTex;
+            // bbox.currentTex = outTex;
         }
 
 #region OLD METHOD

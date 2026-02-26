@@ -66,7 +66,6 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public float normalStrength;
 
         public RectInt rect;
-        public Vector2 screenTexelSize;
     }
 
     public ScreenspaceOutlinesPass(Shader shader)
@@ -90,8 +89,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             else
                 nprFrameData = frameContext.Create<NprFrameData>();
 
-        // if (!nprFrameData.sourceTexture.IsValid())  
-        //     return;
+        if (!nprFrameData.sourceTexture.IsValid())  
+            return;
         if (!nprFrameData.idTexture.IsValid())      
             return;
         if (!nprFrameData.normalsTexture.IsValid()) 
@@ -106,6 +105,21 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         var camDesc = cameraData.cameraTargetDescriptor;
         Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
 
+        // copy camera color into srcCopy
+        using (var builder = renderGraph.AddRasterRenderPass("NPR Outlines Source Copy", out CopyData copyPass))
+        {
+            builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
+            builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
+
+            copyPass.src = frameData.activeColorTexture;
+
+            builder.SetRenderFunc(static (CopyData data, RasterGraphContext ctx) =>
+            {
+                Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
+            });
+        }
+
+
         foreach(var bbox in nprFrameData.bboxes)
         {
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -114,24 +128,23 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             if((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
                 continue;
 
-            if(!bbox.currentTex.IsValid())
-                continue;
+            // if(!bbox.currentTex.IsValid())
+            //     continue;
 
-            TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
+            // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
             using (var builder = renderGraph.AddRasterRenderPass($"BBox Outline ({bbox.box})", out PassData passData))
             {
                 // write to bbox colour
-                builder.SetRenderAttachment(outTex, 0, AccessFlags.Write);
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                 // passData.source = nprFrameData.sourceTexture;
-                passData.source = bbox.currentTex;
+                passData.source = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.normals = nprFrameData.normalsTexture;
                 passData.depth = frameData.activeDepthTexture;
                 passData.rect = bbox.box;
-                passData.screenTexelSize = screenTexelSize;
 
-                passData.mat = Object.Instantiate(_mat);
+                passData.mat = _mat;
 
                 passData.outlineCol = outlineColour;
                 passData.thicknessPx = outlineThickness;
@@ -163,14 +176,13 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
                     data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
 
-                    data.mat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                    data.mat.SetVector(ScreenTexelSizeId, data.screenTexelSize);
-
+                    ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                    ctx.cmd.DisableScissorRect();
                 });
             }
 
-            bbox.currentTex = outTex;
+            // bbox.currentTex = outTex;
         }
     }
 }
