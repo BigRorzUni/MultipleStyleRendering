@@ -974,7 +974,7 @@ Transform:
   m_GameObject: {fileID: 1198851680}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.91, y: 3.66, z: -5.61}
+  m_LocalPosition: {x: -0.16, y: 3.66, z: -3.84}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -993,7 +993,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
-  imageEffects: 1
+  imageEffects: 6
 --- !u!1 &1512478178
 GameObject:
   m_ObjectHideFlags: 0
@@ -1027,7 +1027,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
-  imageEffects: 2
+  imageEffects: 3
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0

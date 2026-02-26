@@ -29,7 +29,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
     // private EdgesPrepass _edgesPrepass;
-    private SourcePrepass _sourcePrepass;
+    // private SourcePrepass _sourcePrepass;
+    private bboxPrepass _bboxPrepass;
+    private CompositePass _compositePass;
 
     // STYLES: object passes
     List<ScriptableRenderPass> _objectPasses = new();
@@ -49,7 +51,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
- 
+    [SerializeField] private Shader bboxShader;
+    [SerializeField] private Shader compositeShader;
+  
     // settings
     public NprSettings settings = new();
  
@@ -63,14 +67,28 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/ID'");
             return;
         }
-        _idPrepass = new IdPrepass(idShader, (LayerMask)(-1));
+        _idPrepass = new IdPrepass(idShader);
 
         if (normalsShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Normals'");
             return;
         }
-        _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
+        _normalsPrepass = new NormalsPrepass(normalsShader);
+
+        if(bboxShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/bbox'");
+            return;
+        }
+        _bboxPrepass = new bboxPrepass(bboxShader);
+
+        if(compositeShader == null)
+        {
+            Debug.LogError("Could not find shader 'Custom/Composite'");
+            return;
+        }
+        _compositePass = new CompositePass(compositeShader);   
 
         // Shader edgesShader = Shader.Find("Custom/Edges");
         // if (edgesShader == null)
@@ -151,12 +169,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
+        // need to compute bounding boxes after id texture is created
+        renderer.EnqueuePass(_bboxPrepass);
+
         //TODO: check if normals are needed
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
         // _edgesPrepass.ApplySettings(settings);
         // renderer.EnqueuePass(_edgesPrepass);
+        
         
 
         // screen passes
@@ -167,5 +189,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             if(settings.debugView == NprDebugView.None)
                 renderer.EnqueuePass(pass);
         }
+
+        // composite pass
+        renderer.EnqueuePass(_compositePass);
     }
 }

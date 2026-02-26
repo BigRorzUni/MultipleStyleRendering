@@ -61,6 +61,8 @@ MonoBehaviour:
   ssOutlinesShader: {fileID: 4800000, guid: fc32685630a9b421dbddd0213a3fc17e, type: 3}
   ditheringShader: {fileID: 4800000, guid: 36849cc1d9e8a4040860295c35a4bdd7, type: 3}
   pixelisationShader: {fileID: 4800000, guid: 100b8d584aa3e4c258079976e38e1a86, type: 3}
+  bboxShader: {fileID: 4800000, guid: 2cfe7300d5ceb4b4387a81089f4d12ec, type: 3}
+  compositeShader: {fileID: 4800000, guid: 9b5efe814a7c54327aa4e2f4751b02c5, type: 3}
   settings:
     outlineColour: {r: 1, g: 1, b: 1, a: 1}
     outlineThickness: 2

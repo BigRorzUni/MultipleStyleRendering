@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -26,10 +25,10 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
         public TextureHandle normals; 
     }
 
-    public NormalsPrepass(Shader normalsShader, LayerMask layerMask)
+    public NormalsPrepass(Shader normalsShader)
     {
         _normalsShader = normalsShader;
-        _filtering = new FilteringSettings(RenderQueueRange.opaque, layerMask);
+        _filtering = new FilteringSettings(RenderQueueRange.opaque);
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 

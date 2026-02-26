@@ -27,6 +27,9 @@ Shader "Custom/ScreenspaceOutlines"
             TEXTURE2D(_NprIdTexture);
             TEXTURE2D(_NprSourceTexture);
             float4 _NprSourceTexture_TexelSize;
+            
+            float4 _Rect;  // xy origin, zw width height
+            float2 _ScreenTexelSize;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _OutlineColour;
@@ -80,45 +83,48 @@ Shader "Custom/ScreenspaceOutlines"
             float4 Frag (Varyings i) : SV_Target
             {
                 float4 col = SAMPLE_TEXTURE2D(_NprSourceTexture, sampler_PointClamp, i.uv);
+
+                // convert bbox uvs to fullscreen uvs for id sampling
+                float2 screenPixel = _Rect.xy + i.uv * _Rect.zw;
+                float2 screenUV = screenPixel * _ScreenTexelSize;
+                uint mask = ReadMask8(screenUV);
+
                 // discard if pixel is not tagged for outlining in id tex
                 const uint SS_OUTLINE_BIT = 1u << 0;
-                uint mask = ReadMask8(i.uv);
                 if ((mask & SS_OUTLINE_BIT) == 0u)
                     return col;
+        
+                // step size
+                float2 stepUV = _ScreenTexelSize * max(1.0, _ThicknessPx);
 
-                float2 texel = _NprSourceTexture_TexelSize.xy;
-                float2 stepUV = texel * max(1.0, _ThicknessPx);
-
-                // skip borders
-                if (i.uv.x < stepUV.x || i.uv.x > 1.0 - stepUV.x ||
-                    i.uv.y < stepUV.y || i.uv.y > 1.0 - stepUV.y)
+                // dont step onto fullscreen borders
+                if (screenUV.x < stepUV.x || screenUV.x > 1.0 - stepUV.x ||
+                    screenUV.y < stepUV.y || screenUV.y > 1.0 - stepUV.y)
                     return col;
 
-                float zC = getDepth(i.uv);
+                float zC = getDepth(screenUV);
 
                 // skip skybox
-                if (zC >= 0.999) 
+                if (zC >= 0.999)
                     return col;
 
-                // depth laplacian
-                float depthEdge = 0.0;
-                float zR = getDepth(i.uv + float2( stepUV.x, 0));
-                float zL = getDepth(i.uv + float2(-stepUV.x, 0));
-                float zU = getDepth(i.uv + float2(0,  stepUV.y));
-                float zD = getDepth(i.uv + float2(0, -stepUV.y));
+                // depth laplacian 
+                float zR = getDepth(screenUV + float2( stepUV.x, 0));
+                float zL = getDepth(screenUV + float2(-stepUV.x, 0));
+                float zU = getDepth(screenUV + float2(0,  stepUV.y));
+                float zD = getDepth(screenUV + float2(0, -stepUV.y));
 
                 float lap = abs(zR + zL + zU + zD - 4.0 * zC);
-                float lapN = lap / max(zC, 1e-3); // normalise by depth
-                depthEdge = lapN * _DepthStrength;
-
+                float lapN = lap / max(zC, 1e-3);
+                float depthEdge = lapN * _DepthStrength;
                 float depthMask = step(_DepthThreshold, depthEdge);
 
                 // normal discontinuity
-                float3 nC = getNormal(i.uv);
-                float3 nR = getNormal(i.uv + float2( stepUV.x, 0));
-                float3 nL = getNormal(i.uv + float2(-stepUV.x, 0));
-                float3 nU = getNormal(i.uv + float2(0,  stepUV.y));
-                float3 nD = getNormal(i.uv + float2(0, -stepUV.y));
+                float3 nC = getNormal(screenUV);
+                float3 nR = getNormal(screenUV + float2( stepUV.x, 0));
+                float3 nL = getNormal(screenUV + float2(-stepUV.x, 0));
+                float3 nU = getNormal(screenUV + float2(0,  stepUV.y));
+                float3 nD = getNormal(screenUV + float2(0, -stepUV.y));
 
                 float normalEdge = 0.0;
                 normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nR)));
@@ -133,6 +139,7 @@ Shader "Custom/ScreenspaceOutlines"
 
                 // outline colour on the outlines, otherwise return src
                 return lerp(col, _OutlineColour, edgeMask);
+
             }
             ENDHLSL
         }
