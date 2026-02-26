@@ -89,8 +89,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             else
                 nprFrameData = frameContext.Create<NprFrameData>();
 
-        // if (!nprFrameData.sourceTexture.IsValid())  
-        //     return;
+        if (!nprFrameData.sourceTexture.IsValid())  
+            return;
         if (!nprFrameData.idTexture.IsValid())      
             return;
         if (!nprFrameData.normalsTexture.IsValid()) 
@@ -105,21 +105,10 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         var camDesc = cameraData.cameraTargetDescriptor;
         Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
 
-        RenderTextureDescriptor copyDesc = camDesc;
-        copyDesc.depthBufferBits = 0;
-        copyDesc.msaaSamples = 1; 
-        TextureHandle srcCopy = renderGraph.CreateTexture(new TextureDesc(copyDesc.width, copyDesc.height)
-        {
-            name = "_NprSourceCopy_Dither",
-            colorFormat = copyDesc.graphicsFormat,   
-            clearBuffer = false,
-            filterMode = FilterMode.Point
-        });
-
         // copy camera color into srcCopy
-        using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Source Copy", out CopyData copyPass))
+        using (var builder = renderGraph.AddRasterRenderPass("NPR Outlines Source Copy", out CopyData copyPass))
         {
-            builder.SetRenderAttachment(srcCopy, 0, AccessFlags.Write);
+            builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
             builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
 
             copyPass.src = frameData.activeColorTexture;
@@ -149,7 +138,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                 // passData.source = nprFrameData.sourceTexture;
-                passData.source = srcCopy;
+                passData.source = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.normals = nprFrameData.normalsTexture;
                 passData.depth = frameData.activeDepthTexture;

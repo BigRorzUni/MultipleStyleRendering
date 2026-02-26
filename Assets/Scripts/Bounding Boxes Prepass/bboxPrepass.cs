@@ -117,6 +117,19 @@ public class bboxPrepass : ScriptableRenderPass
         //     Debug.Log($"BBox: {bb.box}, styles: {bb.styles}");
         // }
 
+        // initialise source texture
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
+        camDesc.depthBufferBits = 0;
+        camDesc.msaaSamples = 1; 
+
+        nprFrameData.sourceTexture = renderGraph.CreateTexture(new TextureDesc(camDesc.width, camDesc.height)
+        {
+            name = "_NprSourceCopy",
+            colorFormat = camDesc.graphicsFormat,   
+            clearBuffer = false,
+            filterMode = FilterMode.Point
+        });
+
         // ----- allocate the source textures in each bounding box ------
         // if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
         //     return;

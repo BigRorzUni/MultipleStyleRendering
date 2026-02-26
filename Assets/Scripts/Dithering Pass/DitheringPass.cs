@@ -50,28 +50,19 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
         if (!nprFrameData.idTexture.IsValid())
             return;
-
+        if(!nprFrameData.sourceTexture.IsValid())
+            return;
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
 
-        RenderTextureDescriptor copyDesc = camDesc;
-        copyDesc.depthBufferBits = 0;
-        copyDesc.msaaSamples = 1; 
-        TextureHandle srcCopy = renderGraph.CreateTexture(new TextureDesc(copyDesc.width, copyDesc.height)
-        {
-            name = "_NprSourceCopy_Dither",
-            colorFormat = copyDesc.graphicsFormat,   
-            clearBuffer = false,
-            filterMode = FilterMode.Point
-        });
 
         // copy camera color into srcCopy
         using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Source Copy", out PassData copyPass))
         {
-            builder.SetRenderAttachment(srcCopy, 0, AccessFlags.Write);
+            builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
             builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
 
             copyPass.src = frameData.activeColorTexture;
@@ -97,7 +88,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
             using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
             {
-                passData.src = srcCopy;
+                passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.mat = _mat;
                 passData.rect = bbox.box;
