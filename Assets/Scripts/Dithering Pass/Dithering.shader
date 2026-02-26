@@ -82,7 +82,7 @@ Shader "Custom/Dithering"
                 // convert bbox uvs to fullscreen uvs for id sampling
                 float2 screenPixel = _Rect.xy + i.uv * _Rect.zw;
                 float2 screenUV = screenPixel * _ScreenTexelSize;
-                uint mask = ReadMask8(screenUV);
+                uint mask = ReadMask8(i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
                 const uint DITHERING_BIT = 1u << 1; // change this to a uniform

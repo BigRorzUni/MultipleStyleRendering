@@ -118,57 +118,57 @@ public class bboxPrepass : ScriptableRenderPass
         // }
 
         // ----- allocate the source textures in each bounding box ------
-        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-            return;
+        // if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+        //     return;
 
-        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
-        TextureHandle camColour = frameData.activeColorTexture;
+        // UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
+        // TextureHandle camColour = frameData.activeColorTexture;
         
-        // copy frame into a texture
-        RenderTextureDescriptor srcDesc = cameraData.cameraTargetDescriptor;
-        srcDesc.depthBufferBits = 0;
-        srcDesc.msaaSamples = 1;
-        srcDesc.sRGB = false;
+        // // copy frame into a texture
+        // RenderTextureDescriptor srcDesc = cameraData.cameraTargetDescriptor;
+        // srcDesc.depthBufferBits = 0;
+        // srcDesc.msaaSamples = 1;
+        // srcDesc.sRGB = false;
 
-        // for each bounding box
-        foreach (var bbox in nprFrameData.bboxes)
-        {
-            if (bbox.box.width <= 0 || bbox.box.height <= 0)
-                continue;
+        // // for each bounding box
+        // foreach (var bbox in nprFrameData.bboxes)
+        // {
+        //     if (bbox.box.width <= 0 || bbox.box.height <= 0)
+        //         continue;
 
-            bbox.desc = new TextureDesc(bbox.box.width, bbox.box.height)
-            {
-                name = $"BBoxSrc_{bbox.box.x}_{bbox.box.y}",
-                colorFormat = srcDesc.graphicsFormat,
-                clearBuffer = false,    
-                filterMode = FilterMode.Point
-            };
+        //     bbox.desc = new TextureDesc(bbox.box.width, bbox.box.height)
+        //     {
+        //         name = $"BBoxSrc_{bbox.box.x}_{bbox.box.y}",
+        //         colorFormat = srcDesc.graphicsFormat,
+        //         clearBuffer = false,    
+        //         filterMode = FilterMode.Point
+        //     };
 
-            using (var builder = renderGraph.AddRasterRenderPass($"BBox Source Copy ({bbox.box})", out PassData passData))
-            {
-                passData.src = frameData.activeColorTexture;
-                passData.dst = renderGraph.CreateTexture(bbox.desc);
-                passData.copyMat = Object.Instantiate(_mat);
-                passData.rect = bbox.box;
+        //     using (var builder = renderGraph.AddRasterRenderPass($"BBox Source Copy ({bbox.box})", out PassData passData))
+        //     {
+        //         passData.src = frameData.activeColorTexture;
+        //         passData.dst = renderGraph.CreateTexture(bbox.desc);
+        //         passData.copyMat = Object.Instantiate(_mat);
+        //         passData.rect = bbox.box;
 
-                var camDesc = cameraData.cameraTargetDescriptor;
-                passData.srcTexelSize = new Vector2(1.0f / camDesc.width, 1.0f / camDesc.height);
+        //         var camDesc = cameraData.cameraTargetDescriptor;
+        //         passData.srcTexelSize = new Vector2(1.0f / camDesc.width, 1.0f / camDesc.height);
 
-                builder.UseTexture(passData.src, AccessFlags.Read);
-                builder.SetRenderAttachment(passData.dst, 0, AccessFlags.Write);
-                builder.AllowGlobalStateModification(true);
+        //         builder.UseTexture(passData.src, AccessFlags.Read);
+        //         builder.SetRenderAttachment(passData.dst, 0, AccessFlags.Write);
+        //         builder.AllowGlobalStateModification(true);
 
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-                {
-                    data.copyMat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                    data.copyMat.SetVector(SrcTexelSizeId, data.srcTexelSize);
+        //         builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+        //         {
+        //             data.copyMat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+        //             data.copyMat.SetVector(SrcTexelSizeId, data.srcTexelSize);
 
-                    Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1,1,0,0), data.copyMat, 0);
-                });
+        //             Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1,1,0,0), data.copyMat, 0);
+        //         });
 
-                // store on bbox so later passes can use it
-                bbox.currentTex = passData.dst;
-            }
-        }   
+        //         // store on bbox so later passes can use it
+        //         bbox.currentTex = passData.dst;
+        //     }
+        // }   
     }
 }
