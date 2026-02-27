@@ -7,17 +7,11 @@ using UnityEngine.Rendering.Universal;
 public class DitheringPass : ScriptableRenderPass//, INprPass
 {
     Material _mat;
+    StyleBits.ImageSpaceEffect _requiredBit;
 
-    static readonly int RectId = Shader.PropertyToID("_Rect");
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
-    static readonly int ScreenTexelSizeId = Shader.PropertyToID("_ScreenTexelSize");
 
-
-    // public void ApplySettings(NprSettings settings)
-    // {
-
-    // }
 
     class PassData
     {
@@ -27,12 +21,13 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public RectInt rect;
     }
 
-    public DitheringPass(Shader shader)
+    public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
     {
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
+        _requiredBit = requiredBit;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -53,6 +48,8 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         if(!nprFrameData.sourceTexture.IsValid())
             return;
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+            return;
+        if ((nprFrameData.presentImageBits & _requiredBit) == 0)
             return;
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;

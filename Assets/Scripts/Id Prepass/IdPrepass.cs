@@ -12,7 +12,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
     public bool debugToScreen;
 
-    public void ApplySettings(NprSettings settings)
+    public void ApplySettings(Settings settings)
     {
         debugToScreen = settings.debugView == NprDebugView.StylisedID;
     }  

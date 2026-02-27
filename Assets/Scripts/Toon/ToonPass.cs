@@ -1,35 +1,28 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class ToonPass : ScriptableRenderPass, INprPass
+public class ToonPass : ScriptableRenderPass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     FilteringSettings _filteringSettings;
     readonly Shader _toonShader;
-
-    public void ApplySettings(NprSettings settings)
-    {
-        
-    }
 
     class PassData 
     {
         public RendererListHandle rl; 
     }
 
-    public ToonPass(Shader toonShader)
+    public ToonPass(Shader toonShader, StyleBits.ObjectSpaceEffect requiredEffect)
     {
         _toonShader = toonShader;
         renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
 
         _filteringSettings = new FilteringSettings(RenderQueueRange.opaque)
         {
-            renderingLayerMask = (uint)StyleBits.ObjectSpaceEffect.Toon
+            renderingLayerMask = (uint)requiredEffect
         };
     }
 

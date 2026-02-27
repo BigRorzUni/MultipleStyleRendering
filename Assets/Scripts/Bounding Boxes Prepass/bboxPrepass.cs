@@ -7,24 +7,17 @@ using UnityEngine.Rendering.Universal;
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
 {
-    // readonly FilteringSettings _filteringSettings;
-    static readonly int RectId = Shader.PropertyToID("_Rect");
-    static readonly int SrcTexelSizeId = Shader.PropertyToID("_SrcTexelSize");
-    Material _mat;
 
     class PassData
     {
         public TextureHandle src;
         public TextureHandle dst;
-        public Material copyMat;
         public RectInt rect;
         public Vector2 srcTexelSize;
     }
 
-    public bboxPrepass(Shader shader)
+    public bboxPrepass()
     {
-        if (shader != null)
-            _mat = CoreUtils.CreateEngineMaterial(shader);
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
@@ -106,6 +99,7 @@ public class bboxPrepass : ScriptableRenderPass
 
                 BoundingBox bbox = new BoundingBox((uint)tag.imageEffects, screenBox);
 
+                nprFrameData.presentImageBits |= tag.imageEffects;
 
                 nprFrameData.bboxes.Add(bbox);
             }

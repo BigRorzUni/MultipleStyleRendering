@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
@@ -7,10 +6,8 @@ using UnityEngine.Rendering.Universal;
 [System.Serializable]
 public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 {
+    StyleBits.ImageSpaceEffect _requiredBit;
     Material _mat;
-
-    public Color outlineColour;
-    public float outlineThickness;
 
     static readonly int _DepthTexId = Shader.PropertyToID("_NprDepthTexture");
     static readonly int _NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
@@ -22,26 +19,24 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     static readonly int _DepthStrengthId = Shader.PropertyToID("_DepthStrength");
     static readonly int _NormalThresholdId = Shader.PropertyToID("_NormalThreshold");
     static readonly int _NormalStrengthId = Shader.PropertyToID("_NormalStrength");
-    
     static readonly int OutlineColourId = Shader.PropertyToID("_OutlineColour");
     
 
-    static readonly int RectId = Shader.PropertyToID("_Rect");
-    static readonly int ScreenTexelSizeId = Shader.PropertyToID("_ScreenTexelSize");
-
-    [SerializeField] 
     float _depthThreshold = 0.02f;
-    [SerializeField] 
     float _depthStrength = 1.0f;
-    [SerializeField] 
     float _normalThreshold = 0.2f;
-    [SerializeField] 
     float _normalStrength = 1.0f;
+    public Color _outlineColour;
+    public float _outlineThickness;
 
-    public void ApplySettings(NprSettings settings)
+    public void ApplySettings(Settings settings)
     {
-        outlineColour = settings.outlineColour;
-        outlineThickness = settings.outlineThickness;
+        _outlineColour = settings.outlines.colour;
+        _outlineThickness = settings.outlines.thickness;
+        _depthThreshold = settings.outlines.depthThreshold;
+        _depthStrength = settings.outlines.depthStrength;
+        _normalThreshold = settings.outlines.normalThreshold;
+        _normalStrength = settings.outlines.normalStrength;
     }
 
     class CopyData
@@ -68,11 +63,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public RectInt rect;
     }
 
-    public ScreenspaceOutlinesPass(Shader shader)
+    public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
     {
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
+        _requiredBit = requiredBit;
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
@@ -98,8 +94,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         // using urp camera depth texture
         if (!frameData.activeDepthTexture.IsValid()) 
             return;
-        
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+            return;
+        if ((nprFrameData.presentImageBits & _requiredBit) == 0)
             return;
 
         var camDesc = cameraData.cameraTargetDescriptor;
@@ -146,8 +143,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
                 passData.mat = _mat;
 
-                passData.outlineCol = outlineColour;
-                passData.thicknessPx = outlineThickness;
+                passData.outlineCol = _outlineColour;
+                passData.thicknessPx = _outlineThickness;
                 passData.depthThreshold = _depthThreshold;
                 passData.depthStrength = _depthStrength;
                 passData.normalThreshold = _normalThreshold;
