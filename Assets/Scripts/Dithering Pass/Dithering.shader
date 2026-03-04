@@ -74,6 +74,10 @@ Shader "Custom/Dithering"
             {
                 // TODO: dither across all colour channels
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
+<<<<<<< Updated upstream:Assets/Scripts/Dithering Pass/Dithering.shader
+=======
+                uint mask = ReadMask8(i.uv);
+>>>>>>> Stashed changes:Assets/Scripts/Dithering/Dithering.shader
 
                 // if pixels aren't tagged for dithering then leave them unchanged
                 const uint DITHERING_BIT = 1u << 3;

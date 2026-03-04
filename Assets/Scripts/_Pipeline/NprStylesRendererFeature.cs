@@ -1,5 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -36,11 +39,21 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private ToonPass _toonPass;
     // private SimpleOutlinePass _outlinePass;
 
+<<<<<<< Updated upstream
     // STYLES: screen passes
     List<ScriptableRenderPass> _screenPasses = new();
     private ScreenspaceOutlinesPass _ssOutlinesPass;
     private DitheringPass _ditheringPass;
     private PixelisationPass _pixelisationPass;
+=======
+
+    // IMAGE EFFECTS
+    [SerializeField]
+    List<Effect> imageEffects = new();
+    DitheringEffect ditheringEffect;
+    ScreenspaceOutlinesEffect outlinesEffect;
+>>>>>>> Stashed changes
+
 
     // shaders
     [SerializeField] private Shader idShader;
@@ -49,11 +62,44 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
+<<<<<<< Updated upstream
  
     // settings
     public NprSettings settings = new();
  
     // Called when the renderer feature is first created or reset.
+=======
+
+    // TEST EFFECTS
+    [SerializeField]
+    List<Effect> testImgEffects = new();
+
+    
+    [SerializeField] public bool useTestEffects = true;
+    [SerializeField, Min(1)] private int testEffectCount = 32;
+
+    // The shader all dummy effects use
+    [SerializeField] private Shader testDummyShader;
+
+  
+    // settings
+    public Settings settings = new();
+
+    public void EnableTestMode(int styleCount)
+    {
+        useTestEffects = true;
+        testEffectCount = Mathf.Clamp(styleCount, 1, 32);
+
+        Create(); 
+    }
+
+    public void DisableTestMode()
+    {
+        useTestEffects = false;
+        Create();
+    }
+
+>>>>>>> Stashed changes
     public override void Create()
     {
         // find associated shaders and create passes
@@ -72,6 +118,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader, (LayerMask)(-1));
 
+<<<<<<< Updated upstream
         // Shader edgesShader = Shader.Find("Custom/Edges");
         // if (edgesShader == null)
         // {
@@ -79,6 +126,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         //     return;
         // }
         // _edgesPrepass = new EdgesPrepass(edgesShader);
+=======
+        if(useTestEffects)
+        {
+            _bboxPrepass = new bboxPrepass(testEffectCount, true);
+        }
+        else
+            _bboxPrepass = new bboxPrepass();
+>>>>>>> Stashed changes
 
         // object passes
         if (toonShader == null)
@@ -124,11 +179,43 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _objectPasses.Add(_toonPass);
         //_objectPasses.Add(outlinePass);
 
+<<<<<<< Updated upstream
         // add screenpasses in their execution order
         _screenPasses.Clear();
         _screenPasses.Add(_pixelisationPass);
         _screenPasses.Add(_ditheringPass);
         _screenPasses.Add(_ssOutlinesPass);
+=======
+        // add image effects in their execution order
+        imageEffects.Clear();
+        testImgEffects.Clear();
+
+        if(useTestEffects)
+        {
+            if (testDummyShader == null)
+            {
+                Debug.LogError("useTestEffects is enabled but testDummyShader is not set.");
+                return;
+            }
+
+            for (int i = 0; i < testEffectCount; i++)
+            {
+                imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+
+                //Debug.Log($"Added test_effect_{i}");
+            }
+
+            //Debug.Log("render feature in test mode");
+            Debug.Log("Queued test pases");
+        }
+        else
+        {           
+            imageEffects.Add(ditheringEffect);
+            imageEffects.Add(outlinesEffect);
+
+            Debug.Log("queued proper rendering passes");
+        }
+>>>>>>> Stashed changes
         
     }
 
@@ -162,10 +249,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // screen passes
         foreach (var pass in _screenPasses)
         {
+<<<<<<< Updated upstream
             if (pass is INprPass nprPass)
                 nprPass.ApplySettings(settings);
             if(settings.debugView == NprDebugView.None)
                 renderer.EnqueuePass(pass);
+=======
+            foreach(var pass in effect.Passes)
+            {
+                if (pass is INprPass nprPass)
+                    nprPass.ApplySettings(settings);
+                if(settings.debugView == NprDebugView.None)
+                    renderer.EnqueuePass(pass);
+            }
+>>>>>>> Stashed changes
         }
     }
 }

@@ -32,6 +32,13 @@ Shader "Custom/ID"
                 return output;
             }
 
+<<<<<<< Updated upstream
+=======
+            CBUFFER_START(UnityPerMaterial)
+                uint _ImageStyleID;   // set via MaterialPropertyBlock from stylised tag
+            CBUFFER_END
+
+>>>>>>> Stashed changes
             // copilot generated function
             float3 HashColour(float x)
             {
@@ -49,8 +56,14 @@ Shader "Custom/ID"
                     float r = (float)low8 / 255.0;
                     return half4(r, 0, 0, 1);
                 #else
+<<<<<<< Updated upstream
                     if (low8 == 0u) return half4(0,0,0,1);
                     float3 c = HashColour((float)low8);
+=======
+                    if (style == 0u) 
+                        return half4(0,0,0,1);
+                    float3 c = HashColour((float)style);
+>>>>>>> Stashed changes
                     return half4(c, 1);
                 #endif
             }

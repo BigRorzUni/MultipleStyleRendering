@@ -1,13 +1,12 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.SceneManagement;
 using UnityEngine;
-using UnityEngine.Profiling;
 using Unity.Profiling;
-using Unity.Profiling.LowLevel.Unsafe;
 using System.IO;
+using UnityEngine.Rendering.Universal;
+using System.Reflection;
 
 public class TestRunner : MonoBehaviour
 {
@@ -15,9 +14,12 @@ public class TestRunner : MonoBehaviour
 
     [SerializeField] private int startupFrames = 100;
     [SerializeField] private int framesToCapture = 500;
+    NprStylesRendererFeature n;
 
     private bool testFlags = false;
     private bool testing = false;
+
+    public bool setRendererTestmode = false;
 
     private string logDir = null;
 
@@ -33,6 +35,27 @@ public class TestRunner : MonoBehaviour
             return;
         }
         DontDestroyOnLoad(gameObject);
+
+        // find the renderer feature
+        if(n == null)
+        {
+            ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
+
+            FieldInfo field = typeof(ScriptableRenderer).GetField("m_RendererFeatures", BindingFlags.NonPublic | BindingFlags.Instance);
+            IList list = field.GetValue(renderer) as IList;
+
+            foreach (UnityEngine.Object f in list)
+            {
+                if (f is NprStylesRendererFeature r)
+                    n = (NprStylesRendererFeature)f;
+            }
+
+            if(n == null)
+            {
+                Debug.Log("No renderer feature found");
+                return;
+            }
+        }
 
         string[] args = Environment.GetCommandLineArgs();
 
@@ -70,6 +93,41 @@ public class TestRunner : MonoBehaviour
         logDir = Path.Combine(buildFolder, "ProfilingLogs");
     }
 
+    public void OnValidate()
+    {
+        if(n == null)
+            {
+            ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
+
+            FieldInfo field = typeof(ScriptableRenderer).GetField("m_RendererFeatures", BindingFlags.NonPublic | BindingFlags.Instance);
+            IList list = field.GetValue(renderer) as IList;
+
+            foreach (UnityEngine.Object f in list)
+            {
+                if (f is NprStylesRendererFeature r)
+                    n = (NprStylesRendererFeature)f;
+            }
+
+            if(n == null)
+            {
+                Debug.Log("No renderer feature found");
+                return;
+            }
+        }
+        if(setRendererTestmode)
+        {
+            n.EnableTestMode(32);
+            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+                tag.Apply();
+        }
+        else
+        {
+            n.DisableTestMode();
+            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+                tag.Apply();
+        }
+    }
+
     private IEnumerator RunAllTests()
     {
         foreach(string sceneName in testScenes)
@@ -77,13 +135,12 @@ public class TestRunner : MonoBehaviour
             // run profiling here
             Debug.Log($"Finding Scene {sceneName}\n");
 
-            var op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+            AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
             if (op == null)
             {
                 Debug.LogError($" Could not load scene, is '{sceneName}' in build settings?");
                 yield break;
             }
-
             while (!op.isDone) yield return null; // wait until a scene is loaded before continuing
 
             Debug.Log($"Loaded scene: {sceneName}");
@@ -147,27 +204,6 @@ public class TestRunner : MonoBehaviour
     {
         if(testing || !testFlags)
             return;
-
-        // output all profiling markers
-        // foreach (ProfilerCategory cat in Enum.GetValues(typeof(ProfilerCategory)))
-        // {
-        //     var handles = new System.Collections.Generic.List<ProfilerRecorderHandle>();
-        //     ProfilerRecorderHandle.GetAvailable(handles);
-        //     foreach (var h in handles)
-        //     {
-        //         var d = ProfilerRecorderHandle.GetDescription(h);
-        //         Debug.Log($"{d.Name}");
-        //     }
-        // }
-
-        // var handles = new List<ProfilerRecorderHandle>();
-        // ProfilerRecorderHandle.GetAvailable(handles);
-        // foreach (var h in handles)
-        // {
-        //     var name = ProfilerRecorderHandle.GetDescription(h).Name;
-        //     if (name.Contains("Frame") || name.Contains("GPU") || name.Contains("CPU"))
-        //         Debug.Log(name);
-        // }
 
         testing = true;
         
