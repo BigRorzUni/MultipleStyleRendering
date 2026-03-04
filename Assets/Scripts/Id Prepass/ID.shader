@@ -39,8 +39,9 @@ Shader "Custom/ID"
                 return output;
             }
 
+
             CBUFFER_START(UnityPerMaterial)
-            uint _ImageStyleID;   // set via MaterialPropertyBlock from stylised tag
+                uint _ImageStyleID;   // set via MaterialPropertyBlock from stylised tag
             CBUFFER_END
 
             // copilot generated function
@@ -59,7 +60,8 @@ Shader "Custom/ID"
                     float r = (float)style / 255.0; // the texture must be normalised
                     return half4(r, 0, 0, 1);
                 #else
-                    if (style == 0u) return half4(0,0,0,1);
+                    if (style == 0u) 
+                        return half4(0,0,0,1);
                     float3 c = HashColour((float)style);
                     return half4(c, 1);
                 #endif

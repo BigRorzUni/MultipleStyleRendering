@@ -1,5 +1,8 @@
 using UnityEngine;
 using System;
+using System.Collections.Generic;
+
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -17,6 +20,11 @@ public class StylisedTag : MonoBehaviour
     [Header("Image Space")]
     public StyleBits.ImageSpaceEffect imageEffects = StyleBits.ImageSpaceEffect.None;
 
+    [Header("Test Effects")]
+    private List<int> testIndices = new();
+
+    public uint testEffects;
+
     Renderer[] _renderers;
 
     // make sure that no other render layers are interacted with
@@ -26,6 +34,15 @@ public class StylisedTag : MonoBehaviour
 
     static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
 
+    TestRunner _testRunner;
+
+    void Awake()
+    {
+        _testRunner = FindAnyObjectByType<TestRunner>();
+
+        if (_testRunner == null)
+            Debug.LogWarning("StylisedTag: no TestRunner found in scene");
+    }
 
     void OnEnable()
     {
@@ -61,10 +78,33 @@ public class StylisedTag : MonoBehaviour
             _renderers = GetComponentsInChildren<Renderer>(true);
     }
 
-    void Apply()
+    public void Apply()
     {
-        ApplyObjectSpace();
-        ApplyImageSpace();
+        if (!isActiveAndEnabled)
+            return;
+            
+        if(_testRunner == null)
+        {
+            _testRunner = FindAnyObjectByType<TestRunner>();
+
+            if (_testRunner == null)
+            {
+                Debug.LogWarning("StylisedTag: no TestRunner found in scene");
+                return;
+            }
+
+        }
+        Debug.Log(_testRunner.setRendererTestmode);
+        if(_testRunner.setRendererTestmode)
+        {
+            Debug.Log("apply test effects");
+            ApplyTestEffects();
+        }
+        else
+        {
+            ApplyObjectSpace();
+            ApplyImageSpace();
+        }
     }
 
     // object space effects - render layers
@@ -107,19 +147,79 @@ public class StylisedTag : MonoBehaviour
 
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
-
+            
             if (imageEffects != StyleBits.ImageSpaceEffect.None)
             {
-                mpb.SetInt(ImageStyleId, (int)imageEffects);
+                mpb.SetInteger(ImageStyleId, (int)imageEffects);
             }
             else
             {
-                mpb.SetInt(ImageStyleId, 0);
+                mpb.SetInteger(ImageStyleId, 0);
             }
 
             r.SetPropertyBlock(mpb);
         }
     }
+
+    void ApplyTestEffects()
+    {
+        testEffects = 0u;
+
+        if (testIndices == null || testIndices.Count == 0)
+        {   
+            Debug.Log("Test effect list is empty");
+            return;
+        }
+        for (int i = 0; i < testIndices.Count; i++)
+        {
+            int idx = testIndices[i];
+            if ((uint)idx >= 32u)
+                continue;
+
+            testEffects |= 1u << idx;
+        }
+
+        Debug.Log($"Test mask (bin): {Convert.ToString(testEffects, 2).PadLeft(32, '0')}");
+
+        if (_renderers == null) return;
+
+        foreach (var r in _renderers)
+        {
+            if (!r) continue;
+
+            r.renderingLayerMask = StyleBits.DefaultBit | StyleBits.ImageSpaceBit;
+
+            var mpb = new MaterialPropertyBlock();
+            r.GetPropertyBlock(mpb);
+
+            mpb.SetInteger(ImageStyleId, (int)testEffects);
+
+            r.SetPropertyBlock(mpb);
+        }
+    }
+
+
+    public void AddTestEffect(int N)
+    {
+        if((uint)N >= 32u)
+            return;
+
+        if(!testIndices.Contains(N))
+        {
+            Debug.Log("Added style");
+            testIndices.Add(N);
+            Apply();
+        }
+    }
+
+
+    public void ClearTestEffects()
+    {
+        testIndices?.Clear();
+        Apply();
+    }
+
+
 
     static void SetLayerRecursive(GameObject obj, int layer)
     {
@@ -127,6 +227,7 @@ public class StylisedTag : MonoBehaviour
         foreach (Transform t in obj.transform)
             SetLayerRecursive(t.gameObject, layer);
     }
+
 
 #if UNITY_EDITOR
     void Hook()

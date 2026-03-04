@@ -1,20 +1,22 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine;
+using Unity.VisualScripting;
 
 public class BoundingBox
 {
     public StyleBits.ImageSpaceEffect styles;
     public RectInt box;
-    // public TextureDesc desc;
-    // public TextureHandle currentTex;
+
+    public uint testMask; // for testing
 
     public BoundingBox(uint s, RectInt b)
     {
         styles = (StyleBits.ImageSpaceEffect)s;
         box = b;
-        // currentTex = TextureHandle.nullHandle;
+        testMask = 0;
     }
 }
 
@@ -26,8 +28,12 @@ public sealed class NprFrameData : ContextItem
 
     public List<BoundingBox> bboxes;
 
+
     public StyleBits.ImageSpaceEffect presentImageBits;
-    
+
+    public int testStyleCount;
+    public uint presentTestStyles;  
+
     public override void Reset()
     {
         idTexture = TextureHandle.nullHandle;
@@ -38,5 +44,10 @@ public sealed class NprFrameData : ContextItem
             bboxes.Clear();
 
         presentImageBits = 0;
+
+        testStyleCount = 0;
+        presentTestStyles = 0;
+
+
     }
 }
