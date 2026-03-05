@@ -1,7 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -23,6 +21,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private bboxPrepass _bboxPrepass;
 
+    // OBJECT PASSES
+    List<Effect> objectEffects = new();
+    private ToonEffect toonEffect;
 
 
     // IMAGE EFFECTS
@@ -54,6 +55,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
   
     // settings
     public Settings settings = new();
+ 
+    // Called when the renderer feature is first created or reset.
 
     public void EnableTestMode(int styleCount)
     {
@@ -124,6 +127,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         //_objectPasses.Add(outlinePass);
 
         // add image effects in their execution order
+        imageEffects.Add(ditheringEffect);
+        imageEffects.Add(outlinesEffect);
         imageEffects.Clear();
         testImgEffects.Clear();
 
@@ -170,6 +175,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
         }
         
+        if (_idPrepass == null) return;
         if (_idPrepass == null || _bboxPrepass == null) return;
 
         // always produce id texture
@@ -179,14 +185,15 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // need to compute bounding boxes after id texture is created
         renderer.EnqueuePass(_bboxPrepass);
 
+        //TODO: check if normals are needed
         // compute normals
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
+        
 
         // image effects
         foreach(var effect in imageEffects)
         {
-            
             foreach(var pass in effect.Passes)
             {
                 if (pass is INprPass nprPass)
@@ -195,5 +202,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     renderer.EnqueuePass(pass);
             }
         }
+
     }
 }

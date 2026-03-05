@@ -4,7 +4,6 @@ using System.Collections.Generic;
 
 
 
-
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -15,6 +14,12 @@ public class StylisedTag : MonoBehaviour
 {
 
 
+    [Header("Object Space")]
+    public StyleBits.ObjectSpaceEffect objectEffects = StyleBits.ObjectSpaceEffect.None;
+
+    [Header("Image Space")]
+    public StyleBits.ImageSpaceEffect imageEffects = StyleBits.ImageSpaceEffect.None;
+
     [Header("Test Effects")]
     private List<int> testIndices = new();
 
@@ -22,18 +27,22 @@ public class StylisedTag : MonoBehaviour
 
     Renderer[] _renderers;
 
-    const uint DefaultBit = 1u << 0;
+    // make sure that no other render layers are interacted with
+    const uint ObjectControlledBits =
+        StyleBits.DefaultBit |
+        (uint)StyleBits.ObjectSpaceEffect.Toon;
 
+    static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
 
     TestRunner _testRunner;
 
-    void Awake()
-    {
-        _testRunner = FindAnyObjectByType<TestRunner>();
+void Awake()
+{
+    _testRunner = FindAnyObjectByType<TestRunner>();
 
-        if (_testRunner == null)
-            Debug.LogWarning("StylisedTag: no TestRunner found in scene");
-    }
+    if (_testRunner == null)
+        Debug.LogWarning("StylisedTag: no TestRunner found in scene");
+}
 
     void OnEnable()
     {
@@ -42,24 +51,26 @@ public class StylisedTag : MonoBehaviour
 #if UNITY_EDITOR
         Hook();
 #endif
+
     }
 
-    void OnDisable() 
-    { 
-        #if UNITY_EDITOR
-        Unhook(); 
-        #endif
-    }
-    void OnValidate() 
-    { 
-        Ensure(); 
-        Apply(); 
+    void OnDisable()
+    {
+#if UNITY_EDITOR
+        Unhook();
+#endif
     }
 
-    void OnTransformChildrenChanged() 
-    { 
-        Ensure(true); 
-        Apply(); 
+    void OnValidate()
+    {
+        Ensure(true);
+        Apply();
+    }
+
+    void OnTransformChildrenChanged()
+    {
+        Ensure(true);
+        Apply();
     }
 
     void Ensure(bool force = false)
@@ -71,19 +82,19 @@ public class StylisedTag : MonoBehaviour
     public void Apply()
     {
         if (!isActiveAndEnabled)
-            return;
-            
+return;
         if(_testRunner == null)
         {
             _testRunner = FindAnyObjectByType<TestRunner>();
 
             if (_testRunner == null)
+            {
+                Debug.LogWarning("StylisedTag: no TestRunner found in scene");
                 return;
+            }
 
         }
-
         Debug.Log(_testRunner.setRendererTestmode);
-        
         if(_testRunner.setRendererTestmode)
         {
             Debug.Log("apply test effects");
@@ -108,8 +119,7 @@ public class StylisedTag : MonoBehaviour
         {
             if (!r) continue;
 
-            // preserves unrelated layers
-            uint keep = r.renderingLayerMask & ~ControlledBits;
+            uint keep = r.renderingLayerMask & ~ObjectControlledBits;
             uint next = keep | desired;
 
             if (r.renderingLayerMask != next)
