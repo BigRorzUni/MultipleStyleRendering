@@ -3,7 +3,7 @@ Shader "Custom/Toon"
     Properties
     {
         // take in unity's base properties
-        _BaseMap ("mainLight Texture", 2D) = "white" {}
+        _BaseTex ("mainLight Texture", 2D) = "white" {}
         _BaseColor ("Colour", Color) = (1,1,1,1)
 
         [HDR]
@@ -40,8 +40,8 @@ Shader "Custom/Toon"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_BaseTex);
+            SAMPLER(sampler_BaseTex);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseColor;
@@ -124,7 +124,7 @@ Shader "Custom/Toon"
                     }
                 #endif
 
-                float4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
+                float4 tex = SAMPLE_TEXTURE2D(_BaseTex, sampler_BaseTex, i.uv);
 
                 return tex * _BaseColor * float4(lit, 1);
             }
