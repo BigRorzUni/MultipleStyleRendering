@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Collections;
 
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
 {
+    public int testStyleCount = 0;
+    public bool _testModeEnabled;
 
     class PassData
     {
@@ -19,6 +22,13 @@ public class bboxPrepass : ScriptableRenderPass
     public bboxPrepass()
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
+    }
+
+    public bboxPrepass(int testCount, bool testModeEnabled)
+    {
+        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
+        testStyleCount = testCount;
+        _testModeEnabled = testModeEnabled;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -41,6 +51,13 @@ public class bboxPrepass : ScriptableRenderPass
         else 
             nprFrameData.bboxes.Clear();
 
+        if(_testModeEnabled)
+        {
+            nprFrameData.testStyleCount = testStyleCount;
+
+            // Debug.Log($"Testing {nprFrameData.testStyleCount} styles");
+        }
+
 
         // get all active tagged objects using the attached StylisedTag component
         StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
@@ -52,7 +69,7 @@ public class bboxPrepass : ScriptableRenderPass
             foreach(Renderer renderer in renderers)
             {
                 // check that the object wants an image effect applied and is visible, otherwise skip
-                if(renderer == null || (renderer.renderingLayerMask & (uint)StyleBits.ImageSpaceBit) == 0)
+                if(renderer == null || (renderer.renderingLayerMask & (uint)StyleBits.ImageSpaceBit) == 0 || !renderer.isVisible)
                     continue;
                 
                 Bounds rendererBounds = renderer.bounds;
@@ -101,15 +118,24 @@ public class bboxPrepass : ScriptableRenderPass
 
                 nprFrameData.presentImageBits |= tag.imageEffects;
 
+                // add test effect to bbox mask
+                if(_testModeEnabled)
+                {
+                    bbox.testMask = tag.testEffects;
+                    nprFrameData.presentTestStyles |= tag.testEffects;
+
+                    //Debug.Log($"Getting test mask from object, it has {bbox.testMask} applied");
+                }
+
                 nprFrameData.bboxes.Add(bbox);
             }
         }
 
-        // Debug.Log("BBOX LIST:");
-        // foreach (BoundingBox bb in nprFrameData.bboxes)
-        // {
-        //     Debug.Log($"BBox: {bb.box}, styles: {bb.styles}");
-        // }
+        // need to check that the object in the bbox is actually visible
+
+
+        // merge bboxes for optimality
+
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -124,58 +150,5 @@ public class bboxPrepass : ScriptableRenderPass
             filterMode = FilterMode.Point
         });
 
-        // ----- allocate the source textures in each bounding box ------
-        // if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-        //     return;
-
-        // UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
-        // TextureHandle camColour = frameData.activeColorTexture;
-        
-        // // copy frame into a texture
-        // RenderTextureDescriptor srcDesc = cameraData.cameraTargetDescriptor;
-        // srcDesc.depthBufferBits = 0;
-        // srcDesc.msaaSamples = 1;
-        // srcDesc.sRGB = false;
-
-        // // for each bounding box
-        // foreach (var bbox in nprFrameData.bboxes)
-        // {
-        //     if (bbox.box.width <= 0 || bbox.box.height <= 0)
-        //         continue;
-
-        //     bbox.desc = new TextureDesc(bbox.box.width, bbox.box.height)
-        //     {
-        //         name = $"BBoxSrc_{bbox.box.x}_{bbox.box.y}",
-        //         colorFormat = srcDesc.graphicsFormat,
-        //         clearBuffer = false,    
-        //         filterMode = FilterMode.Point
-        //     };
-
-        //     using (var builder = renderGraph.AddRasterRenderPass($"BBox Source Copy ({bbox.box})", out PassData passData))
-        //     {
-        //         passData.src = frameData.activeColorTexture;
-        //         passData.dst = renderGraph.CreateTexture(bbox.desc);
-        //         passData.copyMat = Object.Instantiate(_mat);
-        //         passData.rect = bbox.box;
-
-        //         var camDesc = cameraData.cameraTargetDescriptor;
-        //         passData.srcTexelSize = new Vector2(1.0f / camDesc.width, 1.0f / camDesc.height);
-
-        //         builder.UseTexture(passData.src, AccessFlags.Read);
-        //         builder.SetRenderAttachment(passData.dst, 0, AccessFlags.Write);
-        //         builder.AllowGlobalStateModification(true);
-
-        //         builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-        //         {
-        //             data.copyMat.SetVector(RectId, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-        //             data.copyMat.SetVector(SrcTexelSizeId, data.srcTexelSize);
-
-        //             Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1,1,0,0), data.copyMat, 0);
-        //         });
-
-        //         // store on bbox so later passes can use it
-        //         bbox.currentTex = passData.dst;
-        //     }
-        // }   
     }
 }

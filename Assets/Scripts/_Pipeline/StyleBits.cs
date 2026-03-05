@@ -20,6 +20,4 @@ public static class StyleBits
 
     public const uint DefaultBit = 1u << 0;
     public const uint ImageSpaceBit = 1u << 8;
-
-    // add helpers for if a style needs a normal map, depth map etc...
 }
