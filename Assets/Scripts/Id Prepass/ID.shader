@@ -22,15 +22,8 @@ Shader "Custom/ID"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderVariablesFunctions.hlsl"
 
-            struct Attributes 
-            { 
-                float4 positionOS : POSITION;
-            };
-            
-            struct Varyings 
-            { 
-                float4 positionHCS : SV_POSITION; 
-            };
+            struct Attributes { float4 positionOS : POSITION; };
+            struct Varyings { float4 positionHCS : SV_POSITION; };
 
             Varyings vert(Attributes input)
             {
@@ -39,10 +32,13 @@ Shader "Custom/ID"
                 return output;
             }
 
+<<<<<<< Updated upstream
+=======
             CBUFFER_START(UnityPerMaterial)
-            uint _ImageStyleID;   // set via MaterialPropertyBlock from stylised tag
+                uint _ImageStyleID;   // set via MaterialPropertyBlock from stylised tag
             CBUFFER_END
 
+>>>>>>> Stashed changes
             // copilot generated function
             float3 HashColour(float x)
             {
@@ -53,14 +49,21 @@ Shader "Custom/ID"
 
             half4 frag(Varyings input) : SV_Target
             {
-                uint style = (uint)_ImageStyleID; 
+                uint mask = GetMeshRenderingLayer(); 
+                uint low8 = mask & 255u;
 
                 #ifndef _DEBUG_ID_COLOUR
-                    float r = (float)style / 255.0; // the texture must be normalised
+                    float r = (float)low8 / 255.0;
                     return half4(r, 0, 0, 1);
                 #else
-                    if (style == 0u) return half4(0,0,0,1);
+<<<<<<< Updated upstream
+                    if (low8 == 0u) return half4(0,0,0,1);
+                    float3 c = HashColour((float)low8);
+=======
+                    if (style == 0u) 
+                        return half4(0,0,0,1);
                     float3 c = HashColour((float)style);
+>>>>>>> Stashed changes
                     return half4(c, 1);
                 #endif
             }
