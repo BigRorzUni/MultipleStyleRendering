@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System;
 
 [System.Serializable]
 public class DummyPass : ScriptableRenderPass
@@ -54,6 +55,7 @@ public class DummyPass : ScriptableRenderPass
         if ((nprFrameData.presentTestStyles & _requiredBit) == 0)
             return;
 
+
         using (var builder = renderGraph.AddRasterRenderPass($"{_name} Source Copy", out PassData copyPass))
         {
             builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
@@ -74,6 +76,12 @@ public class DummyPass : ScriptableRenderPass
 
             if ((bbox.testMask & _requiredBit) == 0)
                 continue;
+            
+            Debug.Log(
+                    $"[DummyPass] Rendering bbox {bbox.box} | " +
+                    $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " +
+                    $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}"
+                );
 
             using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name} ({bbox.box})", out PassData passData))
             {

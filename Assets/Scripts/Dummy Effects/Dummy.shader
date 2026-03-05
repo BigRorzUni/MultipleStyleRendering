@@ -62,7 +62,7 @@ Shader "Custom/Dummy"
                 if (mask == 0u)
                     return col;
 
-                return float4(100, 100, 100, 1.0);
+                return float4(1, 0, 0, 1);
             }
             ENDHLSL
         }

@@ -120,8 +120,10 @@ public class bboxPrepass : ScriptableRenderPass
 
                 // add test effect to bbox mask
                 if(_testModeEnabled)
+                {
                     nprFrameData.presentTestStyles |= tag.testEffects;
-
+                    bbox.testMask = tag.testEffects;
+                }
                     //Debug.Log($"Getting test mask from object, it has {bbox.testMask} applied");
 
                 nprFrameData.bboxes.Add(bbox);

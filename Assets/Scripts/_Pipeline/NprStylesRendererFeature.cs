@@ -127,11 +127,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         objectEffects.Add(toonEffect);
         //_objectPasses.Add(outlinePass);
 
-
-        // add image effects in their execution order
-        imageEffects.Add(ditheringEffect);
-        imageEffects.Add(outlinesEffect);
-
         // add image effects in their execution order
         imageEffects.Clear();
         testImgEffects.Clear();
