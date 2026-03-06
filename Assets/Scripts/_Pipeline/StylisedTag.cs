@@ -83,6 +83,8 @@ public class StylisedTag : MonoBehaviour
             ApplyObjectSpace();
             ApplyImageSpace();
         }
+
+        Debug.Log("Effects applied");
     }
 
     // object space effects - render layers
@@ -186,7 +188,6 @@ public class StylisedTag : MonoBehaviour
         {
             Debug.Log("Added style");
             testIndices.Add(N);
-            Apply();
         }
     }
 
@@ -194,7 +195,7 @@ public class StylisedTag : MonoBehaviour
     public void ClearTestEffects()
     {
         testIndices?.Clear();
-        Apply();
+        // Apply();
     }
 
 

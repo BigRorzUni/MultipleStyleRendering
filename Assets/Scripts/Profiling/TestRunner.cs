@@ -70,9 +70,19 @@ public class TestRunner : MonoBehaviour
             name = "TotalStylesScaling",
             scene = "TestScene1",
             variable = TestVariable.N,
-            values = new [] {1,2,4,8,16,32},
+            values = new [] {0,1,2,4,8,16,32},
             K = 0,
             stylesPerObject = 0,
+            useBoundingBoxes = true
+        },
+        new NprTestCase
+        {
+            name = "StackedStylesScaling",
+            scene = "TestScene2",
+            variable = TestVariable.StylesPerObject,
+            values = new [] {0,1,2,4,8,16,32},
+            N = 32,
+            K = 32,
             useBoundingBoxes = true
         },
     };
@@ -174,12 +184,17 @@ public class TestRunner : MonoBehaviour
             int baseStyle = objIndex % k;
 
             // add styles to tag
+
             for (int t = 0; t < s; t++)
             {
                 int style = (baseStyle + t) % k;
+                Debug.Log($"adding style {style}");
                 tag.AddTestEffect(style);
             }
         }
+
+        foreach(var tag in tags)
+            tag.Apply();
 
         Debug.Log($"Applied K={k}, stylesPerObject={s}, objects={tags.Length}");
     }
@@ -306,14 +321,15 @@ public class TestRunner : MonoBehaviour
                 // bounding box vs fullscreen somewhere
 
                 // clear all styles
+                Debug.Log("Clearing styles before testing");
                 var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
                 foreach (var tag in tags)
-                    if (tag) 
-                        tag.ClearTestEffects();
+                    tag.ClearTestEffects();
 
 
-                if (curK > 0)
+                if (curK > 0 && curS > 0)
                 {
+                    Debug.Log("Applying test styles");
                     ApplyTestStylesToScene(curK, curS);
                 }
 
