@@ -29,7 +29,6 @@ public sealed class NprFrameData : ContextItem
 
     public StyleBits.ImageSpaceEffect presentImageBits;
 
-    public int testStyleCount;
     public uint presentTestStyles;  
 
     public override void Reset()
@@ -42,8 +41,6 @@ public sealed class NprFrameData : ContextItem
             bboxes.Clear();
 
         presentImageBits = 0;
-
-        testStyleCount = 0;
         presentTestStyles = 0;
 
 

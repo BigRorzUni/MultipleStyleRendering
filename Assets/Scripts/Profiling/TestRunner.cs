@@ -7,17 +7,54 @@ using Unity.Profiling;
 using System.IO;
 using UnityEngine.Rendering.Universal;
 using System.Reflection;
+using System.Collections.Generic;
+
+public static class NprTestingConfig
+{
+    public static bool TestMode = false;
+    public static bool UseBoundingBoxes = true;
+    public static int N = 0; // total styles
+    public static int K = 0; // actice styles in scene
+    public static int StylesPerObject = 0; // max styles per object
+
+    public static string SceneName = ""; // scene to test
+    public static bool IsBenchmarkRunning = false;
+}
+
+// what the test will be changing
+public enum TestVariable
+{
+    N,
+    K,
+    StylesPerObject,
+    ObjectCount,
+    Coverage
+}
+
+[Serializable]
+public class NprTestCase
+{
+    public string name;
+
+    public string scene;
+    public TestVariable variable; // variable to change in test
+    public int[] values;
+
+    // parameters
+    public int N = 32;
+    public int K = 1;
+    public int stylesPerObject = 1;
+
+    public bool useBoundingBoxes = true;
+}
 
 public class TestRunner : MonoBehaviour
 {
     [SerializeField] public string[] testScenes; 
 
-    [SerializeField] private int startupFrames = 100;
-    [SerializeField] private int framesToCapture = 500;
+    [SerializeField] private int startupFrames = 500;
+    [SerializeField] private int framesToCapture = 1000;
     NprStylesRendererFeature n;
-
-    private bool testFlags = false;
-    private bool testing = false;
 
     public bool setRendererTestmode = false;
 
@@ -26,8 +63,27 @@ public class TestRunner : MonoBehaviour
     private ProfilerRecorder cpuFrameRec;
     private ProfilerRecorder gpuFrameRec;
 
+    List<NprTestCase> tests = new()
+    {
+        new NprTestCase
+        {
+            name = "TotalStylesScaling",
+            scene = "TestScene1",
+            variable = TestVariable.N,
+            values = new [] {1,2,4,8,16,32},
+            K = 0,
+            stylesPerObject = 0,
+            useBoundingBoxes = true
+        },
+    };
+
     private void Awake()
     {
+        // more readable debug outputs
+        Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+        Application.SetStackTraceLogType(LogType.Warning, StackTraceLogType.None);
+        Application.SetStackTraceLogType(LogType.Error, StackTraceLogType.ScriptOnly);
+
         // there can be only one...
         if (FindObjectsByType(typeof(TestRunner), FindObjectsSortMode.None).Length > 1)
         {
@@ -71,14 +127,17 @@ public class TestRunner : MonoBehaviour
                     if(int.TryParse(args[i+1], out int frames))
                         framesToCapture = frames;
                     break;
-
+                case "-warmup":
+                    if (int.TryParse(args[i + 1], out int warmup))
+                        startupFrames = warmup;
+                    break;
                 default:
                     break;
             }
         }
             
 
-        testFlags = true;
+        NprTestingConfig.IsBenchmarkRunning = true;
 
         // turn off vsync for testin
         QualitySettings.vSyncCount = 0;
@@ -93,10 +152,44 @@ public class TestRunner : MonoBehaviour
         logDir = Path.Combine(buildFolder, "ProfilingLogs");
     }
 
+    private void ApplyTestStylesToScene(int k, int stylesPerObject)
+    {
+        StylisedTag[] tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        if (tags == null || tags.Length == 0)
+        {
+            Debug.LogWarning("TestRunner.ApplyTestStylesToScene: No StylisedTag found in scene.");
+            return;
+        }
+
+        int s = Mathf.Clamp(stylesPerObject, 1, k);
+
+        for (int objIndex = 0; objIndex < tags.Length; objIndex++)
+        {
+            StylisedTag tag = tags[objIndex];
+            if (!tag) continue;
+
+            tag.ClearTestEffects();
+
+            int baseStyle = objIndex % k;
+
+            // add styles to tag
+            for (int t = 0; t < s; t++)
+            {
+                int style = (baseStyle + t) % k;
+                tag.AddTestEffect(style);
+            }
+        }
+
+        Debug.Log($"Applied K={k}, stylesPerObject={s}, objects={tags.Length}");
+    }
+
+    // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP
+
     public void OnValidate()
     {
         if(n == null)
-            {
+        {
             ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
 
             FieldInfo field = typeof(ScriptableRenderer).GetField("m_RendererFeatures", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -104,8 +197,8 @@ public class TestRunner : MonoBehaviour
 
             foreach (UnityEngine.Object f in list)
             {
-                if (f is NprStylesRendererFeature r)
-                    n = (NprStylesRendererFeature)f;
+                if (f is NprStylesRendererFeature feature)
+                    n = feature;
             }
 
             if(n == null)
@@ -114,7 +207,10 @@ public class TestRunner : MonoBehaviour
                 return;
             }
         }
-        if(setRendererTestmode)
+
+        NprTestingConfig.TestMode = setRendererTestmode;
+
+        if(NprTestingConfig.TestMode)
         {
             n.EnableTestMode(32);
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
@@ -130,86 +226,155 @@ public class TestRunner : MonoBehaviour
 
     private IEnumerator RunAllTests()
     {
-        foreach(string sceneName in testScenes)
+        foreach(var test in tests)
         {
-            // run profiling here
-            Debug.Log($"Finding Scene {sceneName}\n");
-
-            AsyncOperation op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-            if (op == null)
+            if (test == null || string.IsNullOrEmpty(test.scene))
             {
-                Debug.LogError($" Could not load scene, is '{sceneName}' in build settings?");
-                yield break;
-            }
-            while (!op.isDone) yield return null; // wait until a scene is loaded before continuing
-
-            Debug.Log($"Loaded scene: {sceneName}");
-
-            // run startup frames - skip them
-            Debug.Log("Warmup frames...");
-            for (int i = 0; i < startupFrames; i++)
-                yield return null;
-
-            // run 500 frames
-            //Profiler.BeginSample($"******SCENE {sceneName}******"); // may use later
-
-            double[] cpuTimings = new double[framesToCapture];
-            double[] gpuTimings = new double[framesToCapture];
-
-            Debug.Log("Capturing frames...");
-            for(int i = 0; i < framesToCapture; i++)
-            {   
-                yield return null;
-                
-                double cpuMs = cpuFrameRec.LastValue / 1_000_000.0;
-                double gpuMs = gpuFrameRec.LastValue / 1_000_000.0;
-
-                cpuTimings[i] = cpuMs;
-                gpuTimings[i] = gpuMs;
-
-                // store to array
-                //Debug.Log($"Frame {i}: CPU {cpuMs:F3} ms, GPU {gpuMs:F3} ms");
+                Debug.LogWarning("Skipping null/invalid test case.");
+                continue;
             }
 
-            string path = Path.Combine(logDir, $"{sceneName}.csv");
-
-            using StreamWriter sw = new StreamWriter(path, false);
-            sw.WriteLine("frame num, cpu frame (ms), gpu frame (ms)");
-            for(int i = 0; i < cpuTimings.Length; i++)
+            // run test for each value of the variable thats changing
+            if (test.values == null || test.values.Length == 0)
             {
-                sw.Write(i.ToString());
-                sw.Write(",");
-                sw.Write(cpuTimings[i].ToString());
-                sw.Write(",");
-                sw.Write(gpuTimings[i].ToString());
-                sw.WriteLine();
+                Debug.LogWarning($"'{test.name}' has no values. Skipping.");
+                continue;
             }
 
-            Debug.Log($"Timings saved at {path}");
+            List<int> shuffledValues = test.values.ToList();
+            System.Random rng = new(12345); // fixed seed 
+
+            for (int i = shuffledValues.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (shuffledValues[i], shuffledValues[j]) = (shuffledValues[j], shuffledValues[i]);
+            }
+
+            Debug.Log($"Shuffled testing order {string.Join(", ", shuffledValues)}");
+
+            foreach (int v in shuffledValues)
+            {
+                Debug.Log($"Testing value of {v}");
+
+                // load the test scene
+                Debug.Log($"Loading scene '{test.scene}' for '{test.name}'");
+                AsyncOperation op = SceneManager.LoadSceneAsync(test.scene, LoadSceneMode.Single);
+                if (op == null)
+                {
+                    Debug.LogError($"Could not load scene '{test.scene}'. Is it in Build Settings?");
+                    yield break;
+                }
+                while (!op.isDone) yield return null;
+
+                Debug.Log($"Loaded scene: {test.scene}");
+
+                // get the current run from test config
+                int curN = test.N;
+                int curK = test.K;
+                int curS = test.stylesPerObject;
+                bool curUseBBoxes = test.useBoundingBoxes;
+
+                switch (test.variable)
+                {
+                    case TestVariable.N:              
+                        curN = Mathf.Clamp(v, 0, 32); 
+                        break;
+
+                    case TestVariable.K:              
+                        curK = Mathf.Clamp(v, 0, 32); 
+                        break;
+                    case TestVariable.StylesPerObject:
+                        curS = Mathf.Clamp(v, 0, 32); 
+                        break;
+                    
+                    // add more
+
+                    default: 
+                        break;
+                }
+
+                // store into global current config for other scripts to read if needed
+                NprTestingConfig.SceneName = test.scene;
+                NprTestingConfig.TestMode = true;             
+                NprTestingConfig.UseBoundingBoxes = curUseBBoxes;
+                NprTestingConfig.N = curN;
+                NprTestingConfig.K = curK;
+                NprTestingConfig.StylesPerObject = curS;
+
+                n.EnableTestMode(curN);
+
+                // bounding box vs fullscreen somewhere
+
+                // clear all styles
+                var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                foreach (var tag in tags)
+                    if (tag) 
+                        tag.ClearTestEffects();
 
 
-            //Profiler.EndSample();
+                if (curK > 0)
+                {
+                    ApplyTestStylesToScene(curK, curS);
+                }
 
-            // reload scene and run again for averaging??
+                // RUN TESTS
+                Debug.Log($"Running {test.name} | {test.variable}={v} BB={curUseBBoxes}");
+                Debug.Log($"{startupFrames} warmup frames...");
+                for (int i = 0; i < startupFrames; i++)
+                    yield return null;
+
+                double[] cpuTimings = new double[framesToCapture];
+                double[] gpuTimings = new double[framesToCapture];
+                // also want to measure
+                // median CPU ms
+	            // median GPU ms
+	            // 10% low FPS 
+                // vram usage per frame ?
+
+                Debug.Log("Capturing frames...");
+                for (int i = 0; i < framesToCapture; i++)
+                {
+                    yield return null;
+                    cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
+                    gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
+                }
+
+                Directory.CreateDirectory(logDir);
+                string path = Path.Combine(logDir, $"{test.name}_{test.variable}_{v}.csv");
+
+                using (StreamWriter sw = new StreamWriter(path, false))
+                {
+                    sw.WriteLine("frame,cpu_ms,gpu_ms");
+                    for (int i = 0; i < framesToCapture; i++)
+                    {
+                        sw.Write(i);
+                        sw.Write(",");
+                        sw.Write(cpuTimings[i]);
+                        sw.Write(",");
+                        sw.Write(gpuTimings[i]);
+                        sw.WriteLine();
+                    }
+                }
+
+                Debug.Log($"Timings saved at {path}");
+            }
+
+            Debug.Log("Testing done!");
+            NprTestingConfig.IsBenchmarkRunning = false;
+            Application.Quit();
         }
-
-        // send arrays to csv
-
-        Debug.Log("Testing done!");
-        Application.Quit();
     }
-
 
     private void Start()
     {
-        if(testing || !testFlags)
-            return;
+        // TEMPORARY FOR TESTING
+        //ApplyTestStylesToScene(32, 1);
 
-        testing = true;
+        if(!NprTestingConfig.IsBenchmarkRunning)
+            return;
         
         Directory.CreateDirectory(logDir);
         Debug.Log($"Starting tests. logDir = {logDir}, startupFrames = {startupFrames}, frames = {framesToCapture}");
-
 
         cpuFrameRec = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "CPU Total Frame Time");
         gpuFrameRec = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "GPU Frame Time");

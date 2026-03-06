@@ -92,7 +92,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _normalsPrepass = new NormalsPrepass(normalsShader);
 
 
-        if(useTestEffects)
+        if(NprTestingConfig.TestMode)
         {
             _bboxPrepass = new bboxPrepass(testEffectCount, true);
         }
@@ -131,7 +131,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         imageEffects.Clear();
         testImgEffects.Clear();
 
-        if(useTestEffects)
+        if(NprTestingConfig.TestMode)
         {
             if (testDummyShader == null)
             {

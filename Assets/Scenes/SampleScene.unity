@@ -1258,6 +1258,10 @@ PrefabInstance:
       value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 4481584159838812636, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4481584159838812636, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: stylesPerObject
       value: 4
       objectReference: {fileID: 0}

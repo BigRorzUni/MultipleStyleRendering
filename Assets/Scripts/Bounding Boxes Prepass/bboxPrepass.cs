@@ -51,14 +51,6 @@ public class bboxPrepass : ScriptableRenderPass
         else 
             nprFrameData.bboxes.Clear();
 
-
-        if(_testModeEnabled)
-        {
-            nprFrameData.testStyleCount = testStyleCount;
-
-            // Debug.Log($"Testing {nprFrameData.testStyleCount} styles");
-        }
-
         // get all active tagged objects using the attached StylisedTag component
         StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
         foreach (var tag in tags)
@@ -119,7 +111,7 @@ public class bboxPrepass : ScriptableRenderPass
                 nprFrameData.presentImageBits |= tag.imageEffects;
 
                 // add test effect to bbox mask
-                if(_testModeEnabled)
+                if(NprTestingConfig.TestMode)
                 {
                     nprFrameData.presentTestStyles |= tag.testEffects;
                     bbox.testMask = tag.testEffects;

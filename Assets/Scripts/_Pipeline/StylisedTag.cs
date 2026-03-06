@@ -33,17 +33,7 @@ public class StylisedTag : MonoBehaviour
         (uint)StyleBits.ObjectSpaceEffect.Toon;
 
     static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
-
-    TestRunner _testRunner;
-
-    void Awake()
-    {
-        _testRunner = FindAnyObjectByType<TestRunner>();
-
-        if (_testRunner == null)
-            Debug.LogWarning("StylisedTag: no TestRunner found in scene");
-    }
-
+    
     void OnEnable()
     {
         Ensure();
@@ -83,19 +73,7 @@ public class StylisedTag : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
             
-        if(_testRunner == null)
-        {
-            _testRunner = FindAnyObjectByType<TestRunner>();
-
-            if (_testRunner == null)
-            {
-                Debug.LogWarning("StylisedTag: no TestRunner found in scene");
-                return;
-            }
-
-        }
-        Debug.Log(_testRunner.setRendererTestmode);
-        if(_testRunner.setRendererTestmode)
+        if(NprTestingConfig.TestMode)
         {
             Debug.Log("apply test effects");
             ApplyTestEffects();
