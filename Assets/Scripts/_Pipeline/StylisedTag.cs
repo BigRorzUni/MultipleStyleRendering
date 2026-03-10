@@ -37,7 +37,8 @@ public class StylisedTag : MonoBehaviour
     void OnEnable()
     {
         Ensure();
-        Apply();
+        if (!NprTestingConfig.TestMode)
+            Apply();
 #if UNITY_EDITOR
         Hook();
 #endif
@@ -53,13 +54,15 @@ public class StylisedTag : MonoBehaviour
     void OnValidate()
     {
         Ensure(true);
-        Apply();
+        if (!NprTestingConfig.TestMode)
+            Apply();
     }
 
     void OnTransformChildrenChanged()
     {
         Ensure(true);
-        Apply();
+        if (!NprTestingConfig.TestMode)
+            Apply();
     }
 
     void Ensure(bool force = false)
@@ -125,7 +128,7 @@ public class StylisedTag : MonoBehaviour
 
             r.renderingLayerMask = mask;
 
-            var mpb = new MaterialPropertyBlock();
+            MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
             
             if (imageEffects != StyleBits.ImageSpaceEffect.None)

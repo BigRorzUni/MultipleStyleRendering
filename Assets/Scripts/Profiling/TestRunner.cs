@@ -44,8 +44,6 @@ public class NprTestCase
     public int N = 32;
     public int K = 1;
     public int stylesPerObject = 1;
-
-    public bool useBoundingBoxes = true;
 }
 
 public class TestRunner : MonoBehaviour
@@ -73,7 +71,6 @@ public class TestRunner : MonoBehaviour
             values = new [] {0,1,2,4,8,16,32},
             K = 0,
             stylesPerObject = 0,
-            useBoundingBoxes = true
         },
         new NprTestCase
         {
@@ -83,7 +80,6 @@ public class TestRunner : MonoBehaviour
             values = new [] {0,1,2,4,8,16,32},
             N = 32,
             K = 32,
-            useBoundingBoxes = true
         },
     };
 
@@ -178,8 +174,6 @@ public class TestRunner : MonoBehaviour
         {
             StylisedTag tag = tags[objIndex];
             if (!tag) continue;
-
-            tag.ClearTestEffects();
 
             int baseStyle = objIndex % k;
 
@@ -283,102 +277,98 @@ public class TestRunner : MonoBehaviour
 
                 Debug.Log($"Loaded scene: {test.scene}");
 
-                // get the current run from test config
-                int curN = test.N;
-                int curK = test.K;
-                int curS = test.stylesPerObject;
-                bool curUseBBoxes = test.useBoundingBoxes;
-
-                switch (test.variable)
+                // test with bboxes on and bboxes off
+                foreach (bool bboxMode in new[] { true, false })
                 {
-                    case TestVariable.N:              
-                        curN = Mathf.Clamp(v, 0, 32); 
-                        break;
+                    // get the current run from test config
+                    int curN = test.N;
+                    int curK = test.K;
+                    int curS = test.stylesPerObject;
+                    bool curUseBBoxes = bboxMode;
 
-                    case TestVariable.K:              
-                        curK = Mathf.Clamp(v, 0, 32); 
-                        break;
-                    case TestVariable.StylesPerObject:
-                        curS = Mathf.Clamp(v, 0, 32); 
-                        break;
-                    
-                    // add more
+                    switch (test.variable)
+                    {
+                        case TestVariable.N:
+                            curN = Mathf.Clamp(v, 0, 32);
+                            break;
 
-                    default: 
-                        break;
-                }
+                        case TestVariable.K:
+                            curK = Mathf.Clamp(v, 0, 32);
+                            break;
 
-                // store into global current config for other scripts to read if needed
-                NprTestingConfig.SceneName = test.scene;
-                NprTestingConfig.TestMode = true;             
-                NprTestingConfig.UseBoundingBoxes = curUseBBoxes;
-                NprTestingConfig.N = curN;
-                NprTestingConfig.K = curK;
-                NprTestingConfig.StylesPerObject = curS;
+                        case TestVariable.StylesPerObject:
+                            curS = Mathf.Clamp(v, 0, 32);
+                            break;
 
-                n.EnableTestMode(curN);
+                        default:
+                            break;
+                    }
 
-                // bounding box vs fullscreen somewhere
+                    // store into global current config
+                    NprTestingConfig.SceneName = test.scene;
+                    NprTestingConfig.TestMode = true;
+                    NprTestingConfig.UseBoundingBoxes = curUseBBoxes;
+                    NprTestingConfig.N = curN;
+                    NprTestingConfig.K = curK;
+                    NprTestingConfig.StylesPerObject = curS;
 
-                // clear all styles
-                Debug.Log("Clearing styles before testing");
-                var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-                foreach (var tag in tags)
-                    tag.ClearTestEffects();
+                    n.EnableTestMode(curN);
 
+                    Debug.Log($"Clearing styles before testing (BB={curUseBBoxes})");
+                    var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                    foreach (var tag in tags)
+                    {
+                        tag.ClearTestEffects();
+                        tag.Apply();
+                    }
+                    if (curK > 0 && curS > 0)
+                    {
+                        Debug.Log("Applying test styles");
+                        ApplyTestStylesToScene(curK, curS);
+                    }
 
-                if (curK > 0 && curS > 0)
-                {
-                    Debug.Log("Applying test styles");
-                    ApplyTestStylesToScene(curK, curS);
-                }
+                    Debug.Log($"Running {test.name} | {test.variable}={v} | BB={curUseBBoxes}");
+                    Debug.Log($"{startupFrames} warmup frames...");
+                    for (int i = 0; i < startupFrames; i++)
+                        yield return null;
 
-                // RUN TESTS
-                Debug.Log($"Running {test.name} | {test.variable}={v} BB={curUseBBoxes}");
-                Debug.Log($"{startupFrames} warmup frames...");
-                for (int i = 0; i < startupFrames; i++)
-                    yield return null;
+                    double[] cpuTimings = new double[framesToCapture];
+                    double[] gpuTimings = new double[framesToCapture];
 
-                double[] cpuTimings = new double[framesToCapture];
-                double[] gpuTimings = new double[framesToCapture];
-                // also want to measure
-                // median CPU ms
-	            // median GPU ms
-	            // 10% low FPS 
-                // vram usage per frame ?
-
-                Debug.Log("Capturing frames...");
-                for (int i = 0; i < framesToCapture; i++)
-                {
-                    yield return null;
-                    cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
-                    gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
-                }
-
-                Directory.CreateDirectory(logDir);
-                string path = Path.Combine(logDir, $"{test.name}_{test.variable}_{v}.csv");
-
-                using (StreamWriter sw = new StreamWriter(path, false))
-                {
-                    sw.WriteLine("frame,cpu_ms,gpu_ms");
+                    Debug.Log("Capturing frames...");
                     for (int i = 0; i < framesToCapture; i++)
                     {
-                        sw.Write(i);
-                        sw.Write(",");
-                        sw.Write(cpuTimings[i]);
-                        sw.Write(",");
-                        sw.Write(gpuTimings[i]);
-                        sw.WriteLine();
+                        yield return null;
+                        cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
+                        gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
                     }
+
+                    Directory.CreateDirectory(logDir);
+                    string bboxLabel = curUseBBoxes ? "bboxes" : "fullscreen";
+                    string path = Path.Combine(logDir, $"{test.name}_{test.variable}_{v}_{bboxLabel}.csv");
+
+                    using (StreamWriter sw = new StreamWriter(path, false))
+                    {
+                        sw.WriteLine("frame,cpu_ms,gpu_ms");
+                        for (int i = 0; i < framesToCapture; i++)
+                        {
+                            sw.Write(i);
+                            sw.Write(",");
+                            sw.Write(cpuTimings[i]);
+                            sw.Write(",");
+                            sw.Write(gpuTimings[i]);
+                            sw.WriteLine();
+                        }
+                    }
+
+                    Debug.Log($"Timings saved at {path}");
                 }
-
-                Debug.Log($"Timings saved at {path}");
             }
-
-            Debug.Log("Testing done!");
-            NprTestingConfig.IsBenchmarkRunning = false;
-            Application.Quit();
         }
+
+        Debug.Log("Testing done!");
+        NprTestingConfig.IsBenchmarkRunning = false;
+        Application.Quit();
     }
 
     private void Start()

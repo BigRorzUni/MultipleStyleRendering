@@ -49,12 +49,8 @@ public class DummyPass : ScriptableRenderPass
             return;
         if (!nprFrameData.sourceTexture.IsValid())   
             return;
-        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0) 
-            return;
-        
         if ((nprFrameData.presentTestStyles & _requiredBit) == 0)
             return;
-
 
         using (var builder = renderGraph.AddRasterRenderPass($"{_name} Source Copy", out PassData copyPass))
         {
@@ -69,6 +65,37 @@ public class DummyPass : ScriptableRenderPass
             });
         }
 
+        // FULLSCREEN MODE: ignore all bbox usage
+        if (!NprTestingConfig.UseBoundingBoxes)
+        {
+            using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {_name}", out PassData passData))
+            {
+                passData.src = nprFrameData.sourceTexture;
+                passData.ids = nprFrameData.idTexture;
+                passData.mat = _mat;
+
+                builder.UseTexture(passData.src, AccessFlags.Read);
+                builder.UseTexture(passData.ids, AccessFlags.Read);
+
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(SourceTexID, data.src);
+                    data.mat.SetTexture(IdTexId, data.ids);
+
+                    CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                });
+            }
+
+            return;
+        }
+
+        // BBOX MODE
+
+        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0) 
+            return;
+
         foreach (var bbox in nprFrameData.bboxes)
         {
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -77,11 +104,7 @@ public class DummyPass : ScriptableRenderPass
             if ((bbox.testMask & _requiredBit) == 0)
                 continue;
             
-            Debug.Log(
-                    $"[DummyPass] Rendering bbox {bbox.box} | " +
-                    $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " +
-                    $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}"
-                );
+            // Debug.Log($"[DummyPass] Rendering bbox {bbox.box} | " + $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " + $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}");
 
             using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name} ({bbox.box})", out PassData passData))
             {
