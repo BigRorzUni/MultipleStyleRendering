@@ -10,8 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 201609183533132451}
   - component: {fileID: 3036463409381389133}
-  - component: {fileID: 7609244542442553338}
-  - component: {fileID: 4481584159838812636}
+  - component: {fileID: 9149287039531368099}
   m_Layer: 0
   m_Name: TestRunner
   m_TagString: Untagged
@@ -53,7 +52,9 @@ MonoBehaviour:
   - TestScene4
   startupFrames: 100
   framesToCapture: 500
---- !u!114 &7609244542442553338
+  setRendererTestmode: 0
+  setDebugBBoxes: 1
+--- !u!114 &9149287039531368099
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -62,22 +63,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 7329352657357545300}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 072a9737188a14c76bf512342f2abd53, type: 3}
+  m_Script: {fileID: 11500000, guid: a6218a1453fef4ef889deb4fe4ba6ed8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TestSpawner
-  prefab: {fileID: 0}
-  testStyleIndex: 2
---- !u!114 &4481584159838812636
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7329352657357545300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59983880c711348dfa79eb3073ab2e88, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StyleApplier
-  K: 3
-  stylesPerObject: 1
+  m_EditorClassIdentifier: Assembly-CSharp::BBoxDebugOverlay
+  drawLabels: 1
+  thickness: 2

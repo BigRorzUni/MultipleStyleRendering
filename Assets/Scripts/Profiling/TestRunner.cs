@@ -19,6 +19,7 @@ public static class NprTestingConfig
 
     public static string SceneName = ""; // scene to test
     public static bool IsBenchmarkRunning = false;
+    public static bool debugBBoxes = false;
 }
 
 // what the test will be changing
@@ -55,6 +56,7 @@ public class TestRunner : MonoBehaviour
     NprStylesRendererFeature n;
 
     public bool setRendererTestmode = false;
+    public bool setDebugBBoxes = false;
 
     private string logDir = null;
 
@@ -218,6 +220,8 @@ public class TestRunner : MonoBehaviour
         }
 
         NprTestingConfig.TestMode = setRendererTestmode;
+        NprTestingConfig.debugBBoxes = setDebugBBoxes;
+        BBoxDebugStore.Clear();
 
         if(NprTestingConfig.TestMode)
         {
@@ -396,6 +400,8 @@ public class TestRunner : MonoBehaviour
             Debug.LogError("GPU recorder is not valid?");
             return;
         }
+
+        NprTestingConfig.debugBBoxes = false;
 
         StartCoroutine(RunAllTests());
     }
