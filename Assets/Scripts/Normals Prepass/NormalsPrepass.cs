@@ -11,7 +11,7 @@ public class NormalsPrepass : ScriptableRenderPass, INprPass
     readonly Shader _normalsShader;
 
     public bool debugToScreen;
-    public void ApplySettings(NprSettings settings)
+    public void ApplySettings(Settings settings)
     {
         debugToScreen = settings.debugView == NprDebugView.Normals;
     }

@@ -1,5 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -9,18 +12,9 @@ public enum NprDebugView
     Normals,
     Edges
 }
-
-[System.Serializable]
-public class NprSettings
-{
-    public Color outlineColour = Color.black;
-    public float outlineThickness = 1f;
-    public NprDebugView debugView = NprDebugView.None;
-}
-
 public interface INprPass
 {
-    void ApplySettings(NprSettings settings);
+    void ApplySettings(Settings settings);
 }
 
 public class NprStylesRendererFeature : ScriptableRendererFeature
@@ -28,21 +22,17 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // prepasses
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
-    // private EdgesPrepass _edgesPrepass;
-    // private SourcePrepass _sourcePrepass;
     private bboxPrepass _bboxPrepass;
-    // private CompositePass _compositePass;
 
-    // STYLES: object passes
-    List<ScriptableRenderPass> _objectPasses = new();
-    private ToonPass _toonPass;
-    // private SimpleOutlinePass _outlinePass;
+    // OBJECT PASSES
+    List<Effect> objectEffects = new();
+    private ToonEffect toonEffect;
 
-    // STYLES: screen passes
-    List<ScriptableRenderPass> _screenPasses = new();
-    private ScreenspaceOutlinesPass _ssOutlinesPass;
-    private DitheringPass _ditheringPass;
-    private PixelisationPass _pixelisationPass;
+    // IMAGE EFFECTS
+    [SerializeField]
+    List<Effect> imageEffects = new();
+    DitheringEffect ditheringEffect;
+    ScreenspaceOutlinesEffect outlinesEffect;
 
     // shaders
     [SerializeField] private Shader idShader;
@@ -51,12 +41,37 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
-    [SerializeField] private Shader bboxShader;
-    // [SerializeField] private Shader compositeShader;
+
+
+    // TEST EFFECTS
+    [SerializeField]
+    List<Effect> testImgEffects = new();
+
+    
+    [SerializeField] public bool useTestEffects = true;
+    [SerializeField, Min(1)] private int testEffectCount = 32;
+
+    // The shader all dummy effects use
+    [SerializeField] private Shader testDummyShader;
+
   
     // settings
-    public NprSettings settings = new();
- 
+    public Settings settings = new();
+
+    public void EnableTestMode(int styleCount)
+    {
+        useTestEffects = true;
+        testEffectCount = Mathf.Clamp(styleCount, 1, 32);
+
+        Create(); 
+    }
+
+    public void DisableTestMode()
+    {
+        useTestEffects = false;
+        Create();
+    }
+
     // Called when the renderer feature is first created or reset.
     public override void Create()
     {
@@ -76,27 +91,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader);
 
-        if(bboxShader == null)
+
+        if(NprTestingConfig.TestMode)
         {
-            Debug.LogError("Could not find shader 'Custom/bbox'");
-            return;
+            _bboxPrepass = new bboxPrepass(testEffectCount, true);
         }
-        _bboxPrepass = new bboxPrepass(bboxShader);
-
-        // if(compositeShader == null)
-        // {
-        //     Debug.LogError("Could not find shader 'Custom/Composite'");
-        //     return;
-        // }
-        // _compositePass = new CompositePass(compositeShader);   
-
-        // Shader edgesShader = Shader.Find("Custom/Edges");
-        // if (edgesShader == null)
-        // {
-        //     Debug.LogError("Could not find shader 'Custom/Edges'");
-        //     return;
-        // }
-        // _edgesPrepass = new EdgesPrepass(edgesShader);
+        else
+            _bboxPrepass = new bboxPrepass();
 
         // object passes
         if (toonShader == null)
@@ -104,16 +105,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/Toon'");
             return;
         }
-        _toonPass = new ToonPass(toonShader);
-
-        // var outlineshader = Shader.Find("Custom/SimpleOutline");
-        // if (outlineshader == null)
-        // {
-        //     Debug.LogError("Could not find shader 'Custom/SimpleOutline'");
-        //     return;
-        // }
-        // // create the outline render pass
-        // _outlinePass = new SimpleOutlinePass(outlineshader);
+        toonEffect = new ToonEffect(toonShader);
 
         // screen passes
         if (ssOutlinesShader == null)
@@ -121,49 +113,67 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
             return;
         }
-        _ssOutlinesPass = new ScreenspaceOutlinesPass(ssOutlinesShader);
+        outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
 
         if (ditheringShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/Dithering'");
             return;
         }
-        _ditheringPass = new DitheringPass(ditheringShader);
-
-        if (pixelisationShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Pixelisation'");
-            return;
-        }
-        _pixelisationPass = new PixelisationPass(pixelisationShader);
+        ditheringEffect = new DitheringEffect(ditheringShader);
 
         // add object passes in their execution order
-        _objectPasses.Clear();
-        _objectPasses.Add(_toonPass);
+        objectEffects.Clear();
+        objectEffects.Add(toonEffect);
         //_objectPasses.Add(outlinePass);
 
-        // add screenpasses in their execution order
-        _screenPasses.Clear();
-        // _screenPasses.Add(_pixelisationPass);
-        _screenPasses.Add(_ditheringPass);
-        _screenPasses.Add(_ssOutlinesPass);
-        
+        // add image effects in their execution order
+        imageEffects.Clear();
+        testImgEffects.Clear();
+
+        if(NprTestingConfig.TestMode)
+        {
+            if (testDummyShader == null)
+            {
+                Debug.LogError("useTestEffects is enabled but testDummyShader is not set.");
+                return;
+            }
+
+            for (int i = 0; i < testEffectCount; i++)
+            {
+                imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+
+                //Debug.Log($"Added test_effect_{i}");
+            }
+
+            //Debug.Log("render feature in test mode");
+            Debug.Log("Queued test pases");
+        }
+        else
+        {           
+            imageEffects.Add(ditheringEffect);
+            imageEffects.Add(outlinesEffect);
+
+            Debug.Log("queued proper rendering passes");
+        }
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer,
     ref RenderingData renderingData)
     {
-
-        // object passes
-        foreach (var pass in _objectPasses)
+        // object effects
+        foreach(var effect in objectEffects)
         {
-            if (pass is INprPass nprPass)
-                nprPass.ApplySettings(settings);
-            if(settings.debugView == NprDebugView.None)
-                renderer.EnqueuePass(pass);
+            foreach(var pass in effect.Passes)
+            {
+                if (pass is INprPass nprPass)
+                    nprPass.ApplySettings(settings);
+                if(settings.debugView == NprDebugView.None)
+                    renderer.EnqueuePass(pass);
+            }
         }
         
-        if (_idPrepass == null) return;
+        if (_idPrepass == null || _bboxPrepass == null) return;
 
         // always produce id texture
         _idPrepass.ApplySettings(settings);
@@ -172,25 +182,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // need to compute bounding boxes after id texture is created
         renderer.EnqueuePass(_bboxPrepass);
 
-        //TODO: check if normals are needed
+        // compute normals
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
-        // _edgesPrepass.ApplySettings(settings);
-        // renderer.EnqueuePass(_edgesPrepass);
-        
-        
-
-        // screen passes
-        foreach (var pass in _screenPasses)
+        // image effects
+        foreach(var effect in imageEffects)
         {
-            if (pass is INprPass nprPass)
-                nprPass.ApplySettings(settings);
-            if(settings.debugView == NprDebugView.None)
-                renderer.EnqueuePass(pass);
+            foreach(var pass in effect.Passes)
+            {
+                if (pass is INprPass nprPass)
+                    nprPass.ApplySettings(settings);
+                if(settings.debugView == NprDebugView.None)
+                    renderer.EnqueuePass(pass);
+            }
         }
-
-        // composite pass
-        //renderer.EnqueuePass(_compositePass);
     }
 }
