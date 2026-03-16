@@ -100,9 +100,11 @@ Shader "Custom/Dithering"
                 // get 
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
-                float outV = step(threshold, col);
+                float outR = step(threshold, col.r);
+                float outG = step(threshold, col.g);
+                float outB = step(threshold, col.b);
 
-                return float4(outV, outV, outV, col.a);
+                return float4(outR, outG, outB, col.a);
 
                 //return float4(greyscale, greyscale, greyscale, col.a);
             }
