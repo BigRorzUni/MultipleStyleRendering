@@ -204,13 +204,6 @@ public class bboxPrepass : ScriptableRenderPass
             }
         }
 
-        // for all bboxes that share an image effect bit
-            // if their union has less area then their sum of areas create a new bbox with their shared bits
-            // remove these bits from the original bboxes (if they have no bits left remove the bbox)
-            // add the new bbox to the list
-            // repeat until no more merges are done
-
-
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         camDesc.depthBufferBits = 0;

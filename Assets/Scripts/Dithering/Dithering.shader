@@ -90,7 +90,6 @@ Shader "Custom/Dithering"
                 // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
                 // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
 
-                // TODO: preserve colour channels
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
                 // flatten pixelXY
@@ -105,8 +104,6 @@ Shader "Custom/Dithering"
                 float outB = step(threshold, col.b);
 
                 return float4(outR, outG, outB, col.a);
-
-                //return float4(greyscale, greyscale, greyscale, col.a);
             }
             ENDHLSL
         }

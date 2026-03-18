@@ -49,7 +49,6 @@ public class NprTestCase
 
 public class TestRunner : MonoBehaviour
 {
-    [SerializeField] public string[] testScenes; 
 
     [SerializeField] private int startupFrames = 500;
     [SerializeField] private int framesToCapture = 1000;
@@ -65,23 +64,42 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
+        // new NprTestCase
+        // {
+        //     name = "TotalStylesScaling",
+        //     scene = "TestScene1",
+        //     variable = TestVariable.N,
+        //     values = new [] {0,1,2,4,8,16,32},
+        //     K = 0,
+        //     stylesPerObject = 0,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "StackedStylesScaling",
+        //     scene = "TestScene2",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new [] {0,1,2,4,8,16,32},
+        //     K = 32,
+        // },
         new NprTestCase
         {
-            name = "TotalStylesScaling",
-            scene = "TestScene1",
-            variable = TestVariable.N,
-            values = new [] {0,1,2,4,8,16,32},
-            K = 0,
-            stylesPerObject = 0,
+            name="AreaScaling1Style",
+            scene = "TestScene3",
+            variable = TestVariable.Coverage,
+            values = new [] {0,5,10,20,40,60,80,100},
+            N=1,
+            K = 1,
+            stylesPerObject = 1,
         },
         new NprTestCase
         {
-            name = "StackedStylesScaling",
-            scene = "TestScene2",
-            variable = TestVariable.StylesPerObject,
-            values = new [] {0,1,2,4,8,16,32},
+            name="AreaScaling32Style",
+            scene = "TestScene3",
+            variable = TestVariable.Coverage,
+            values = new [] {0,5,10,20,40,60,80,100},
             N = 32,
             K = 32,
+            stylesPerObject = 32,
         },
     };
 
@@ -195,7 +213,18 @@ public class TestRunner : MonoBehaviour
         Debug.Log($"Applied K={k}, stylesPerObject={s}, objects={tags.Length}");
     }
 
-    // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP
+    // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP\
+    public void UpdateCoverage(float coveragePercent)
+    {
+        CoverageController coverageController = FindFirstObjectByType<CoverageController>();
+        if(coverageController == null)
+        {
+            Debug.LogError("No CoverageController found in scene");
+            return;
+        }
+
+        coverageController.UpdateCoverage(coveragePercent);
+    }
 
     public void OnValidate()
     {
@@ -227,7 +256,10 @@ public class TestRunner : MonoBehaviour
         {
             n.EnableTestMode(32);
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+            {
+                tag.AddTestEffect(1);
                 tag.Apply();
+            }
         }
         else
         {
@@ -282,7 +314,8 @@ public class TestRunner : MonoBehaviour
                 Debug.Log($"Loaded scene: {test.scene}");
 
                 // test with bboxes on and bboxes off
-                foreach (bool bboxMode in new[] { true, false })
+                bool[] bboxModes = { true, false }; // extend this for more modes
+                foreach (bool bboxMode in bboxModes)
                 {
                     // get the current run from test config
                     int curN = test.N;
@@ -302,6 +335,11 @@ public class TestRunner : MonoBehaviour
 
                         case TestVariable.StylesPerObject:
                             curS = Mathf.Clamp(v, 0, 32);
+                            break;
+
+                        case TestVariable.Coverage:
+                            Debug.Log("Updating coverage to " + v + "%");
+                            UpdateCoverage(v);
                             break;
 
                         default:
