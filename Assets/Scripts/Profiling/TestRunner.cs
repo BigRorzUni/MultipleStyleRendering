@@ -257,7 +257,8 @@ public class TestRunner : MonoBehaviour
             n.EnableTestMode(32);
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
             {
-                tag.AddTestEffect(1);
+                for (int i = 0; i < 32; i++)
+                    tag.AddTestEffect(i);
                 tag.Apply();
             }
         }

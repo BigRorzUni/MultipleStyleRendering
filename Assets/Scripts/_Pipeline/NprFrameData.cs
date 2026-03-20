@@ -16,6 +16,16 @@ public class BoundingBox
         box = b;
         testMask = 0;
     }
+
+    public static BoundingBox CreateTestBox(uint testMask, RectInt rect)
+    {
+        BoundingBox box = new BoundingBox(0, rect)
+        {
+            testMask = testMask
+        };
+        
+        return box;
+    }
 }
 
 public sealed class NprFrameData : ContextItem
