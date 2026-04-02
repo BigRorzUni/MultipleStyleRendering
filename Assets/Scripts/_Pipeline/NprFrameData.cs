@@ -9,6 +9,7 @@ public class BoundingBox
     public RectInt box;
 
     public uint testMask; // for testing
+    public List<Renderer> renderers = new List<Renderer>();
 
     public BoundingBox(uint s, RectInt b)
     {
