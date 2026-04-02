@@ -122,7 +122,7 @@ public class bboxPrepass : ScriptableRenderPass
                 merged = true;
                 if(NprTestingConfig.TestMode)
                 {
-                    Debug.Log("Merging bboxes with test mode on");
+                    // Debug.Log("Merging bboxes with test mode on");
                     foreach(var bboxA in nprFrameData.bboxes)
                     {
                         uint testEffectsA = bboxA.testMask;
