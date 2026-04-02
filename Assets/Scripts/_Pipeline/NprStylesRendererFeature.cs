@@ -175,12 +175,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         
         if (_idPrepass == null || _bboxPrepass == null) return;
 
+        // need to compute bounding boxes after id texture is created
+        renderer.EnqueuePass(_bboxPrepass);
+
         // always produce id texture
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
-
-        // need to compute bounding boxes after id texture is created
-        renderer.EnqueuePass(_bboxPrepass);
 
         // compute normals
         _normalsPrepass.ApplySettings(settings);

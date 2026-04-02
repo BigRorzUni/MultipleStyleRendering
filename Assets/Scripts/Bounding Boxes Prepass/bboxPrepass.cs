@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using NUnit.Framework.Internal;
 
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
@@ -73,25 +74,26 @@ public class bboxPrepass : ScriptableRenderPass
 
                     if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
                     {
-                        BoundingBox bbox = new BoundingBox((uint)tag.imageEffects, screenRect);
-
-                        // maybe need to check for occlusion here? could do a depth check against the camera near plane or something?
-                        nprFrameData.presentImageBits |= tag.imageEffects;
-
-                        // add test effect to bbox mask
-                        if(NprTestingConfig.TestMode)
+                        BoundingBox bbox;
+                        if (NprTestingConfig.TestMode)
                         {
+                            bbox = BoundingBox.CreateTestBox(tag.testEffects, screenRect);
                             nprFrameData.presentTestStyles |= tag.testEffects;
-                            bbox.testMask = tag.testEffects;
                         }
-                            //Debug.Log($"Getting test mask from object, it has {bbox.testMask} applied");
+                        else
+                        {
+                            bbox = new BoundingBox((uint)tag.imageEffects, screenRect);
+                        }
+
+                        // image effects are still tracked separately
+                        nprFrameData.presentImageBits |= tag.imageEffects;
 
                         nprFrameData.bboxes.Add(bbox);
                     }
                 }
             }
         }
-        else
+        else // if not using bounding boxes, we gather the present image/test    effect bits for the whole screen without needing to check visibility
         {
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
             foreach (var tag in tags)
@@ -118,6 +120,87 @@ public class bboxPrepass : ScriptableRenderPass
             while(!merged)
             {
                 merged = true;
+                if(NprTestingConfig.TestMode)
+                {
+                    // Debug.Log("Merging bboxes with test mode on");
+                    foreach(var bboxA in nprFrameData.bboxes)
+                    {
+                        uint testEffectsA = bboxA.testMask;
+
+                        if(testEffectsA == 0)
+                            continue;
+
+                        foreach(var bboxB in nprFrameData.bboxes)
+                        {
+                            if (bboxA == bboxB)
+                                continue;
+
+                            uint testEffectsB = bboxB.testMask;
+
+                            // if they share any test effect bits
+                            if ((testEffectsA & testEffectsB) != 0)
+                            {
+                                // compute area of the two boxes
+                                int areaA = bboxA.box.width * bboxA.box.height;
+                                int areaB = bboxB.box.width * bboxB.box.height;
+
+                                // compute area of their union
+                                int UnionMinX = Mathf.Min(bboxA.box.xMin, bboxB.box.xMin);
+                                int UnionMinY = Mathf.Min(bboxA.box.yMin, bboxB.box.yMin);
+                                int UnionMaxX = Mathf.Max(bboxA.box.xMax, bboxB.box.xMax);
+                                int UnionMaxY = Mathf.Max(bboxA.box.yMax, bboxB.box.yMax);
+
+                                int unionArea = (UnionMaxX - UnionMinX) * (UnionMaxY - UnionMinY);
+
+                                if(unionArea < areaA + areaB)
+                                {
+                                    merged = true;
+                                    int unionWidth = UnionMaxX - UnionMinX;
+                                    int unionHeight = UnionMaxY - UnionMinY;
+                                    RectInt unionRect = new RectInt(UnionMinX, UnionMinY, unionWidth, unionHeight);
+                                    
+                                    // create new bbox with shared test bits
+                                    uint sharedTestEffects = testEffectsA & testEffectsB;
+                                    BoundingBox mergedBox = BoundingBox.CreateTestBox(sharedTestEffects, unionRect);
+
+                                    // remove shared bits from original boxes
+                                    bboxA.testMask &= ~sharedTestEffects;
+                                    bboxB.testMask &= ~sharedTestEffects;
+
+                                    // add merged box to list
+                                    newBoxes.Add(mergedBox); 
+
+                                    // debug show the merged box
+                                    // if(NprTestingConfig.debugBBoxes)
+                                        // BBoxDebugStore.Add(unionRect, Color.red, $"Merged {sharedTestEffects}");
+                                    
+                                    // remove b if it has no bits left
+                                    if (bboxB.testMask == 0)
+                                    {
+                                        toRemove.Add(bboxB);
+                                    }
+
+                                    // remove a if it has no bits left
+                                    if (bboxA.testMask == 0)
+                                    {
+                                        toRemove.Add(bboxA);
+                                        break; 
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    nprFrameData.bboxes.RemoveAll(b => toRemove.Contains(b));
+                    nprFrameData.bboxes.AddRange(newBoxes);
+
+                    toRemove.Clear();
+                    newBoxes.Clear();
+                    
+                    continue;
+                }
+
                 foreach(var bboxA in nprFrameData.bboxes)
                 {
                     StyleBits.ImageSpaceEffect effectsA = bboxA.styles;
@@ -203,13 +286,6 @@ public class bboxPrepass : ScriptableRenderPass
                 BBoxDebugStore.Add(bbox.box, Color.green, $"Final {bbox.styles} test {bbox.testMask}");
             }
         }
-
-        // for all bboxes that share an image effect bit
-            // if their union has less area then their sum of areas create a new bbox with their shared bits
-            // remove these bits from the original bboxes (if they have no bits left remove the bbox)
-            // add the new bbox to the list
-            // repeat until no more merges are done
-
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;

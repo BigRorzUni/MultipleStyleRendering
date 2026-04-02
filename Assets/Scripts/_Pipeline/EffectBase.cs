@@ -20,4 +20,6 @@ public abstract class Effect : IEffect
 
     protected readonly List<ScriptableRenderPass> _passes = new();
     public IReadOnlyList<ScriptableRenderPass> Passes => _passes;
+
+    public bool needsNormalPass;
 }
