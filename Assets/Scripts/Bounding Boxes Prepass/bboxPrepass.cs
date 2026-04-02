@@ -88,6 +88,8 @@ public class bboxPrepass : ScriptableRenderPass
                         // image effects are still tracked separately
                         nprFrameData.presentImageBits |= tag.imageEffects;
 
+                        bbox.renderers.Add(renderer); 
+
                         nprFrameData.bboxes.Add(bbox);
                     }
                 }
@@ -167,6 +169,13 @@ public class bboxPrepass : ScriptableRenderPass
                                     bboxA.testMask &= ~sharedTestEffects;
                                     bboxB.testMask &= ~sharedTestEffects;
 
+                                    mergedBox.renderers.AddRange(bboxA.renderers);
+                                    foreach (var r in bboxB.renderers)
+                                    {
+                                        if (!mergedBox.renderers.Contains(r))
+                                            mergedBox.renderers.Add(r);
+                                    }
+
                                     // add merged box to list
                                     newBoxes.Add(mergedBox); 
 
@@ -244,6 +253,13 @@ public class bboxPrepass : ScriptableRenderPass
                                 // remove shared bits from original boxes
                                 bboxA.styles &= ~sharedEffects;
                                 bboxB.styles &= ~sharedEffects;
+
+                                mergedBox.renderers.AddRange(bboxA.renderers);
+                                foreach (var r in bboxB.renderers)
+                                {
+                                    if (!mergedBox.renderers.Contains(r))
+                                        mergedBox.renderers.Add(r);
+                                }
 
                                 // add merged box to list
                                 newBoxes.Add(mergedBox); 
