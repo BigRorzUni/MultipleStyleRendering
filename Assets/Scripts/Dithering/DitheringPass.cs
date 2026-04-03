@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
 
 [System.Serializable]
 public class DitheringPass : ScriptableRenderPass//, INprPass
@@ -116,6 +117,26 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         {
             // new batched instanced path
             Debug.Log("Batched dithering pass");
+
+            List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
+            foreach (var bbox in nprFrameData.bboxes)
+            {
+                if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                    continue;
+
+                if ((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
+                    continue;
+
+                batchedBBoxes.Add(bbox);
+            }
+
+            // Debug.Log($" batched bbox count = {batchedBBoxes.Count}");
+            // for (int i = 0; i < batchedBBoxes.Count; i++)
+            // {
+            //     Debug.Log($"batched bbox {i}: {batchedBBoxes[i].box}");
+            // }
+
+
         }
 
 #region OLD METHOD
