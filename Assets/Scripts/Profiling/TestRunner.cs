@@ -15,8 +15,8 @@ public static class NprTestingConfig
     public static bool UseBoundingBoxes = true;
 
     // ABLATION
-    public static bool IdBoundingBoxes = true; // whether to use bboxes in id prepasss
-
+    public static bool IdBoundingBoxes = false; // whether to use bboxes in id prepass (TEST)
+    public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
     public static int StylesPerObject = 0; // max styles per object
@@ -62,6 +62,7 @@ public class TestRunner : MonoBehaviour
     public bool setIdPrepassBBoxes = true;
     public bool setUseBBoxes = true;
     public bool setDebugBBoxes = false;
+    public bool setBatchedDraws = true;
 
     private string logDir = null;
 
@@ -258,6 +259,8 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.debugBBoxes = setDebugBBoxes;
         NprTestingConfig.IdBoundingBoxes = setIdPrepassBBoxes;
         NprTestingConfig.UseBoundingBoxes = setUseBBoxes;
+        NprTestingConfig.BatchedDraws = setBatchedDraws;
+
         BBoxDebugStore.Clear();
 
         if(NprTestingConfig.TestMode)

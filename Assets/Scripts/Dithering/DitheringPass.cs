@@ -70,43 +70,52 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             });
         }
 
-
-        foreach(var bbox in nprFrameData.bboxes)
+        if (!NprTestingConfig.BatchedDraws)
         {
-            if (bbox.box.width <= 0 || bbox.box.height <= 0)
-                continue;
-            
-            if((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
-                continue;
+            // current per-bbox scissored path
 
-            // if(!bbox.currentTex.IsValid())
-            //     continue;
-
-            // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
-            using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
+            foreach(var bbox in nprFrameData.bboxes)
             {
-                passData.src = nprFrameData.sourceTexture;
-                passData.ids = nprFrameData.idTexture;
-                passData.mat = _mat;
-                passData.rect = bbox.box;
+                if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                    continue;
+                
+                if((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
+                    continue;
 
-                builder.UseTexture(passData.src, AccessFlags.Read);
-                builder.UseTexture(passData.ids, AccessFlags.Read);
+                // if(!bbox.currentTex.IsValid())
+                //     continue;
 
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+                // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
+                using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
                 {
-                    data.mat.SetTexture(SourceTexID, data.src);
-                    data.mat.SetTexture(IdTexId, data.ids);
+                    passData.src = nprFrameData.sourceTexture;
+                    passData.ids = nprFrameData.idTexture;
+                    passData.mat = _mat;
+                    passData.rect = bbox.box;
 
-                    ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                    CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
-                    ctx.cmd.DisableScissorRect();
-                });
+                    builder.UseTexture(passData.src, AccessFlags.Read);
+                    builder.UseTexture(passData.ids, AccessFlags.Read);
+
+                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+                    builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+                    {
+                        data.mat.SetTexture(SourceTexID, data.src);
+                        data.mat.SetTexture(IdTexId, data.ids);
+
+                        ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+                        CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                        ctx.cmd.DisableScissorRect();
+                    });
+                }
+
+                // bbox.currentTex = outTex;
             }
-
-            // bbox.currentTex = outTex;
+        }
+        else
+        {
+            // new batched instanced path
+            Debug.Log("Batched dithering pass");
         }
 
 #region OLD METHOD
