@@ -22,28 +22,76 @@ Shader "Custom/DummyBatched"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_SourceTex);
-            SAMPLER(sampler_SourceTex);
+            struct InstanceData
+            {
+                float4 rect; 
+            };
+
+            StructuredBuffer<InstanceData> _InstanceData;
+            float4 _NprScreenSize; 
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
 
+            TEXTURE2D(_SourceTex);
+            SAMPLER(sampler_SourceTex);
+
             struct Attributes
             {
                 uint vertexID : SV_VertexID;
+                uint instanceID : SV_InstanceID;
             };
 
             struct Varyings
             {
                 float4 posCS : SV_POSITION;
-                float2 uv    : TEXCOORD0;
+                float2 screenUV : TEXCOORD0;
             };
+
+            // each quad is made of 2 triangles based on the rect of the instance data
+            float2 GetQuadUV(uint vertexID)
+            {
+                switch (vertexID)
+                {
+                    case 0: 
+                        return float2(0, 0);
+                    case 1: 
+                        return float2(1, 0);
+                    case 2: 
+                        return float2(1, 1);
+                    case 3: 
+                        return float2(0, 0);
+                    case 4: 
+                        return float2(1, 1);
+                    case 5: 
+                        return float2(0, 1);
+
+
+                    default:
+                        return float2(0, 0); // should never happen
+                }
+            }
 
             Varyings Vert (Attributes v)
             {
                 Varyings o;
-                o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
-                o.uv = GetFullScreenTriangleTexCoord(v.vertexID);
+
+                float2 uv = GetQuadUV(v.vertexID);
+                float4 rect = _InstanceData[v.instanceID].rect;
+
+                // map local quad UV to pixel coords within bbox
+                float2 pixelPos = rect.xy + uv * rect.zw;
+
+                // convert to clip space
+                float2 ndc;
+                ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
+                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0; // flip y for Unity's screen space
+
+                o.posCS = float4(ndc, 0.0, 1.0);
+
+                // convert pixel coords to texture UVs
+                o.screenUV = pixelPos * _NprScreenSize.zw;
+
                 return o;
             }
 
@@ -55,8 +103,8 @@ Shader "Custom/DummyBatched"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
-                uint mask = ReadMask8(i.uv);
+                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
+                uint mask = ReadMask8(i.screenUV);
 
                 // if no style applied then do nothing
                 if (mask == 0u)

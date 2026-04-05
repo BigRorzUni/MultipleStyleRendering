@@ -2,6 +2,13 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct QuadInstanceData
+{
+    public Vector4 rect;  
+}
 
 public class BoundingBox
 {

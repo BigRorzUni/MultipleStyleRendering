@@ -106,7 +106,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
-        if(NprTestingConfig.BatchedDraws)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
         {
             if (ssOutlineBatchedShader == null)
             {
@@ -125,7 +125,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
         }
 
-        if(NprTestingConfig.BatchedDraws)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
         {
             if (ditheringBatchedShader == null)
             {
@@ -153,7 +153,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if(NprTestingConfig.TestMode)
         {
-            if(NprTestingConfig.BatchedDraws)
+            if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
             {
                 if(testDummyBatchedShader == null)
                 {
