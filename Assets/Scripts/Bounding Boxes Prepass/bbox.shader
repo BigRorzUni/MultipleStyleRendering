@@ -35,8 +35,8 @@ Shader "Custom/InstancedBBoxDebugProcedural"
 
             struct Varyings
             {
-                float4 positionHCS : SV_POSITION;
-                float2 screenUV    : TEXCOORD0;
+                float4 positionCS : SV_POSITION;
+                float2 screenUV : TEXCOORD0;
             };
 
             float2 GetQuadUV(uint vertexID)
@@ -75,7 +75,7 @@ Shader "Custom/InstancedBBoxDebugProcedural"
                 ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
                 ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0;
 
-                output.positionHCS = float4(ndc, 0.0, 1.0);
+                output.positionCS = float4(ndc, 0.0, 1.0);
                 output.screenUV = pixelPos * _NprScreenSize.zw;
 
                 return output;

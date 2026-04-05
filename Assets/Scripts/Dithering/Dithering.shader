@@ -1,4 +1,4 @@
-Shader "Custom/DitheringInstanced"
+Shader "Custom/Dithering"
 {
     Properties
     {
@@ -8,28 +8,18 @@ Shader "Custom/DitheringInstanced"
     SubShader
     {
         Tags { "RenderPipeline"="UniversalPipeline" }
-
         Pass
         {
-            Name "DitheringInstanced"
+            Name "Dithering"
             ZTest Always
             ZWrite Off
             Cull Off
 
             HLSLPROGRAM
-            #pragma target 4.5
             #pragma vertex Vert
             #pragma fragment Frag
-
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct InstanceData
-            {
-                float4 rect; 
-            };
-
-            StructuredBuffer<InstanceData> _InstanceData;
-            float4 _NprScreenSize; 
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -38,72 +28,75 @@ Shader "Custom/DitheringInstanced"
             SAMPLER(sampler_SourceTex);
             float4 _SourceTex_TexelSize;
 
-            struct Attributes
-            {
-                float2 uv : TEXCOORD0;
-                uint instanceID : SV_InstanceID;
+            float4 _Rect;  // xy origin, zw width height
+            float2 _ScreenTexelSize;
+
+
+            CBUFFER_START(UnityPerMaterial)
+
+            CBUFFER_END
+
+            struct Attributes 
+            { 
+                uint vertexID : SV_VertexID; 
             };
 
-            struct Varyings
-            {
-                float4 posCS : SV_POSITION;
-                float2 screenUV : TEXCOORD0;
+            struct Varyings  
+            { 
+                float4 posCS : SV_POSITION; 
+                float2 uv : TEXCOORD0; 
             };
 
-            Varyings Vert(Attributes input)
+            Varyings Vert (Attributes v)
             {
-                Varyings output;
-
-                float2 uv = GetQuadUV(input.vertexID);
-                float4 rect = _InstanceData[input.instanceID].rect;
-
-                // map local quad UV to pixel coords within bbox
-                float2 pixelPos = rect.xy + input.uv * rect.zw;
-
-                // convert to clip space
-                float2 ndc;
-                ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
-                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0; // flip y for Unity's screen space
-
-                output.posCS = float4(ndc, 0.0, 1.0);
-
-                // convert pixel coords to texture UVs
-                output.screenUV = pixelPos * _NprScreenSize.zw;
-
-                return output;
+                Varyings o;
+                o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
+                o.uv = GetFullScreenTriangleTexCoord(v.vertexID);
+                return o;
             }
 
             uint ReadMask8(float2 uv)
             {
                 float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0);
+                return (uint)round(saturate(m) * 255.0); // unnormalise texture
             }
 
-            static const uint Bayer8x8[8 * 8] =
+            static const uint Bayer8x8[8*8] =
             {
                 0, 32, 8, 40, 2, 43, 10, 42,
                 48, 16, 56, 24, 50, 18, 58, 26,
-                12, 44, 4, 36, 14, 46, 6, 38,
+                12, 44, 4, 36, 14, 46, 6, 38, 
                 60, 28, 52, 20, 62, 30, 54, 22,
                 3, 35, 11, 43, 1, 33, 9, 41,
                 51, 19, 59, 27, 49, 17, 57, 25,
                 15, 47, 7, 39, 13, 45, 5, 37,
-                63, 31, 55, 23, 61, 29, 53, 21
+                63, 31, 55, 23, 61, 29, 53, 21 
             };
 
-            float4 Frag(Varyings i) : SV_Target
+            float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
-                uint mask = ReadMask8(i.screenUV);
+                // TODO: dither across all colour channels
+                // get colour over bbox texture
+                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
+                uint mask = ReadMask8(i.uv);
 
-                const uint DITHERING_BIT = 1u << 1;
+                // if pixels aren't tagged for dithering then leave them unchanged
+                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
                     return col;
 
-                uint2 pixelXY = (uint2)(i.screenUV * _SourceTex_TexelSize.zw);
+                // TODO: move this to an object space shader
+                // convert pixels to greyscale 
+                // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
+                // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
+
+                uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
+
+                // flatten pixelXY
                 pixelXY = pixelXY % 8;
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
+                // get 
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outR = step(threshold, col.r);

@@ -686,7 +686,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
   imageEffects: 2
-  testEffects: 2
+  testEffects: 4294967295
 --- !u!1 &1114048485
 GameObject:
   m_ObjectHideFlags: 0
@@ -751,7 +751,7 @@ MeshRenderer:
   m_SmallMeshCulling: 1
   m_ForceMeshLod: -1
   m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 257
+  m_RenderingLayerMask: 3
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: d1db7f793fb2f4ddea2ca7b1ba965643, type: 2}
@@ -815,7 +815,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 4294967295
   imageEffects: 0
-  testEffects: 2
+  testEffects: 4294967295
 --- !u!1 &1198851680
 GameObject:
   m_ObjectHideFlags: 0
@@ -944,8 +944,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
-  imageEffects: 1
-  testEffects: 2
+  imageEffects: 3
+  testEffects: 4294967295
 --- !u!1 &1512478178
 GameObject:
   m_ObjectHideFlags: 0
@@ -979,8 +979,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   objectEffects: 0
-  imageEffects: 1
-  testEffects: 2
+  imageEffects: 3
+  testEffects: 4294967295
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1068,7 +1068,7 @@ Transform:
   m_GameObject: {fileID: 1512478178}
   serializedVersion: 2
   m_LocalRotation: {x: -0.07764501, y: 0.0010345355, z: 0.053237773, w: 0.9955581}
-  m_LocalPosition: {x: 0.78, y: 3.59, z: -4.63}
+  m_LocalPosition: {x: 0.78, y: 3.59, z: -4.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1250,12 +1250,24 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setUseBBoxes
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setDebugBBoxes
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
-      propertyPath: setRendererTestmode
+      propertyPath: setBatchedDraws
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setIdPrepassBBoxes
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setRendererTestmode
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7329352657357545300, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: m_Name

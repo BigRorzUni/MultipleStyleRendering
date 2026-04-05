@@ -106,9 +106,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 if((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
                     continue;
 
-                // if(!bbox.currentTex.IsValid())
-                //     continue;
-
                 // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
                 using (var builder = renderGraph.AddRasterRenderPass($"BBox Dither ({bbox.box})", out PassData passData))
                 {
