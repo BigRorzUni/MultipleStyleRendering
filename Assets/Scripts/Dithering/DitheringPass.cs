@@ -3,6 +3,13 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct QuadInstanceData
+{
+    public Vector4 rect;  
+}
 
 [System.Serializable]
 public class DitheringPass : ScriptableRenderPass//, INprPass
@@ -12,6 +19,25 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
+
+    Mesh _quadMesh;
+    ComputeBuffer _instanceBuffer;
+    int _instanceBufferCapacity = 0;
+
+    static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
+    static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
+
+    void EnsureInstanceBufferCapacity(int count)
+    {
+        if (_instanceBuffer != null && _instanceBufferCapacity >= count)
+            return;
+
+        if (_instanceBuffer != null)
+            _instanceBuffer.Release();
+
+        _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+    }
 
 
     class PassData
@@ -54,8 +80,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             return;
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
-        Vector2 screenTexelSize = new Vector2(1f / camDesc.width, 1f / camDesc.height);
-
 
         // copy camera color into srcCopy
         using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Source Copy", out PassData copyPass))
@@ -74,7 +98,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         if (!NprTestingConfig.BatchedDraws)
         {
             // current per-bbox scissored path
-
             foreach(var bbox in nprFrameData.bboxes)
             {
                 if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -130,52 +153,50 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 batchedBBoxes.Add(bbox);
             }
 
-            // Debug.Log($" batched bbox count = {batchedBBoxes.Count}");
-            // for (int i = 0; i < batchedBBoxes.Count; i++)
-            // {
-            //     Debug.Log($"batched bbox {i}: {batchedBBoxes[i].box}");
-            // }
+            List<QuadInstanceData> instances = new List<QuadInstanceData>();
+            foreach (var bbox in batchedBBoxes)
+            {
+                instances.Add(new QuadInstanceData
+                {
+                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
+                });
+            }
 
+            if (instances.Count == 0)
+                return;
+
+            EnsureInstanceBufferCapacity(instances.Count);
+            _instanceBuffer.SetData(instances);
+
+            Debug.Log($"[BatchedDither] uploaded {instances.Count} instances, capacity = {_instanceBufferCapacity}");
+
+            using (var builder = renderGraph.AddRasterRenderPass("Dithering Instanced Quads Pass", out PassData passData))
+            {
+                passData.mat = _mat;
+
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                builder.AllowGlobalStateModification(true);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(SourceTexID, nprFrameData.sourceTexture);
+                    data.mat.SetTexture(IdTexId, nprFrameData.idTexture);
+                    data.mat.SetBuffer(InstanceBufferID, _instanceBuffer);
+                    data.mat.SetVector(ScreenParamsID, new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height));
+
+                    ctx.cmd.DrawProcedural(
+                        Matrix4x4.identity,
+                        data.mat,
+                        0,
+                        MeshTopology.Triangles,
+                        6,                  // 2 triangles per quad
+                        instances.Count     // 1 instance per bbox
+                    );
+
+                });
+            }
 
         }
 
-#region OLD METHOD
-        // blit frame into a copy for sampling in dithering pass
-        // using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Copy Pass", out PassData copyData))
-        // {
-        //     builder.SetRenderAttachment(srcCopy, 0, AccessFlags.Write);
-        //     builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
-
-        //     copyData.src = frameData.activeColorTexture;
-
-        //     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-        //     {
-        //         Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1,1,0,0), 0, false);
-        //     });
-        // }
-
-        // dithering pass
-        // using (var builder = renderGraph.AddRasterRenderPass("Dithering Composite Pass", out PassData passData))
-        // {
-        //     // write to screen colour
-        //     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-        //     // read from id and screen textures
-        //     builder.UseTexture(srcCopy, AccessFlags.Read);
-        //     builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-
-        //     passData.src = srcCopy;
-        //     passData.ids = nprFrameData.idTexture;
-        //     passData.mat = _mat;
-
-        //     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-        //     {
-        //         data.mat.SetTexture(SourceTexID, data.src);
-        //         data.mat.SetTexture(IdTexId, data.ids);
-
-        //         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
-        //     });
-        // }
-#endregion
-    }
+   }
 }
