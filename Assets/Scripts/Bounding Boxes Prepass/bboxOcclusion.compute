@@ -1,0 +1,37 @@
+#pragma kernel OcclusionCheck
+
+Texture2D<float4> _VisibilityTex;
+RWStructuredBuffer<uint> _Result;
+int4 _Rect; 
+groupshared uint anyVisible;
+
+[numthreads(64, 1, 1)]
+void OcclusionCheck(uint3 groupThreadID : SV_GroupThreadID)
+{
+    if (groupThreadID.x == 0)
+        anyVisible = 0;
+
+    GroupMemoryBarrierWithGroupSync();
+
+    uint width  = (uint)_Rect.z;
+    uint height = (uint)_Rect.w;
+    uint total  = width * height;
+
+    // each thread scans part of the bbox
+    for (uint index = groupThreadID.x; index < total; index += 64)
+    {
+        uint localX = index % width;
+        uint localY = index / width;
+
+        int2 pixel = int2(_Rect.x + localX, _Rect.y + localY);
+
+        float value = _VisibilityTex.Load(int3(pixel, 0)).r;
+        if (value > 0.0f)
+            anyVisible = 1;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupThreadID.x == 0)
+        _Result[0] = anyVisible;
+}

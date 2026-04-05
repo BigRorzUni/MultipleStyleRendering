@@ -23,6 +23,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
     private bboxPrepass _bboxPrepass;
+    private BBoxOcclusionPrepass _bboxOcclusionPrepass;
 
     // OBJECT PASSES
     List<Effect> objectEffects = new();
@@ -37,10 +38,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // shaders
     [SerializeField] private Shader idShader;
     [SerializeField] private Shader normalsShader;
-    [SerializeField] private Shader toonShader;
+    // [SerializeField] private Shader toonShader;
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader pixelisationShader;
+
+    [SerializeField] private Shader occlusionShader;
+    [SerializeField] private ComputeShader occlusionComputeShader;
 
 
     // TEST EFFECTS
@@ -99,13 +103,32 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         else
             _bboxPrepass = new bboxPrepass();
 
-        // object passes
-        if (toonShader == null)
+        
+        if(NprTestingConfig.UseOcclusionCulling)
         {
-            Debug.LogError("Could not find shader 'Custom/Toon'");
-            return;
+            if(occlusionShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Visibility'");
+                return;
+            }
+            else
+            {
+                if(occlusionComputeShader == null)
+                {
+                    Debug.LogError("Occlusion compute shader not set.");
+                    return;
+                }
+                _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+            }
         }
-        toonEffect = new ToonEffect(toonShader);
+
+        // object passes
+        // if (toonShader == null)
+        // {
+        //     Debug.LogError("Could not find shader 'Custom/Toon'");
+        //     return;
+        // }
+        // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
         if (ssOutlinesShader == null)
@@ -181,6 +204,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // always produce id texture
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
+
+        if(NprTestingConfig.UseOcclusionCulling)
+        {
+            renderer.EnqueuePass(_bboxOcclusionPrepass);
+        }
 
         // compute normals
         _normalsPrepass.ApplySettings(settings);

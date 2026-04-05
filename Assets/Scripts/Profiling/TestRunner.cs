@@ -16,6 +16,8 @@ public static class NprTestingConfig
 
     // ABLATION
     public static bool IdBoundingBoxes = true; // whether to use bboxes in id prepasss
+    public static bool BatchBoundingBoxes = true; // whether to batch bboxes together or draw individually
+    public static bool UseOcclusionCulling = true; // whether to use occlusion culling on bboxes
 
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
@@ -62,6 +64,7 @@ public class TestRunner : MonoBehaviour
     public bool setIdPrepassBBoxes = true;
     public bool setUseBBoxes = true;
     public bool setDebugBBoxes = false;
+    public bool useOcclusionCulling = true;
 
     private string logDir = null;
 
@@ -258,6 +261,8 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.debugBBoxes = setDebugBBoxes;
         NprTestingConfig.IdBoundingBoxes = setIdPrepassBBoxes;
         NprTestingConfig.UseBoundingBoxes = setUseBBoxes;
+        NprTestingConfig.UseOcclusionCulling = useOcclusionCulling;
+        
         BBoxDebugStore.Clear();
 
         if(NprTestingConfig.TestMode)

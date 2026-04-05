@@ -36,6 +36,7 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle sourceTexture;
 
     public List<BoundingBox> bboxes;
+    public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
 
 
     public StyleBits.ImageSpaceEffect presentImageBits;
