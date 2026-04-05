@@ -37,15 +37,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // shaders
     [SerializeField] private Shader idShader;
     [SerializeField] private Shader normalsShader;
-    [SerializeField] private Shader toonShader;
+    // [SerializeField] private Shader toonShader;
     [SerializeField] private Shader ssOutlinesShader;
+    [SerializeField] private Shader ssOutlineBatchedShader;
     [SerializeField] private Shader ditheringShader;
-    [SerializeField] private Shader pixelisationShader;
-
-
-    // TEST EFFECTS
-    [SerializeField]
-    List<Effect> testImgEffects = new();
+    [SerializeField] private Shader ditheringBatchedShader;
+    // [SerializeField] private Shader pixelisationShader;
 
     
     [SerializeField] public bool useTestEffects = true;
@@ -53,6 +50,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
+    [SerializeField] private Shader testDummyBatchedShader;
 
   
     // settings
@@ -100,50 +98,90 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             _bboxPrepass = new bboxPrepass();
 
         // object passes
-        if (toonShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Toon'");
-            return;
-        }
-        toonEffect = new ToonEffect(toonShader);
+        // if (toonShader == null)
+        // {
+        //     Debug.LogError("Could not find shader 'Custom/Toon'");
+        //     return;
+        // }
+        // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
-        if (ssOutlinesShader == null)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
         {
-            Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
-            return;
+            if (ssOutlineBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlinesBatched'");
+                return;
+            }
+            outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlineBatchedShader);
         }
-        outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
-
-        if (ditheringShader == null)
+        else
         {
-            Debug.LogError("Could not find shader 'Custom/Dithering'");
-            return;
+            if (ssOutlinesShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
+                return;
+            }
+            outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
         }
-        ditheringEffect = new DitheringEffect(ditheringShader);
 
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
+        {
+            if (ditheringBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/DitheringBatched'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringBatchedShader);
+        }
+        else    
+        {
+            if (ditheringShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Dithering'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringShader);
+        }
         // add object passes in their execution order
-        objectEffects.Clear();
-        objectEffects.Add(toonEffect);
+        // objectEffects.Clear();
+        // objectEffects.Add(toonEffect);
         //_objectPasses.Add(outlinePass);
 
         // add image effects in their execution order
         imageEffects.Clear();
-        testImgEffects.Clear();
 
         if(NprTestingConfig.TestMode)
         {
-            if (testDummyShader == null)
+            if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
             {
-                Debug.LogError("useTestEffects is enabled but testDummyShader is not set.");
-                return;
+                if(testDummyBatchedShader == null)
+                {
+                    Debug.LogError("useTestEffects is enabled and batched draws is on but dummy batched shader is not set.");
+                    return;
+                }
+                for (int i = 0; i < testEffectCount; i++)
+                {
+                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+
+                    //Debug.Log($"Added test_effect_{i} (BATCHED)");
+                }
+
             }
-
-            for (int i = 0; i < testEffectCount; i++)
+            else
             {
-                imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+                if (testDummyShader == null)
+                {
+                    Debug.LogError("useTestEffects is enabled but dummy shader is not set.");
+                    return;
+                }
 
-                //Debug.Log($"Added test_effect_{i}");
+                for (int i = 0; i < testEffectCount; i++)
+                {
+                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+
+                    //Debug.Log($"Added test_effect_{i}");
+                }
             }
 
             //Debug.Log("render feature in test mode");
@@ -162,16 +200,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     ref RenderingData renderingData)
     {
         // object effects
-        foreach(var effect in objectEffects)
-        {
-            foreach(var pass in effect.Passes)
-            {
-                if (pass is INprPass nprPass)
-                    nprPass.ApplySettings(settings);
-                if(settings.debugView == NprDebugView.None)
-                    renderer.EnqueuePass(pass);
-            }
-        }
+        // foreach(var effect in objectEffects)
+        // {
+        //     foreach(var pass in effect.Passes)
+        //     {
+        //         if (pass is INprPass nprPass)
+        //             nprPass.ApplySettings(settings);
+        //         if(settings.debugView == NprDebugView.None)
+        //             renderer.EnqueuePass(pass);
+        //     }
+        // }
         
         if (_idPrepass == null || _bboxPrepass == null) return;
 
