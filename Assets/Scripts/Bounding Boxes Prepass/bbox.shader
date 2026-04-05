@@ -35,10 +35,11 @@ Shader "Custom/InstancedBBoxDebugProcedural"
 
             struct Varyings
             {
-                float4 positionCS : SV_POSITION;
+                float4 posCS : SV_POSITION;
                 float2 screenUV : TEXCOORD0;
             };
 
+            // each quad is made of 2 triangles based on the rect of the instance data
             float2 GetQuadUV(uint vertexID)
             {
                 switch (vertexID)
@@ -69,13 +70,15 @@ Shader "Custom/InstancedBBoxDebugProcedural"
                 float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;
 
+                // map local quad UV to pixel coords within bbox
                 float2 pixelPos = rect.xy + uv * rect.zw;
 
+                // convert to clip space
                 float2 ndc;
                 ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
-                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0;
+                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0; // flip y for Unity's screen space
 
-                output.positionCS = float4(ndc, 0.0, 1.0);
+                output.posCS = float4(ndc, 0.0, 1.0);
                 output.screenUV = pixelPos * _NprScreenSize.zw;
 
                 return output;

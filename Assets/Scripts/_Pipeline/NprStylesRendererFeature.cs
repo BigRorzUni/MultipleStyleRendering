@@ -40,6 +40,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader toonShader;
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ditheringShader;
+    [SerializeField] private Shader ditheringBatchedShader;
     [SerializeField] private Shader pixelisationShader;
 
 
@@ -115,13 +116,24 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
 
-        if (ditheringShader == null)
+        if(NprTestingConfig.BatchedDraws)
         {
-            Debug.LogError("Could not find shader 'Custom/Dithering'");
-            return;
+            if (ditheringBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/DitheringBatched'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringBatchedShader);
         }
-        ditheringEffect = new DitheringEffect(ditheringShader);
-
+        else    
+        {
+            if (ditheringShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Dithering'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringShader);
+        }
         // add object passes in their execution order
         objectEffects.Clear();
         objectEffects.Add(toonEffect);

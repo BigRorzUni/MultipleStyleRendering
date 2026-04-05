@@ -20,7 +20,6 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
 
-    Mesh _quadMesh;
     ComputeBuffer _instanceBuffer;
     int _instanceBufferCapacity = 0;
 
@@ -165,9 +164,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             EnsureInstanceBufferCapacity(instances.Count);
             _instanceBuffer.SetData(instances);
 
-            Debug.Log($"[BatchedDither] uploaded {instances.Count} instances, capacity = {_instanceBufferCapacity}");
-
-            using (var builder = renderGraph.AddRasterRenderPass("Dithering Instanced Quads Pass", out PassData passData))
+            using (var builder = renderGraph.AddRasterRenderPass("Dithering Batched Pass", out PassData passData))
             {
                 passData.mat = _mat;
 
@@ -183,11 +180,11 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
                     ctx.cmd.DrawProcedural(
                         Matrix4x4.identity,
-                        data.mat,
+                        data.mat, // dithering material
                         0,
                         MeshTopology.Triangles,
-                        6,                  // 2 triangles per quad
-                        instances.Count     // 1 instance per bbox
+                        6, // 2 triangles per quad
+                        instances.Count // 1 instance per bbox
                     );
 
                 });

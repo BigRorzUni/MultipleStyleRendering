@@ -1,4 +1,4 @@
-Shader "Custom/DitheringInstanced"
+Shader "Custom/DitheringBatched"
 {
     Properties
     {
@@ -11,7 +11,7 @@ Shader "Custom/DitheringInstanced"
 
         Pass
         {
-            Name "DitheringInstanced"
+            Name "DitheringBatched"
             ZTest Always
             ZWrite Off
             Cull Off
@@ -50,6 +50,7 @@ Shader "Custom/DitheringInstanced"
                 float2 screenUV : TEXCOORD0;
             };
 
+            // each quad is made of 2 triangles based on the rect of the instance data
             float2 GetQuadUV(uint vertexID)
             {
                 switch (vertexID)
