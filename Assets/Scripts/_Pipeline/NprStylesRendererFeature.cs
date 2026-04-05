@@ -40,20 +40,24 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader normalsShader;
     // [SerializeField] private Shader toonShader;
     [SerializeField] private Shader ssOutlinesShader;
+    [SerializeField] private Shader ssOutlineBatchedShader;
     [SerializeField] private Shader ditheringShader;
-    [SerializeField] private Shader pixelisationShader;
+    [SerializeField] private Shader ditheringBatchedShader;
+    // [SerializeField] private Shader pixelisationShader;
 
     [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
 
 
     // TEST EFFECTS
+
     
     [SerializeField] public bool useTestEffects = true;
     [SerializeField, Min(1)] private int testEffectCount = 32;
 
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
+    [SerializeField] private Shader testDummyBatchedShader;
 
   
     // settings
@@ -128,20 +132,43 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
-        if (ssOutlinesShader == null)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
         {
-            Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
-            return;
+            if (ssOutlineBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlinesBatched'");
+                return;
+            }
+            outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlineBatchedShader);
         }
-        outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
-
-        if (ditheringShader == null)
+        else
         {
-            Debug.LogError("Could not find shader 'Custom/Dithering'");
-            return;
+            if (ssOutlinesShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/ScreenspaceOutlines'");
+                return;
+            }
+            outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
         }
-        ditheringEffect = new DitheringEffect(ditheringShader);
 
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
+        {
+            if (ditheringBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/DitheringBatched'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringBatchedShader);
+        }
+        else    
+        {
+            if (ditheringShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Dithering'");
+                return;
+            }
+            ditheringEffect = new DitheringEffect(ditheringShader);
+        }
         // add object passes in their execution order
         // objectEffects.Clear();
         // objectEffects.Add(toonEffect);
@@ -149,21 +176,38 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         // add image effects in their execution order
         imageEffects.Clear();
-        // testImgEffects.Clear();
 
         if(NprTestingConfig.TestMode)
         {
-            if (testDummyShader == null)
+            if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
             {
-                Debug.LogError("useTestEffects is enabled but testDummyShader is not set.");
-                return;
+                if(testDummyBatchedShader == null)
+                {
+                    Debug.LogError("useTestEffects is enabled and batched draws is on but dummy batched shader is not set.");
+                    return;
+                }
+                for (int i = 0; i < testEffectCount; i++)
+                {
+                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+
+                    //Debug.Log($"Added test_effect_{i} (BATCHED)");
+                }
+
             }
-
-            for (int i = 0; i < testEffectCount; i++)
+            else
             {
-                imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+                if (testDummyShader == null)
+                {
+                    Debug.LogError("useTestEffects is enabled but dummy shader is not set.");
+                    return;
+                }
 
-                //Debug.Log($"Added test_effect_{i}");
+                for (int i = 0; i < testEffectCount; i++)
+                {
+                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+
+                    //Debug.Log($"Added test_effect_{i}");
+                }
             }
 
             //Debug.Log("render feature in test mode");
