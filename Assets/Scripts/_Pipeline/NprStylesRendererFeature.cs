@@ -48,9 +48,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
 
     // TEST EFFECTS
-    [SerializeField]
-    List<Effect> testImgEffects = new();
-
     
     [SerializeField] public bool useTestEffects = true;
     [SerializeField, Min(1)] private int testEffectCount = 32;
@@ -146,13 +143,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         ditheringEffect = new DitheringEffect(ditheringShader);
 
         // add object passes in their execution order
-        objectEffects.Clear();
-        objectEffects.Add(toonEffect);
+        // objectEffects.Clear();
+        // objectEffects.Add(toonEffect);
         //_objectPasses.Add(outlinePass);
 
         // add image effects in their execution order
         imageEffects.Clear();
-        testImgEffects.Clear();
+        // testImgEffects.Clear();
 
         if(NprTestingConfig.TestMode)
         {
@@ -185,16 +182,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     ref RenderingData renderingData)
     {
         // object effects
-        foreach(var effect in objectEffects)
-        {
-            foreach(var pass in effect.Passes)
-            {
-                if (pass is INprPass nprPass)
-                    nprPass.ApplySettings(settings);
-                if(settings.debugView == NprDebugView.None)
-                    renderer.EnqueuePass(pass);
-            }
-        }
+        // foreach(var effect in objectEffects)
+        // {
+        //     foreach(var pass in effect.Passes)
+        //     {
+        //         if (pass is INprPass nprPass)
+        //             nprPass.ApplySettings(settings);
+        //         if(settings.debugView == NprDebugView.None)
+        //             renderer.EnqueuePass(pass);
+        //     }
+        // }
         
         if (_idPrepass == null || _bboxPrepass == null) return;
 
