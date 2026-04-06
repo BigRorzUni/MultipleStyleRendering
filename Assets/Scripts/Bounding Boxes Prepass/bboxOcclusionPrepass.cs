@@ -15,6 +15,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int VisibilityTexID = Shader.PropertyToID("_VisibilityTex");
     static readonly int ResultBufferID = Shader.PropertyToID("_Result");
     static readonly int RectID = Shader.PropertyToID("_Rect");
+    static readonly int ExpectedMaskID = Shader.PropertyToID("_ExpectedMask");
 
     private readonly ComputeBuffer[] _resultBuffers = new ComputeBuffer[2];
     private readonly uint[] _resultData = new uint[1];
@@ -43,6 +44,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         public RectInt rect;
         public ComputeShader compute;
         public int kernel;
+        public uint expectedMask;
     }
 
     public void Dispose()
@@ -59,8 +61,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
 
     public BBoxOcclusionPrepass(Shader visibilityShader, ComputeShader occlusionComputeShader)
     {
-        if (visibilityShader != null)
-            _visibilityMat = CoreUtils.CreateEngineMaterial(visibilityShader);
+         if (visibilityShader != null)
+             _visibilityMat = CoreUtils.CreateEngineMaterial(visibilityShader);
 
         _occlusionCompute = occlusionComputeShader;
         if (_occlusionCompute != null)
@@ -102,6 +104,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         // if no potentially occluded boxes then skip this pass
         if (nprFrameData.occlusionCandidateBoxes == null || nprFrameData.occlusionCandidateBoxes.Count == 0)
             return;
+
+        Debug.Log("running bbox occlusion prepass");
 
         // change this to all boxes once compute shader working properly 
         BoundingBox bbox = nprFrameData.occlusionCandidateBoxes[0];
@@ -210,18 +214,18 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         }
 
         // DEBUG
-        // using (var builder = renderGraph.AddRasterRenderPass("Debug VisibilityTex", out DebugPassData passData))
-        // {
-        //     builder.UseTexture(visibilityTex, AccessFlags.Read);
-        //     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+        using (var builder = renderGraph.AddRasterRenderPass("Debug VisibilityTex", out DebugPassData passData))
+        {
+            builder.UseTexture(visibilityTex, AccessFlags.Read);
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
-        //     passData.src = visibilityTex;
+            passData.src = visibilityTex;
 
-        //     builder.SetRenderFunc(static (DebugPassData data, RasterGraphContext ctx) =>
-        //     {
-        //         Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
-        //     });
-        // }
+            builder.SetRenderFunc(static (DebugPassData data, RasterGraphContext ctx) =>
+            {
+                Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
+            });
+        }
 
         // feed visibilityTex into a compute shader that checks whether any pixel is nonzero
         
@@ -234,11 +238,16 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         {
             builder.AllowPassCulling(false);
 
+            // passData.visibilityTex = nprFrameData.idTexture; // swapped from visibility tex as id texture contains same visibility info but with object ids
             passData.visibilityTex = visibilityTex;
             passData.resultBuffer = _resultBuffers[_writeIndex];
             passData.rect = bbox.box;
             passData.compute = _occlusionCompute;
             passData.kernel = _occlusionKernel;
+            if(!NprTestingConfig.TestMode)
+                passData.expectedMask = (uint)bbox.styles; 
+            else
+                passData.expectedMask = bbox.testMask;
 
             // Debug.Log($"compute dispatch for rect {passData.rect}");
 
@@ -249,6 +258,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                 ctx.cmd.SetComputeTextureParam(data.compute, data.kernel, VisibilityTexID, data.visibilityTex);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
                 ctx.cmd.SetComputeVectorParam(data.compute, RectID, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+                ctx.cmd.SetComputeIntParam(data.compute, ExpectedMaskID, (int)data.expectedMask);
 
                 // shader loops over all pixels in the bbox
                 ctx.cmd.DispatchCompute(data.compute, data.kernel, 1, 1, 1);

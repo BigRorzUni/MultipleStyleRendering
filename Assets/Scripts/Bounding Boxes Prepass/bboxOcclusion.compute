@@ -3,6 +3,8 @@
 Texture2D<float4> _VisibilityTex;
 RWStructuredBuffer<uint> _Result;
 int4 _Rect; 
+// uint _ExpectedMask;
+
 groupshared uint anyVisible;
 
 [numthreads(64, 1, 1)]
@@ -26,7 +28,13 @@ void OcclusionCheck(uint3 groupThreadID : SV_GroupThreadID)
         int2 pixel = int2(_Rect.x + localX, _Rect.y + localY);
 
         float value = _VisibilityTex.Load(int3(pixel, 0)).r;
-        if (value > 0.0f)
+
+        // reconstruct mask from texture (0–255 range)
+        uint pixelMask = (uint)round(saturate(value) * 255.0);
+
+        // check if any expected ID bit is present
+        // if ((pixelMask & _ExpectedMask) != 0u) // if using id
+        if(pixelMask != 0) // if using visibility tex
             anyVisible = 1;
     }
 

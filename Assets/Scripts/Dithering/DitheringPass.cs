@@ -163,7 +163,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             return;
         }
             // new batched instanced path
-            Debug.Log("Batched dithering pass");
+            // Debug.Log("Batched dithering pass");
 
             List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
             foreach (var bbox in nprFrameData.bboxes)

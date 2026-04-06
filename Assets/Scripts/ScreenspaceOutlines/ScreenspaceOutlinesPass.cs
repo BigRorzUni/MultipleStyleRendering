@@ -263,7 +263,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             return;
         }
 
-        Debug.Log("Batched outline pass");
+        // Debug.Log("Batched outline pass");
 
         List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
         foreach (var bbox in nprFrameData.bboxes)
