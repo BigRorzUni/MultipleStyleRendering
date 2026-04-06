@@ -342,14 +342,14 @@ public class bboxPrepass : ScriptableRenderPass
             {
                 foreach(var bbox in nprFrameData.bboxes)
                 {                
-                    BBoxDebugStore.Add(bbox.box, Color.green, $"Final {bbox.styles} test {bbox.testMask}");
+                    BBoxDebugStore.Add(bbox.box, Color.green, $"{bbox.frameIndex}");
                 }
 
                 if(NprTestingConfig.UseOcclusionCulling)
                 {
                     foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
                     {                
-                        BBoxDebugStore.Add(bbox.box, Color.blue, $"Occlusion Candidate {bbox.styles} test {bbox.testMask}");
+                        BBoxDebugStore.Add(bbox.box, Color.blue, $"{bbox.frameIndex} OCCLUSION CANDIDATE");
                     }
                 }
             }

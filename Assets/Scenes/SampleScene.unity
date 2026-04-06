@@ -666,7 +666,7 @@ Transform:
   m_GameObject: {fileID: 1009401957}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.568, y: 2.25, z: -7.93}
+  m_LocalPosition: {x: 1.38, y: 2.25, z: -7.93}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1068,7 +1068,7 @@ Transform:
   m_GameObject: {fileID: 1308817640}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.67, y: 2.25, z: -6.18}
+  m_LocalPosition: {x: 2.319, y: 1.86, z: -6.18}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1451,7 +1451,7 @@ Transform:
   m_GameObject: {fileID: 1731847829}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.27, y: 2.25, z: -8.17}
+  m_LocalPosition: {x: 1.415, y: 2.33, z: -8.157}
   m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1511,6 +1511,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setDebugBBoxes
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: idTextOcclusion
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}

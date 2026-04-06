@@ -1,23 +1,32 @@
-#pragma kernel OcclusionCheck
+#pragma kernel OcclusionCheckSingle
+#pragma kernel OcclusionCheckBatched
 
 Texture2D<float4> _VisibilityTex;
 RWStructuredBuffer<uint> _Result;
+
 int4 _Rect; 
-// uint _ExpectedMask;
+int _BboxIndex;
+
+// for batched mode
+StructuredBuffer<float4> _InstanceData;
+int _BboxCount;
+
+StructuredBuffer<uint> _ExpectedMasks;
 
 groupshared uint anyVisible;
 
+// SINGLE BBOX VERSION
 [numthreads(64, 1, 1)]
-void OcclusionCheck(uint3 groupThreadID : SV_GroupThreadID)
+void OcclusionCheckSingle(uint3 groupThreadID : SV_GroupThreadID)
 {
     if (groupThreadID.x == 0)
         anyVisible = 0;
 
     GroupMemoryBarrierWithGroupSync();
 
-    uint width  = (uint)_Rect.z;
+    uint width = (uint)_Rect.z;
     uint height = (uint)_Rect.w;
-    uint total  = width * height;
+    uint total = width * height;
 
     // each thread scans part of the bbox
     for (uint index = groupThreadID.x; index < total; index += 64)
@@ -33,13 +42,58 @@ void OcclusionCheck(uint3 groupThreadID : SV_GroupThreadID)
         uint pixelMask = (uint)round(saturate(value) * 255.0);
 
         // check if any expected ID bit is present
-        // if ((pixelMask & _ExpectedMask) != 0u) // if using id
-        if(pixelMask != 0) // if using visibility tex
+        if (pixelMask != 0) // using visibility tex
             anyVisible = 1;
     }
 
     GroupMemoryBarrierWithGroupSync();
 
     if (groupThreadID.x == 0)
-        _Result[0] = anyVisible;
+        _Result[_BboxIndex] = anyVisible;
+}
+
+// BATCHED VERSION (one threadgroup per bbox, better use of a compute shader tbh)
+[numthreads(64, 1, 1)]
+void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    uint bboxIndex = groupID.x;
+
+    if (bboxIndex >= (uint)_BboxCount)
+        return;
+
+    float4 rect = _InstanceData[bboxIndex];
+
+    if (groupThreadID.x == 0)
+        anyVisible = 0;
+
+    GroupMemoryBarrierWithGroupSync();
+
+    uint width = (uint)rect.z;
+    uint height = (uint)rect.w;
+    uint total = width * height;
+
+    // each thread scans part of the bbox
+    for (uint index = groupThreadID.x; index < total; index += 64)
+    {
+        uint localX = index % width;
+        uint localY = index / width;
+
+        int2 pixel = int2((int)rect.x + (int)localX, (int)rect.y + (int)localY);
+
+        float value = _VisibilityTex.Load(int3(pixel, 0)).r;
+
+        // reconstruct mask from texture (0–255 range)
+        uint pixelMask = (uint)round(saturate(value) * 255.0);
+
+        uint expectedMask = _ExpectedMasks[bboxIndex];
+
+        // check if any expected ID bit is present
+        if ((pixelMask & expectedMask) != 0u) // if using id
+            anyVisible = 1;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupThreadID.x == 0)
+        _Result[bboxIndex] = anyVisible;
 }

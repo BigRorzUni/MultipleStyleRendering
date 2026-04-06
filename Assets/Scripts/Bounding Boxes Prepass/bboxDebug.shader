@@ -29,7 +29,7 @@ Shader "Custom/bboxDebug"
 
             struct Attributes
             {
-                uint vertexID   : SV_VertexID;
+                uint vertexID : SV_VertexID;
                 uint instanceID : SV_InstanceID;
             };
 

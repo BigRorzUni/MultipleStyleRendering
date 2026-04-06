@@ -19,6 +19,7 @@ public static class NprTestingConfig
     public static bool UseOcclusionCulling = true; // whether to use occlusion culling on bboxes
 
     public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
+    public static bool IdTexOcclusion = false;
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
     public static int StylesPerObject = 0; // max styles per object
@@ -66,6 +67,7 @@ public class TestRunner : MonoBehaviour
     public bool setDebugBBoxes = false;
     public bool useOcclusionCulling = true;
     public bool setBatchedDraws = true;
+    public bool idTextOcclusion = false;
 
     private string logDir = null;
 
@@ -264,6 +266,7 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.UseBoundingBoxes = setUseBBoxes;
         NprTestingConfig.UseOcclusionCulling = useOcclusionCulling;
         NprTestingConfig.BatchedDraws = setBatchedDraws;
+        NprTestingConfig.IdTexOcclusion = idTextOcclusion;
 
         BBoxDebugStore.Clear();
 

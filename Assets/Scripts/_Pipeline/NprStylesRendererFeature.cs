@@ -23,8 +23,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
 
     // OBJECT PASSES
-    List<Effect> objectEffects = new();
-    private ToonEffect toonEffect;
+    // List<Effect> objectEffects = new();
+    // private ToonEffect toonEffect;
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -44,6 +44,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
+    [SerializeField] private Shader occlusionDebugShader;
 
 
     // TEST EFFECTS
@@ -106,18 +107,24 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         {
             if(occlusionShader == null)
             {
-                Debug.LogError("Could not find shader 'Custom/Visibility'");
+                Debug.LogError("Could not find shader 'Custom/bboxOcclusion'");
                 return;
             }
-            else
+
+            if(occlusionComputeShader == null)
             {
-                if(occlusionComputeShader == null)
-                {
-                    Debug.LogError("Occlusion compute shader not set.");
-                    return;
-                }
-                _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+                Debug.LogError("Occlusion compute shader OcclusionCheck not set.");
+                return;
             }
+
+            if(occlusionDebugShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/occlusionDebug'");
+                return;
+            }
+
+            _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader, occlusionDebugShader);
+            
         }
 
         // object passes
