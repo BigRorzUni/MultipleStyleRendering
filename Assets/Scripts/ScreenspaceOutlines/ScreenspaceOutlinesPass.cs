@@ -271,7 +271,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
                 continue;
 
-            if ((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
+            if ((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
                 continue;
 
             batchedBBoxes.Add(bbox);

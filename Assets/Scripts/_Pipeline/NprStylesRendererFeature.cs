@@ -1,8 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -105,7 +102,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             _bboxPrepass = new bboxPrepass();
 
         
-        if(NprTestingConfig.UseOcclusionCulling)
+        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
         {
             if(occlusionShader == null)
             {
@@ -246,7 +243,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
-        if(NprTestingConfig.UseOcclusionCulling)
+        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
         {
             renderer.EnqueuePass(_bboxOcclusionPrepass);
         }

@@ -1,4 +1,4 @@
-Shader "Custom/InstancedBBoxDebugProcedural"
+Shader "Custom/bboxDebug"
 {
     SubShader
     {
@@ -6,7 +6,7 @@ Shader "Custom/InstancedBBoxDebugProcedural"
 
         Pass
         {
-            Name "InstancedBBoxDebugProcedural"
+            Name "bboxDebug"
             Cull Off
             ZWrite Off
             ZTest Always

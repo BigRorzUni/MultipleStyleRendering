@@ -300,50 +300,51 @@ public class bboxPrepass : ScriptableRenderPass
                 toRemove.Clear();
                 newBoxes.Clear();
             }
-        }
 
-        // find occlusion candidates if enabled
-        if(NprTestingConfig.UseOcclusionCulling)
-        {
-            nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>(nprFrameData.bboxes);
-
-             for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+            // find occlusion candidates if enabled
+            if(NprTestingConfig.UseOcclusionCulling)
             {
-                BoundingBox inner = nprFrameData.bboxes[i];
+                nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
 
-                for (int j = 0; j < nprFrameData.bboxes.Count; j++)
+                for (int i = 0; i < nprFrameData.bboxes.Count; i++)
                 {
-                    if (i == j)
-                        continue;
+                    BoundingBox inner = nprFrameData.bboxes[i];
 
-                    BoundingBox outer = nprFrameData.bboxes[j];
-
-                    if (ContainsRect(outer.box, inner.box))
+                    for (int j = 0; j < nprFrameData.bboxes.Count; j++)
                     {
-                        nprFrameData.occlusionCandidateBoxes.Add(inner);
-                        break;
+                        if (i == j)
+                            continue;
+
+                        BoundingBox outer = nprFrameData.bboxes[j];
+
+                        if (ContainsRect(outer.box, inner.box))
+                        {
+                            nprFrameData.occlusionCandidateBoxes.Add(inner);
+                            break;
+                        }
+                    }
+                }
+
+            }
+
+            // debug show all the final boxes
+            if(NprTestingConfig.debugBBoxes)
+            {
+                foreach(var bbox in nprFrameData.bboxes)
+                {                
+                    BBoxDebugStore.Add(bbox.box, Color.green, $"Final {bbox.styles} test {bbox.testMask}");
+                }
+
+                if(NprTestingConfig.UseOcclusionCulling)
+                {
+                    foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
+                    {                
+                        BBoxDebugStore.Add(bbox.box, Color.blue, $"Occlusion Candidate {bbox.styles} test {bbox.testMask}");
                     }
                 }
             }
-
         }
 
-        // debug show all the final boxes
-        if(NprTestingConfig.debugBBoxes && NprTestingConfig.UseBoundingBoxes)
-        {
-            foreach(var bbox in nprFrameData.bboxes)
-            {                
-                BBoxDebugStore.Add(bbox.box, Color.green, $"Final {bbox.styles} test {bbox.testMask}");
-            }
-
-            if(NprTestingConfig.UseOcclusionCulling)
-            {
-                foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
-                {                
-                    BBoxDebugStore.Add(bbox.box, Color.blue, $"Occlusion Candidate {bbox.styles} test {bbox.testMask}");
-                }
-            }
-        }
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
