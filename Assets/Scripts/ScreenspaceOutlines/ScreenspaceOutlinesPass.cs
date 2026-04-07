@@ -266,23 +266,21 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         // Debug.Log("Batched outline pass");
 
         List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
+        List<QuadInstanceData> instances = new List<QuadInstanceData>();
         foreach (var bbox in nprFrameData.bboxes)
         {
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
                 continue;
 
-            if ((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
+            if ((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
                 continue;
 
             batchedBBoxes.Add(bbox);
-        }
-
-        List<QuadInstanceData> instances = new List<QuadInstanceData>();
-        foreach (var bbox in batchedBBoxes)
-        {
+            
             instances.Add(new QuadInstanceData
             {
-                rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
+                rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height),
+                index = bbox.frameIndex
             });
         }
 

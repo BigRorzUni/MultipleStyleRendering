@@ -20,6 +20,9 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
+    static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
+    static readonly int UseOcclusionCullingID = Shader.PropertyToID("_UseOcclusionCulling");
+
 
     // make sure the compute buffer is big enough for the given instance count
     void EnsureInstanceBufferCapacity(int count)
@@ -44,6 +47,9 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
         public int instanceCount;
+
+        public ComputeBuffer visibilityBuffer;
+        public int useOcclusionCulling;
     }
 
     public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
@@ -166,6 +172,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             // Debug.Log("Batched dithering pass");
 
             List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
+            List<QuadInstanceData> instances = new List<QuadInstanceData>();
             foreach (var bbox in nprFrameData.bboxes)
             {
                 if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -175,14 +182,11 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     continue;
 
                 batchedBBoxes.Add(bbox);
-            }
-
-            List<QuadInstanceData> instances = new List<QuadInstanceData>();
-            foreach (var bbox in batchedBBoxes)
-            {
+                
                 instances.Add(new QuadInstanceData
                 {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
+                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height),
+                    index = bbox.frameIndex
                 });
             }
 
@@ -203,6 +207,17 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
                 passData.instanceCount = instances.Count;
 
+                if(NprTestingConfig.UseOcclusionCulling)
+                {
+                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.useOcclusionCulling = 1;
+                }
+                else
+                {
+                    passData.visibilityBuffer = null;
+                    passData.useOcclusionCulling = 0;
+                }
+
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
                 builder.AllowGlobalStateModification(true);
 
@@ -215,6 +230,10 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     data.mat.SetTexture(IdTexId, data.ids);
                     data.mat.SetBuffer(InstanceBufferID,data.instanceBuffer);
                     data.mat.SetVector(ScreenParamsID, data.screenSize);
+                    data.mat.SetInt(UseOcclusionCullingID, data.useOcclusionCulling);
+                    if(data.useOcclusionCulling == 1 && data.visibilityBuffer != null)
+                        data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+                    
 
                     ctx.cmd.DrawProcedural(
                         Matrix4x4.identity,

@@ -224,6 +224,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         {
             BoundingBox b = nprFrameData.bboxes[i];
             _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+            _bboxRectInitData[i].index = b.frameIndex;
         }
 
         if (_bboxRectBuffer == null || _bboxRectInitData == null)
@@ -361,6 +362,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     _bboxMaskInitData[i] = (uint)nprFrameData.bboxes[i].styles;
                 else
                     _bboxMaskInitData[i] = nprFrameData.bboxes[i].testMask;
+
+                    
             }
 
             _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxes.Count);

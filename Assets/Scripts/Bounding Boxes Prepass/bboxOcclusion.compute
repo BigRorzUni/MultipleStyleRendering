@@ -41,7 +41,7 @@ void OcclusionCheckSingle(uint3 groupThreadID : SV_GroupThreadID)
         // reconstruct mask from texture (0–255 range)
         uint pixelMask = (uint)round(saturate(value) * 255.0);
 
-        // check if any expected ID bit is present
+        // check if any visible bit is present
         if (pixelMask != 0) // using visibility tex
             anyVisible = 1;
     }
@@ -88,7 +88,7 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
         uint expectedMask = _ExpectedMasks[bboxIndex];
 
         // check if any expected ID bit is present
-        if ((pixelMask & expectedMask) != 0u) // if using id
+        if ((pixelMask & expectedMask) != 0u) 
             anyVisible = 1;
     }
 

@@ -26,6 +26,7 @@ Shader "Custom/DitheringBatched"
             struct InstanceData
             {
                 float4 rect; 
+                int index;
             };
 
             StructuredBuffer<InstanceData> _InstanceData;
@@ -37,6 +38,9 @@ Shader "Custom/DitheringBatched"
             TEXTURE2D(_SourceTex);
             SAMPLER(sampler_SourceTex);
             float4 _SourceTex_TexelSize;
+
+            int _UseOcclusionCulling;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
 
             struct Attributes
             {
@@ -77,6 +81,18 @@ Shader "Custom/DitheringBatched"
             Varyings Vert(Attributes input)
             {
                 Varyings output;
+
+                if (_UseOcclusionCulling != 0)
+                {
+                    uint bboxIndex = (uint)_InstanceData[input.instanceID].index;
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    if (visible != 0)
+                    {
+                        output.posCS = float4(-2, -2, 0, 1);
+                        return output;
+                    }
+                }
 
                 float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;

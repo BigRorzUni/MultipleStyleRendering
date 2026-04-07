@@ -22,6 +22,7 @@ Shader "Custom/OcclusionDebug"
             struct QuadInstanceData
             {
                 float4 rect;
+                int index;
             };
 
             StructuredBuffer<QuadInstanceData> _InstanceData;

@@ -15,6 +15,7 @@ public static class OcclusionData
 public struct QuadInstanceData
 {
     public Vector4 rect;  
+    public int index;
 }
 
 public class BoundingBox
@@ -54,6 +55,7 @@ public sealed class NprFrameData : ContextItem
     public List<BoundingBox> bboxes;
     public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
     public ComputeBuffer bboxVisibilityBuffer;
+    public ComputeBuffer bboxIndexBuffer;
     public int bboxVisibilityCount;
 
     public StyleBits.ImageSpaceEffect presentImageBits;
