@@ -10,7 +10,7 @@ public enum NprDebugView
     Edges
 }
 public interface INprPass
-{
+{    
     void ApplySettings(Settings settings);
 }
 

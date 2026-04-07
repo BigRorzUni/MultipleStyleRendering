@@ -33,9 +33,15 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
     ComputeBuffer _instanceBuffer;
     int _instanceBufferCapacity = 0;
+    ComputeBuffer _bboxIndexBuffer;
+    int _bboxIndexBufferCapacity = 0;
 
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
+    static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
+    static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
+    static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
+    static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
 
     // make sure the compute buffer is big enough for the given instance count
     void EnsureInstanceBufferCapacity(int count)
@@ -48,6 +54,17 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
         _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+    }
+    void EnsureIndexBufferCapacity(int count)
+    {
+        if (_bboxIndexBuffer != null && _bboxIndexBufferCapacity >= count)
+            return;
+
+        if (_bboxIndexBuffer != null)
+            _bboxIndexBuffer.Release();
+
+        _bboxIndexBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+        _bboxIndexBuffer = new ComputeBuffer(_bboxIndexBufferCapacity, sizeof(uint));
     }
 
     public void ApplySettings(Settings settings)
@@ -81,6 +98,11 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
         public int instanceCount;
+
+        public ComputeBuffer visibilityBuffer;
+        public ComputeBuffer bboxIndexBuffer;
+        public int useOcclusion;
+        public int currentBBoxIndex;
     }
 
     public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
@@ -160,9 +182,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 // read from normal, id, depth and source textures
                 // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
                 builder.UseTexture(passData.src, AccessFlags.Read);
-                builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-                builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
-                builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+                builder.UseTexture(passData.ids, AccessFlags.Read);
+                builder.UseTexture(passData.normals, AccessFlags.Read);
+                builder.UseTexture(passData.depth, AccessFlags.Read);
 
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -200,20 +222,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 if((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
                     continue;
 
-                // if(!bbox.currentTex.IsValid())
-                //     continue;
-
-                // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
                 using (var builder = renderGraph.AddRasterRenderPass($"BBox Outline ({bbox.box})", out PassData passData))
                 {
-                    // write to bbox colour
-                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-                    // passData.source = nprFrameData.sourceTexture;
                     passData.src = nprFrameData.sourceTexture;
                     passData.ids = nprFrameData.idTexture;
                     passData.normals = nprFrameData.normalsTexture;
-                    passData.depth = frameData.activeDepthTexture;
+                    passData.depth = frameData.activeDepthTexture; // provided by urp camera depth texture
                     passData.rect = bbox.box;
 
                     passData.mat = _mat;
@@ -225,16 +239,25 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.normalThreshold = _normalThreshold;
                     passData.normalStrength = _normalStrength;
 
-                    passData.instanceBuffer = _instanceBuffer;
-                    passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+                    passData.visibilityBuffer = null;
+                    passData.bboxIndexBuffer = null;
+                    passData.useOcclusion = 0;
+                    passData.currentBBoxIndex = nprFrameData.bboxes.IndexOf(bbox);
+
+                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    {
+                        passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                        passData.useOcclusion = 1;
+                    }
 
                     // read from normal, id, depth and source textures
-                    // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
                     builder.UseTexture(passData.src, AccessFlags.Read);
-                    builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-                    builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
-                    builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+                    builder.UseTexture(passData.ids, AccessFlags.Read);
+                    builder.UseTexture(passData.normals, AccessFlags.Read);
+                    builder.UseTexture(passData.depth, AccessFlags.Read);
 
+                    // write to bbox colour
+                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                     {
@@ -251,13 +274,17 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                         data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
                         data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
 
+                        data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+                        data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
+
+                        if (data.useOcclusion != 0 && data.visibilityBuffer != null)
+                            data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+
                         ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                         ctx.cmd.DisableScissorRect();
                     });
                 }
-
-                // bbox.currentTex = outTex;
             }
 
             return;
@@ -313,6 +340,17 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
             passData.instanceCount = instances.Count;
 
+            passData.visibilityBuffer = null;
+            passData.bboxIndexBuffer = null;
+            passData.useOcclusion = 0;
+
+            if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            {
+                passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                passData.bboxIndexBuffer = _bboxIndexBuffer;
+                passData.useOcclusion = 1;
+            }
+
             // read from normal, id, depth and source textures
             // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
             builder.UseTexture(passData.src, AccessFlags.Read);
@@ -343,6 +381,15 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
 
+                data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+                data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
+
+                if (data.useOcclusion != 0)
+                {
+                    data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+                    data.mat.SetBuffer(BBoxIndicesID, data.bboxIndexBuffer);
+                }
+
                 ctx.cmd.DrawProcedural(
                     Matrix4x4.identity,
                     data.mat, // dummy material
@@ -354,5 +401,14 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             });
         }
 
+    }
+
+    public void Dispose()
+    {
+        if (_instanceBuffer != null)
+            _instanceBuffer.Release();
+
+        if (_bboxIndexBuffer != null)
+            _bboxIndexBuffer.Release();
     }
 }

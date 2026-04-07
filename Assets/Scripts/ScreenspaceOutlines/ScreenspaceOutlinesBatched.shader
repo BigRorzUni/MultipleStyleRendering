@@ -48,6 +48,11 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             float _NormalThreshold; 
             float _NormalStrength;
 
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            int _UseOcclusion;
+
+
             struct Attributes 
             { 
                 uint vertexID : SV_VertexID; 
@@ -87,6 +92,20 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             Varyings Vert (Attributes v)
             {
                 Varyings o;
+
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[v.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return o;
+                    }
+                }
 
                 float2 uv = GetQuadUV(v.vertexID);
                 float4 rect = _InstanceData[v.instanceID].rect;

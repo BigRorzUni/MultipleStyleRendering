@@ -301,12 +301,6 @@ public class bboxPrepass : ScriptableRenderPass
                 newBoxes.Clear();
             }
 
-            // assign index for each box for debugging/occlusion purposes
-            for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-            {
-                nprFrameData.bboxes[i].frameIndex = i;
-            }
-
             // find occlusion candidates if enabled
             if(NprTestingConfig.UseOcclusionCulling)
             {
@@ -342,14 +336,14 @@ public class bboxPrepass : ScriptableRenderPass
             {
                 foreach(var bbox in nprFrameData.bboxes)
                 {                
-                    BBoxDebugStore.Add(bbox.box, Color.green, $"{bbox.frameIndex}");
+                    BBoxDebugStore.Add(bbox.box, Color.green, $"{nprFrameData.bboxes.IndexOf(bbox)} FINAL");
                 }
 
                 if(NprTestingConfig.UseOcclusionCulling)
                 {
                     foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
                     {                
-                        BBoxDebugStore.Add(bbox.box, Color.blue, $"{bbox.frameIndex} OCCLUSION CANDIDATE");
+                        BBoxDebugStore.Add(bbox.box, Color.blue, $"{nprFrameData.bboxes.IndexOf(bbox)} OCCLUSION CANDIDATE");
                     }
                 }
             }

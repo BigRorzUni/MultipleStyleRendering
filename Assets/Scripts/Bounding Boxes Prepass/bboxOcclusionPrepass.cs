@@ -263,7 +263,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     useMipMap = false
                 });
 
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox Occlusion Test {bbox.frameIndex}", out RasterPassData passData))
+                using (var builder = renderGraph.AddRasterRenderPass($"BBox Occlusion Test {nprFrameData.bboxes.IndexOf(bbox)}", out RasterPassData passData))
                 {
                     builder.AllowPassCulling(false);
 
@@ -330,7 +330,15 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     passData.rect = bbox.box;
                     passData.compute = _occlusionCompute;
                     passData.kernel = _occlusionKernelSingle;
-                    passData.bboxIndex = (uint)bbox.frameIndex;
+                    int bboxIndex = nprFrameData.bboxes.IndexOf(bbox);
+                    if (bboxIndex < 0)
+                    {
+                        Debug.LogError($"Occlusion candidate bbox not found in bboxes list: {bbox.box}");
+                        continue;
+                    }
+
+                    passData.bboxIndex = (uint)bboxIndex;
+                    // passData.bboxIndex = (uint)nprFrameData.bboxes.IndexOf(bbox);
 
                     // if (!NprTestingConfig.TestMode)
                     //     passData.expectedMask = (uint)bbox.styles;

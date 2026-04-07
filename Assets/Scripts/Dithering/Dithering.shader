@@ -18,6 +18,7 @@ Shader "Custom/Dithering"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma target 4.5
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 
@@ -31,14 +32,12 @@ Shader "Custom/Dithering"
             float4 _Rect;  // xy origin, zw width height
             float2 _ScreenTexelSize;
 
-            StructuredBuffer<uint> _BBoxVisibilityFlags;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            // StructuredBuffer<uint> _BboxIndices;
+
             int _UseOcclusion;
             int _CurrentBboxIndex;
-
-
-            CBUFFER_START(UnityPerMaterial)
-
-            CBUFFER_END
+            
 
             struct Attributes 
             { 
@@ -54,20 +53,6 @@ Shader "Custom/Dithering"
             Varyings Vert (Attributes v)
             {
                 Varyings o;
-
-                if (_UseOcclusion != 0)
-                {
-                    uint visible = _BBoxVisibilityFlags[_CurrentBboxIndex];
-
-                    // visible -> collapse
-                    // hidden  -> draw
-                    if (visible == 0)
-                    {
-                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
-                        return o;
-                    }
-                }
-
                 o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
                 o.uv = GetFullScreenTriangleTexCoord(v.vertexID);
                 return o;
@@ -93,7 +78,13 @@ Shader "Custom/Dithering"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                // get colour over bbox texture
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+                    if (visible == 0)
+                        clip(-1);
+                }
+                                // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
                 uint mask = ReadMask8(i.uv);
 

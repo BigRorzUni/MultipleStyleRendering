@@ -25,8 +25,6 @@ public class BoundingBox
     public uint testMask; // for testing
     public List<Renderer> renderers = new List<Renderer>();
 
-    public int frameIndex;
-
     public BoundingBox(uint s, RectInt b)
     {
         styles = (StyleBits.ImageSpaceEffect)s;

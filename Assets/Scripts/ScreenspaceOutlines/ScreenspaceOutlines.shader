@@ -40,6 +40,10 @@ Shader "Custom/ScreenspaceOutlines"
             float _NormalThreshold; 
             float _NormalStrength;
 
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            int _UseOcclusion;
+            int _CurrentBboxIndex;
+
             struct Attributes 
             { 
                 uint vertexID : SV_VertexID; 
@@ -79,6 +83,15 @@ Shader "Custom/ScreenspaceOutlines"
 
             float4 Frag (Varyings i) : SV_Target
             {
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+
+                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
+                    if (visible == 0)
+                        clip(-1);
+                }
+
                 float4 col = SAMPLE_TEXTURE2D(_NprSourceTexture, sampler_PointClamp, i.uv);
 
                 // discard if pixel is not tagged for outlining in id tex
