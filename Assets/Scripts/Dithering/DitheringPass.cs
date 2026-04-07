@@ -23,6 +23,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
     static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
     static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
+    static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
 
     ComputeBuffer _bboxIndexBuffer;
     int _bboxIndexBufferCapacity = 0;
@@ -66,6 +67,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public ComputeBuffer visibilityBuffer;
         public ComputeBuffer bboxIndexBuffer;
         public int useOcclusion;
+        public int currentBBoxIndex;
     }
 
     public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
@@ -163,6 +165,16 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     passData.mat = _mat;
                     passData.rect = bbox.box;
 
+                    passData.visibilityBuffer = null;
+                    passData.useOcclusion = 0;
+                    passData.currentBBoxIndex = bbox.frameIndex;
+
+                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    {
+                        passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                        passData.useOcclusion = 1;
+                    }
+
                     builder.UseTexture(passData.src, AccessFlags.Read);
                     builder.UseTexture(passData.ids, AccessFlags.Read);
 
@@ -172,6 +184,12 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     {
                         data.mat.SetTexture(SourceTexID, data.src);
                         data.mat.SetTexture(IdTexId, data.ids);
+
+                        data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+                        data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
+
+                        if (data.useOcclusion != 0 && data.visibilityBuffer != null)
+                            data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
 
                         ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
