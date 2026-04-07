@@ -29,7 +29,11 @@ Shader "Custom/DitheringBatched"
             };
 
             StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            
             float4 _NprScreenSize; 
+            int _UseOcclusion;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -77,6 +81,20 @@ Shader "Custom/DitheringBatched"
             Varyings Vert(Attributes input)
             {
                 Varyings output;
+
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[input.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        output.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return output;
+                    }
+                }
 
                 float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;
