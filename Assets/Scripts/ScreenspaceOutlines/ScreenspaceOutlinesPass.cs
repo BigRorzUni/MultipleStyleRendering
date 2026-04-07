@@ -31,6 +31,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     public Color _outlineColour;
     public float _outlineThickness;
 
+    readonly List<Material> _tempMaterials = new();
+
     ComputeBuffer _instanceBuffer;
     int _instanceBufferCapacity = 0;
     ComputeBuffer _bboxIndexBuffer;
@@ -222,6 +224,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 if((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
                     continue;
 
+                int index = nprFrameData.bboxes.IndexOf(bbox);
                 using (var builder = renderGraph.AddRasterRenderPass($"BBox Outline ({bbox.box})", out PassData passData))
                 {
                     passData.src = nprFrameData.sourceTexture;
@@ -230,7 +233,16 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.depth = frameData.activeDepthTexture; // provided by urp camera depth texture
                     passData.rect = bbox.box;
 
-                    passData.mat = _mat;
+                    if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    {
+                        Material perPassMat = new Material(_mat);
+                        _tempMaterials.Add(perPassMat);
+                        passData.mat = perPassMat;
+                    }
+                    else
+                    {
+                        passData.mat = _mat;
+                    }
 
                     passData.outlineCol = _outlineColour;
                     passData.thicknessPx = _outlineThickness;
@@ -240,9 +252,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.normalStrength = _normalStrength;
 
                     passData.visibilityBuffer = null;
-                    passData.bboxIndexBuffer = null;
+                    passData.currentBBoxIndex = index; 
                     passData.useOcclusion = 0;
-                    passData.currentBBoxIndex = nprFrameData.bboxes.IndexOf(bbox);
+
 
                     if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
@@ -293,6 +305,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         // Debug.Log("Batched outline pass");
 
         List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
+        List<QuadInstanceData> instances = new List<QuadInstanceData>();
+        List<uint> bboxIndices = new List<uint>();
+
         foreach (var bbox in nprFrameData.bboxes)
         {
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -302,15 +317,13 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 continue;
 
             batchedBBoxes.Add(bbox);
-        }
 
-        List<QuadInstanceData> instances = new List<QuadInstanceData>();
-        foreach (var bbox in batchedBBoxes)
-        {
             instances.Add(new QuadInstanceData
             {
                 rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
             });
+
+            bboxIndices.Add((uint)nprFrameData.bboxes.IndexOf(bbox));
         }
 
         if (instances.Count == 0)
@@ -318,6 +331,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
         EnsureInstanceBufferCapacity(instances.Count);
         _instanceBuffer.SetData(instances);
+
+        EnsureIndexBufferCapacity(bboxIndices.Count);
+        _bboxIndexBuffer.SetData(bboxIndices);
 
         using (var builder = renderGraph.AddRasterRenderPass($"Batched Outline Pass", out PassData passData))
         {
@@ -382,7 +398,6 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
 
                 data.mat.SetInt(UseOcclusionID, data.useOcclusion);
-                data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
 
                 if (data.useOcclusion != 0)
                 {
@@ -410,5 +425,13 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
         if (_bboxIndexBuffer != null)
             _bboxIndexBuffer.Release();
+
+        for (int i = 0; i < _tempMaterials.Count; i++)
+        {
+            if (_tempMaterials[i] != null)
+                CoreUtils.Destroy(_tempMaterials[i]);
+        }
+        
+        _tempMaterials.Clear();
     }
 }

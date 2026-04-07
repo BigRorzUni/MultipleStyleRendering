@@ -81,6 +81,7 @@ Shader "Custom/Dithering"
                 if (_UseOcclusion != 0)
                 {
                     uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
                     if (visible == 0)
                         clip(-1);
                 }

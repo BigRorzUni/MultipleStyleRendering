@@ -205,9 +205,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                         data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
 
                         if (data.useOcclusion != 0)
-                        {
                             data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
-                        }
 
                         ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
