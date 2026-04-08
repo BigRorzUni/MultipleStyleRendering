@@ -33,8 +33,6 @@ Shader "Custom/Dithering"
             float2 _ScreenTexelSize;
 
             StructuredBuffer<uint> _BboxVisibilityFlags;
-            // StructuredBuffer<uint> _BboxIndices;
-
             int _UseOcclusion;
             int _CurrentBboxIndex;
             

@@ -50,8 +50,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // TEST EFFECTS
 
     
-    [SerializeField] public bool useTestEffects = true;
     [SerializeField, Min(1)] private int testEffectCount = 32;
+    public int TestEffectCount => testEffectCount;
 
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
@@ -63,15 +63,15 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public void EnableTestMode(int styleCount)
     {
-        useTestEffects = true;
+        NprTestingConfig.TestMode = true;
         testEffectCount = Mathf.Clamp(styleCount, 1, 32);
 
-        Create(); 
+        Create();
     }
 
     public void DisableTestMode()
     {
-        useTestEffects = false;
+        NprTestingConfig.TestMode = false;
         Create();
     }
 

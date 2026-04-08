@@ -14,6 +14,7 @@ public class DummyPass : ScriptableRenderPass
 
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
+    static readonly int RequiredBitID = Shader.PropertyToID("_RequiredBit");
 
     ComputeBuffer _instanceBuffer;
     int _instanceBufferCapacity = 0;
@@ -40,6 +41,7 @@ public class DummyPass : ScriptableRenderPass
         public TextureHandle ids;
         public Material mat;
         public RectInt rect;
+        public uint requiredBit;
 
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
@@ -99,6 +101,7 @@ public class DummyPass : ScriptableRenderPass
                 passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.mat = _mat;
+                passData.requiredBit = _requiredBit;
 
                 builder.UseTexture(passData.src, AccessFlags.Read);
                 builder.UseTexture(passData.ids, AccessFlags.Read);
@@ -109,6 +112,7 @@ public class DummyPass : ScriptableRenderPass
                 {
                     data.mat.SetTexture(SourceTexID, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
 
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                 });
@@ -133,12 +137,14 @@ public class DummyPass : ScriptableRenderPass
                 
                 // Debug.Log($"[DummyPass] Rendering bbox {bbox.box} | " + $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " + $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}");
 
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name} ({bbox.box})", out PassData passData))
+                int index = nprFrameData.bboxes.IndexOf(bbox);
+                using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name} ({index})", out PassData passData))
                 {
                     passData.src = nprFrameData.sourceTexture;
                     passData.ids = nprFrameData.idTexture;
                     passData.mat = _mat;
                     passData.rect = bbox.box;
+                    passData.requiredBit = _requiredBit;
 
                     builder.UseTexture(passData.src, AccessFlags.Read);
                     builder.UseTexture(passData.ids, AccessFlags.Read);
@@ -149,6 +155,7 @@ public class DummyPass : ScriptableRenderPass
                     {
                         data.mat.SetTexture(SourceTexID, data.src);
                         data.mat.SetTexture(IdTexId, data.ids);
+                        data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
 
                         ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
@@ -195,6 +202,7 @@ public class DummyPass : ScriptableRenderPass
             passData.instanceBuffer = _instanceBuffer;
             passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
             passData.instanceCount = instances.Count;
+            passData.requiredBit = _requiredBit;
 
             builder.UseTexture(passData.src, AccessFlags.Read);
             builder.UseTexture(passData.ids, AccessFlags.Read);
@@ -208,6 +216,7 @@ public class DummyPass : ScriptableRenderPass
                 data.mat.SetTexture(IdTexId, data.ids);
                 data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
+                data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
 
                 ctx.cmd.DrawProcedural(
                     Matrix4x4.identity,

@@ -159,7 +159,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     continue;
 
                 int index = nprFrameData.bboxes.IndexOf(bbox);
-                Debug.Log($"Scheduling dithering pass for bbox {index} at {bbox.box} with effect bits {bbox.styles}");
+                // Debug.Log($"Scheduling dithering pass for bbox {index} at {bbox.box} with effect bits {bbox.styles}");
 
                 using (var builder = renderGraph.AddRasterRenderPass($"BBox Dithering ({index})", out PassData passData))
                 {

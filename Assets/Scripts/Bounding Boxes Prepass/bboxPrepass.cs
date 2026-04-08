@@ -85,8 +85,8 @@ public class bboxPrepass : ScriptableRenderPass
                         BoundingBox bbox;
                         if (NprTestingConfig.TestMode)
                         {
-                            bbox = BoundingBox.CreateTestBox(tag.testEffects, screenRect);
-                            nprFrameData.presentTestStyles |= tag.testEffects;
+                            bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
+                            nprFrameData.presentTestStyles |= tag.currentTestEffects;
                         }
                         else
                         {
@@ -113,7 +113,7 @@ public class bboxPrepass : ScriptableRenderPass
                 // add test effect to bbox mask
                 if(NprTestingConfig.TestMode)
                 {
-                    nprFrameData.presentTestStyles |= tag.testEffects;
+                    nprFrameData.presentTestStyles |= tag.currentTestEffects;
                 }
             }
         }
