@@ -83,19 +83,14 @@ Shader "Custom/Dithering"
                     if (visible == 0)
                         clip(-1);
                 }
-                                // get colour over bbox texture
+                // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
                 uint mask = ReadMask8(i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
                 const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
-                    return col;
-
-                // TODO: move this to an object space shader
-                // convert pixels to greyscale 
-                // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
-                // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
+                    clip(-1);
 
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
@@ -103,7 +98,7 @@ Shader "Custom/Dithering"
                 pixelXY = pixelXY % 8;
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
-                // get 
+                // get bayer brightness using the matrix
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outR = step(threshold, col.r);

@@ -135,17 +135,22 @@ Shader "Custom/DitheringBatched"
 
             float4 Frag(Varyings i) : SV_Target
             {
+                // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
                 uint mask = ReadMask8(i.screenUV);
 
-                const uint DITHERING_BIT = 1u << 1;
+                // if pixels aren't tagged for dithering then leave them unchanged
+                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
-                    return col;
+                    clip(-1);
 
                 uint2 pixelXY = (uint2)(i.screenUV * _SourceTex_TexelSize.zw);
+
+                // flatten pixelXY
                 pixelXY = pixelXY % 8;
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
+                // get bayer brightness using the matrix
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outR = step(threshold, col.r);
