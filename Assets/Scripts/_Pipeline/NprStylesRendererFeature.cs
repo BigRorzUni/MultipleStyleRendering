@@ -1,8 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 public enum NprDebugView
@@ -13,7 +10,7 @@ public enum NprDebugView
     Edges
 }
 public interface INprPass
-{
+{    
     void ApplySettings(Settings settings);
 }
 
@@ -23,10 +20,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
     private bboxPrepass _bboxPrepass;
+    private BBoxOcclusionPrepass _bboxOcclusionPrepass;
+    private OcclusionDebugPass _occlusionDebugPass;
 
-    // OBJECT PASSES
-    List<Effect> objectEffects = new();
-    private ToonEffect toonEffect;
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -44,9 +40,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
     // [SerializeField] private Shader pixelisationShader;
 
+    [SerializeField] private Shader occlusionShader;
+    [SerializeField] private ComputeShader occlusionComputeShader;
+    [SerializeField] private Shader occlusionDebugShader;
+
+
+    // TEST EFFECTS
+
     
-    [SerializeField] public bool useTestEffects = true;
     [SerializeField, Min(1)] private int testEffectCount = 32;
+    public int TestEffectCount => testEffectCount;
 
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
@@ -58,15 +61,15 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public void EnableTestMode(int styleCount)
     {
-        useTestEffects = true;
+        NprTestingConfig.TestMode = true;
         testEffectCount = Mathf.Clamp(styleCount, 1, 32);
 
-        Create(); 
+        Create();
     }
 
     public void DisableTestMode()
     {
-        useTestEffects = false;
+        NprTestingConfig.TestMode = false;
         Create();
     }
 
@@ -96,6 +99,33 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         else
             _bboxPrepass = new bboxPrepass();
+
+        
+        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
+        {
+            if(occlusionShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/bboxOcclusion'");
+                return;
+            }
+
+            if(occlusionComputeShader == null)
+            {
+                Debug.LogError("Occlusion compute shader OcclusionCheck not set.");
+                return;
+            }
+
+            _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+
+            if(occlusionDebugShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/occlusionDebug'");
+                return;
+            }
+            
+            _occlusionDebugPass = new OcclusionDebugPass(occlusionDebugShader);
+            
+        }
 
         // object passes
         // if (toonShader == null)
@@ -220,6 +250,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
+        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
+        {
+            renderer.EnqueuePass(_bboxOcclusionPrepass);
+        }
+
         // compute normals
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
@@ -235,5 +270,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     renderer.EnqueuePass(pass);
             }
         }
+
+        renderer.EnqueuePass(_occlusionDebugPass);
     }
 }

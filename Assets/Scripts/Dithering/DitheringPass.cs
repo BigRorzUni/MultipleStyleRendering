@@ -15,11 +15,19 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
 
-    ComputeBuffer _instanceBuffer;
-    int _instanceBufferCapacity = 0;
-
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
+    static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
+    static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
+    static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
+    static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
+
+    readonly List<Material> _tempMaterials = new();
+
+    ComputeBuffer _bboxIndexBuffer;
+    int _bboxIndexBufferCapacity = 0;
+    ComputeBuffer _instanceBuffer;
+    int _instanceBufferCapacity = 0;
 
     // make sure the compute buffer is big enough for the given instance count
     void EnsureInstanceBufferCapacity(int count)
@@ -33,6 +41,17 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
         _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
     }
+    void EnsureIndexBufferCapacity(int count)
+    {
+        if (_bboxIndexBuffer != null && _bboxIndexBufferCapacity >= count)
+            return;
+
+        if (_bboxIndexBuffer != null)
+            _bboxIndexBuffer.Release();
+
+        _bboxIndexBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+        _bboxIndexBuffer = new ComputeBuffer(_bboxIndexBufferCapacity, sizeof(uint));
+    }
 
     class PassData
     {
@@ -44,6 +63,11 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
         public int instanceCount;
+
+        public ComputeBuffer visibilityBuffer;
+        public ComputeBuffer bboxIndexBuffer;
+        public int useOcclusion;
+        public int currentBBoxIndex;
     }
 
     public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
@@ -121,6 +145,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
         if(nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
+            
 
         if (!NprTestingConfig.BatchedDraws)
         {
@@ -133,13 +158,38 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 if((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
                     continue;
 
-                // TextureHandle outTex = renderGraph.CreateTexture(bbox.desc);
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox Dithering ({bbox.box})", out PassData passData))
+                int index = nprFrameData.bboxes.IndexOf(bbox);
+                // Debug.Log($"Scheduling dithering pass for bbox {index} at {bbox.box} with effect bits {bbox.styles}");
+
+                using (var builder = renderGraph.AddRasterRenderPass($"BBox Dithering ({index})", out PassData passData))
                 {
+                    // global state modification 
+                    builder.AllowGlobalStateModification(true);
+
                     passData.src = nprFrameData.sourceTexture;
                     passData.ids = nprFrameData.idTexture;
-                    passData.mat = _mat;
+
+                    if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    {
+                        Material perPassMat = new Material(_mat);
+                        _tempMaterials.Add(perPassMat);
+                        passData.mat = perPassMat;
+                    }
+                    else
+                    {
+                        passData.mat = _mat;
+                    }
                     passData.rect = bbox.box;
+
+                    passData.visibilityBuffer = null;
+                    passData.currentBBoxIndex = index;
+                    passData.useOcclusion = 0;
+
+                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    {
+                        passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                        passData.useOcclusion = 1;
+                    }
 
                     builder.UseTexture(passData.src, AccessFlags.Read);
                     builder.UseTexture(passData.ids, AccessFlags.Read);
@@ -151,84 +201,124 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                         data.mat.SetTexture(SourceTexID, data.src);
                         data.mat.SetTexture(IdTexId, data.ids);
 
+                        data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+                        data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
+
+                        if (data.useOcclusion != 0)
+                            data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+
                         ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                         ctx.cmd.DisableScissorRect();
                     });
                 }
-
-                // bbox.currentTex = outTex;
             }
 
             return;
         }
             // new batched instanced path
-            Debug.Log("Batched dithering pass");
+            // Debug.Log("Batched dithering pass");
 
-            List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
-            foreach (var bbox in nprFrameData.bboxes)
+        List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
+        List<QuadInstanceData> instances = new List<QuadInstanceData>();
+        List<uint> bboxIndices = new List<uint>();
+
+        foreach (var bbox in nprFrameData.bboxes)
+        {
+            if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                continue;
+
+            if ((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
+                continue;
+
+            batchedBBoxes.Add(bbox);
+
+            instances.Add(new QuadInstanceData
             {
-                if (bbox.box.width <= 0 || bbox.box.height <= 0)
-                    continue;
+                rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
+            });
 
-                if ((bbox.styles & StyleBits.ImageSpaceEffect.Dithering) == 0)
-                    continue;
+            bboxIndices.Add((uint)nprFrameData.bboxes.IndexOf(bbox));
+        }
 
-                batchedBBoxes.Add(bbox);
+        if (instances.Count == 0)
+            return;
+
+        EnsureInstanceBufferCapacity(instances.Count);
+        _instanceBuffer.SetData(instances);
+
+        EnsureIndexBufferCapacity(bboxIndices.Count);
+        _bboxIndexBuffer.SetData(bboxIndices);
+
+        using (var builder = renderGraph.AddRasterRenderPass("Batched Dithering Pass", out PassData passData))
+        {
+            passData.mat = _mat;
+
+            passData.src = nprFrameData.sourceTexture;
+            passData.ids = nprFrameData.idTexture;
+
+            passData.instanceBuffer = _instanceBuffer;
+            passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+            passData.instanceCount = instances.Count;
+
+            passData.visibilityBuffer = null;
+            passData.bboxIndexBuffer = null;
+            passData.useOcclusion = 0;
+
+            if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            {
+                passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                passData.bboxIndexBuffer = _bboxIndexBuffer;
+                passData.useOcclusion = 1;
             }
 
-            List<QuadInstanceData> instances = new List<QuadInstanceData>();
-            foreach (var bbox in batchedBBoxes)
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+            builder.AllowGlobalStateModification(true);
+
+            builder.UseTexture(passData.src, AccessFlags.Read);
+            builder.UseTexture(passData.ids, AccessFlags.Read);
+
+            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
             {
-                instances.Add(new QuadInstanceData
+                data.mat.SetTexture(SourceTexID, data.src);
+                data.mat.SetTexture(IdTexId, data.ids);
+                data.mat.SetBuffer(InstanceBufferID,data.instanceBuffer);
+                data.mat.SetVector(ScreenParamsID, data.screenSize);
+                data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+
+                if (data.useOcclusion != 0)
                 {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
-            }
+                    data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+                    data.mat.SetBuffer(BBoxIndicesID, data.bboxIndexBuffer);
+                }
 
-            if (instances.Count == 0)
-                return;
+                ctx.cmd.DrawProcedural(
+                    Matrix4x4.identity,
+                    data.mat, // dithering material
+                    0,
+                    MeshTopology.Triangles,
+                    6, // 2 triangles per quad
+                    data.instanceCount // 1 instance per bbox
+                );
 
-            EnsureInstanceBufferCapacity(instances.Count);
-            _instanceBuffer.SetData(instances);
-
-            using (var builder = renderGraph.AddRasterRenderPass("Batched Dithering Pass", out PassData passData))
-            {
-                passData.mat = _mat;
-
-                passData.src = nprFrameData.sourceTexture;
-                passData.ids = nprFrameData.idTexture;
-
-                passData.instanceBuffer = _instanceBuffer;
-                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-                passData.instanceCount = instances.Count;
-
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-                builder.AllowGlobalStateModification(true);
-
-                builder.UseTexture(passData.src, AccessFlags.Read);
-                builder.UseTexture(passData.ids, AccessFlags.Read);
-
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-                {
-                    data.mat.SetTexture(SourceTexID, data.src);
-                    data.mat.SetTexture(IdTexId, data.ids);
-                    data.mat.SetBuffer(InstanceBufferID,data.instanceBuffer);
-                    data.mat.SetVector(ScreenParamsID, data.screenSize);
-
-                    ctx.cmd.DrawProcedural(
-                        Matrix4x4.identity,
-                        data.mat, // dithering material
-                        0,
-                        MeshTopology.Triangles,
-                        6, // 2 triangles per quad
-                        data.instanceCount // 1 instance per bbox
-                    );
-
-                });
-            }
-
-        
-
+            });
+        }
    }
+
+   public void Dispose()
+    {
+        if (_instanceBuffer != null)
+            _instanceBuffer.Release();
+
+        if (_bboxIndexBuffer != null)
+            _bboxIndexBuffer.Release();
+
+        for (int i = 0; i < _tempMaterials.Count; i++)
+        {
+            if (_tempMaterials[i] != null)
+                CoreUtils.Destroy(_tempMaterials[i]);
+        }
+        
+        _tempMaterials.Clear();
+    }
 }

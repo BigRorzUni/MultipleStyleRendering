@@ -2,8 +2,6 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 
-
-
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -12,25 +10,19 @@ using UnityEditor;
 [ExecuteAlways]
 public class StylisedTag : MonoBehaviour
 {
-
-
-    [Header("Object Space")]
-    public StyleBits.ObjectSpaceEffect objectEffects = StyleBits.ObjectSpaceEffect.None;
-
-    [Header("Image Space")]
+    [Header("Image Effects")]
     public StyleBits.ImageSpaceEffect imageEffects = StyleBits.ImageSpaceEffect.None;
 
     [Header("Test Effects")]
-    private List<int> testIndices = new();
+    [SerializeField] private TestEffectAssignmentMode testAssignmentMode = TestEffectAssignmentMode.Inspector;
 
-    public uint testEffects;
+    [SerializeField] private List<bool> inspectorTestEffects = new();
+    [NonSerialized] private List<bool> runtimeTestEffects = new();
+
+    // mask currently being applied
+    [SerializeField] public uint currentTestEffects;
 
     Renderer[] _renderers;
-
-    // make sure that no other render layers are interacted with
-    const uint ObjectControlledBits =
-        StyleBits.DefaultBit |
-        (uint)StyleBits.ObjectSpaceEffect.Toon;
 
     static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
     
@@ -54,21 +46,26 @@ public class StylisedTag : MonoBehaviour
     void OnValidate()
     {
         Ensure(true);
-        if (!NprTestingConfig.TestMode)
-            Apply();
+        Apply();
     }
 
     void OnTransformChildrenChanged()
     {
         Ensure(true);
-        if (!NprTestingConfig.TestMode)
-            Apply();
+        Apply();
     }
 
     void Ensure(bool force = false)
     {
         if (force || _renderers == null || _renderers.Length == 0)
             _renderers = GetComponentsInChildren<Renderer>(true);
+
+        if (runtimeTestEffects == null)
+            runtimeTestEffects = new List<bool>();
+
+        int count = Mathf.Max(inspectorTestEffects.Count, runtimeTestEffects.Count);
+        ResizeBoolList(inspectorTestEffects, count);
+        ResizeBoolList(runtimeTestEffects, count);
     }
 
     public void Apply()
@@ -76,38 +73,17 @@ public class StylisedTag : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
             
-        if(NprTestingConfig.TestMode)
+        if (NprTestingConfig.TestMode)
         {
             Debug.Log("apply test effects");
             ApplyTestEffects();
         }
         else
         {
-            ApplyObjectSpace();
             ApplyImageSpace();
         }
 
         Debug.Log("Effects applied");
-    }
-
-    // object space effects - render layers
-    void ApplyObjectSpace()
-    {
-        if (_renderers == null) return;
-
-        uint desired = StyleBits.DefaultBit | (uint)objectEffects;
-        desired &= ObjectControlledBits;
-
-        foreach (var r in _renderers)
-        {
-            if (!r) continue;
-
-            uint keep = r.renderingLayerMask & ~ObjectControlledBits;
-            uint next = keep | desired;
-
-            if (r.renderingLayerMask != next)
-                r.renderingLayerMask = next;
-        }
     }
 
     // image space effects - mpbs
@@ -146,23 +122,10 @@ public class StylisedTag : MonoBehaviour
 
     void ApplyTestEffects()
     {
-        testEffects = 0u;
+        List<bool> activeEffects = GetActiveTestEffects();
+        currentTestEffects = BuildMask(activeEffects);
 
-        if (testIndices == null || testIndices.Count == 0)
-        {   
-            Debug.Log("Test effect list is empty");
-            return;
-        }
-        for (int i = 0; i < testIndices.Count; i++)
-        {
-            int idx = testIndices[i];
-            if ((uint)idx >= 32u)
-                continue;
-
-            testEffects |= 1u << idx;
-        }
-
-        Debug.Log($"Test mask (bin): {Convert.ToString(testEffects, 2).PadLeft(32, '0')}");
+        Debug.Log($"Test mask (bin): {Convert.ToString(currentTestEffects, 2).PadLeft(32, '0')}");
 
         if (_renderers == null) return;
 
@@ -175,33 +138,116 @@ public class StylisedTag : MonoBehaviour
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
 
-            mpb.SetInteger(ImageStyleId, (int)testEffects);
+            mpb.SetInteger(ImageStyleId, (int)currentTestEffects);
 
             r.SetPropertyBlock(mpb);
         }
     }
 
-
-    public void AddTestEffect(int N)
+    List<bool> GetActiveTestEffects()
     {
-        if((uint)N >= 32u)
+        if (testAssignmentMode == TestEffectAssignmentMode.Runtime)
+            return runtimeTestEffects;
+
+        return inspectorTestEffects;
+    }
+
+    uint BuildMask(List<bool> effects)
+    {
+        if (effects == null || effects.Count == 0)
+        {
+            Debug.Log("Test effect list is empty");
+            return 0u;
+        }
+
+        uint mask = 0u;
+        int count = Mathf.Min(effects.Count, 32);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (effects[i])
+                mask |= 1u << i;
+        }
+
+        return mask;
+    }
+
+    static void ResizeBoolList(List<bool> list, int count)
+    {
+        if (list == null)
             return;
 
-        if(!testIndices.Contains(N))
+        while (list.Count < count)
+            list.Add(false);
+
+        while (list.Count > count)
+            list.RemoveAt(list.Count - 1);
+    }
+
+    public void SetTestEffectCount(int count)
+    {
+        count = Mathf.Clamp(count, 0, 32);
+
+        ResizeBoolList(inspectorTestEffects, count);
+        ResizeBoolList(runtimeTestEffects, count);
+    }
+
+    public void SetAssignmentMode(TestEffectAssignmentMode mode)
+    {
+        testAssignmentMode = mode;
+    }
+
+    public void UseInspectorTestEffects()
+    {
+        testAssignmentMode = TestEffectAssignmentMode.Inspector;
+    }
+
+    public void UseRuntimeTestEffects()
+    {
+        testAssignmentMode = TestEffectAssignmentMode.Runtime;
+    }
+
+    public void SetRuntimeTestEffects(IEnumerable<int> indices)
+    {
+        ClearRuntimeTestEffects();
+
+        if (indices == null)
+            return;
+
+        foreach (int idx in indices)
         {
-            Debug.Log("Added style");
-            testIndices.Add(N);
+            if ((uint)idx >= 32u)
+                continue;
+
+            if (idx >= runtimeTestEffects.Count)
+                continue;
+
+            runtimeTestEffects[idx] = true;
         }
     }
 
-
-    public void ClearTestEffects()
+    public void SetRuntimeTestEffect(int index, bool enabled)
     {
-        testIndices?.Clear();
-        // Apply();
+        if ((uint)index >= 32u)
+            return;
+
+        if (index >= runtimeTestEffects.Count)
+            return;
+
+        runtimeTestEffects[index] = enabled;
     }
 
+    public void ClearRuntimeTestEffects()
+    {
+        for (int i = 0; i < runtimeTestEffects.Count; i++)
+            runtimeTestEffects[i] = false;
+    }
 
+    public void ClearInspectorTestEffects()
+    {
+        for (int i = 0; i < inspectorTestEffects.Count; i++)
+            inspectorTestEffects[i] = false;
+    }
 
     static void SetLayerRecursive(GameObject obj, int layer)
     {
@@ -209,7 +255,6 @@ public class StylisedTag : MonoBehaviour
         foreach (Transform t in obj.transform)
             SetLayerRecursive(t.gameObject, layer);
     }
-
 
 #if UNITY_EDITOR
     void Hook()

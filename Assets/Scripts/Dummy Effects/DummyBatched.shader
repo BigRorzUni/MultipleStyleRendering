@@ -15,6 +15,7 @@ Shader "Custom/DummyBatched"
             ZWrite Off
             Cull Off
             Blend SrcAlpha OneMinusSrcAlpha
+            // Blend One One
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -28,13 +29,16 @@ Shader "Custom/DummyBatched"
             };
 
             StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            
             float4 _NprScreenSize; 
+            int _UseOcclusion;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
 
-            TEXTURE2D(_SourceTex);
-            SAMPLER(sampler_SourceTex);
+            uint _RequiredBit;
 
             struct Attributes
             {
@@ -76,6 +80,21 @@ Shader "Custom/DummyBatched"
             {
                 Varyings o;
 
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[v.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return o;
+                    }
+                }
+
+
                 float2 uv = GetQuadUV(v.vertexID);
                 float4 rect = _InstanceData[v.instanceID].rect;
 
@@ -98,19 +117,26 @@ Shader "Custom/DummyBatched"
             uint ReadMask8(float2 uv)
             {
                 float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0); // unnormalise texture
+                return (uint)round(saturate(m) * 255.0);
+            }
+
+            float3 HashColour(float x)
+            {
+                float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
+                p += dot(p, p.yzx + 19.19);
+                return frac((p.xxy + p.yzz) * p.zyx);
             }
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
                 uint mask = ReadMask8(i.screenUV);
 
-                // if no style applied then do nothing
-                if (mask == 0u)
-                    return col;
+                // comment this out to debug occlusion (reverse occlusion check and occluded object will write to their bbox)
+                if ((mask & _RequiredBit) == 0u)
+                    clip(-1);
 
-                return float4(1, 0, 0, 1);
+                float3 debugCol = HashColour((float)_RequiredBit);
+                return float4(debugCol, 1.0);
             }
             ENDHLSL
         }

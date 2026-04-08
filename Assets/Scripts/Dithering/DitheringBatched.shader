@@ -29,7 +29,11 @@ Shader "Custom/DitheringBatched"
             };
 
             StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            
             float4 _NprScreenSize; 
+            int _UseOcclusion;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -78,6 +82,20 @@ Shader "Custom/DitheringBatched"
             {
                 Varyings output;
 
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[input.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        output.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return output;
+                    }
+                }
+
                 float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;
 
@@ -117,17 +135,22 @@ Shader "Custom/DitheringBatched"
 
             float4 Frag(Varyings i) : SV_Target
             {
+                // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
                 uint mask = ReadMask8(i.screenUV);
 
-                const uint DITHERING_BIT = 1u << 1;
+                // if pixels aren't tagged for dithering then leave them unchanged
+                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
-                    return col;
+                    clip(-1);
 
                 uint2 pixelXY = (uint2)(i.screenUV * _SourceTex_TexelSize.zw);
+
+                // flatten pixelXY
                 pixelXY = pixelXY % 8;
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
+                // get bayer brightness using the matrix
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outR = step(threshold, col.r);

@@ -18,6 +18,7 @@ Shader "Custom/Dithering"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma target 4.5
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 
@@ -31,10 +32,10 @@ Shader "Custom/Dithering"
             float4 _Rect;  // xy origin, zw width height
             float2 _ScreenTexelSize;
 
-
-            CBUFFER_START(UnityPerMaterial)
-
-            CBUFFER_END
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            int _UseOcclusion;
+            int _CurrentBboxIndex;
+            
 
             struct Attributes 
             { 
@@ -75,7 +76,13 @@ Shader "Custom/Dithering"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                // TODO: dither across all colour channels
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
+                    if (visible == 0)
+                        clip(-1);
+                }
                 // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
                 uint mask = ReadMask8(i.uv);
@@ -83,12 +90,7 @@ Shader "Custom/Dithering"
                 // if pixels aren't tagged for dithering then leave them unchanged
                 const uint DITHERING_BIT = 1u << 1; // change this to a uniform
                 if ((mask & DITHERING_BIT) == 0u)
-                    return col;
-
-                // TODO: move this to an object space shader
-                // convert pixels to greyscale 
-                // https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_rgb_to_gray.html
-                // float greyscale = dot(col.rgb, float3(0.2125, 0.7154, 0.0721));
+                    clip(-1);
 
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);
 
@@ -96,7 +98,7 @@ Shader "Custom/Dithering"
                 pixelXY = pixelXY % 8;
                 uint idx = pixelXY.y * 8 + pixelXY.x;
 
-                // get 
+                // get bayer brightness using the matrix
                 float threshold = (Bayer8x8[idx] + 0.5) / 64.0;
 
                 float outR = step(threshold, col.r);

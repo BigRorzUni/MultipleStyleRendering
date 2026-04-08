@@ -48,6 +48,11 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             float _NormalThreshold; 
             float _NormalStrength;
 
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            int _UseOcclusion;
+
+
             struct Attributes 
             { 
                 uint vertexID : SV_VertexID; 
@@ -88,6 +93,20 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             {
                 Varyings o;
 
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[v.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return o;
+                    }
+                }
+
                 float2 uv = GetQuadUV(v.vertexID);
                 float4 rect = _InstanceData[v.instanceID].rect;
 
@@ -127,13 +146,11 @@ Shader "Custom/ScreenspaceOutlinesBatched"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_NprSourceTexture, sampler_PointClamp, i.uv);
-
                 // discard if pixel is not tagged for outlining in id tex
                 uint mask = ReadMask8(i.uv);
                 const uint SS_OUTLINE_BIT = 1u << 0;
                 if ((mask & SS_OUTLINE_BIT) == 0u)
-                    return col;
+                    clip(-1);
         
                 // step size
                 float2 stepUV = _NprSourceTexture_TexelSize.xy * max(1.0, _ThicknessPx);
@@ -141,13 +158,13 @@ Shader "Custom/ScreenspaceOutlinesBatched"
                 // dont step onto fullscreen borders
                 if (i.uv.x < stepUV.x || i.uv.x > 1.0 - stepUV.x ||
                     i.uv.y < stepUV.y || i.uv.y > 1.0 - stepUV.y)
-                    return col;
+                    clip(-1);
 
                 float zC = getDepth(i.uv);
 
                 // skip skybox
                 if (zC >= 0.999)
-                    return col;
+                    clip(-1);
 
                 // depth laplacian 
                 float zR = getDepth(i.uv + float2( stepUV.x, 0));
@@ -178,8 +195,9 @@ Shader "Custom/ScreenspaceOutlinesBatched"
 
                 float edgeMask = max(depthMask, normalMask);
 
-                // outline colour on the outlines, otherwise return src
-                return lerp(col, _OutlineColour, edgeMask);
+                // outline colour on the outlines, otherwise clip (edgemask = 0 and clip() clips anything less than 0)
+                clip(edgeMask - 0.001);
+                return _OutlineColour;
 
             }
             ENDHLSL

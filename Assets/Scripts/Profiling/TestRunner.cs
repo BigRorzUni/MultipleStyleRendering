@@ -15,8 +15,11 @@ public static class NprTestingConfig
     public static bool UseBoundingBoxes = true;
 
     // ABLATION
-    public static bool IdBoundingBoxes = false; // whether to use bboxes in id prepass (TEST)
+    public static bool IdBoundingBoxes = true; // whether to use bboxes in id prepass (TEST)
+    public static bool UseOcclusionCulling = true; // whether to use occlusion culling on bboxes
+
     public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
+    public static bool IdTexOcclusion = false;
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
     public static int StylesPerObject = 0; // max styles per object
@@ -37,6 +40,13 @@ public enum TestVariable
 }
 
 [Serializable]
+public enum TestEffectAssignmentMode
+{
+    Inspector,
+    Runtime
+}
+
+[Serializable]
 public class NprTestCase
 {
     public string name;
@@ -49,6 +59,8 @@ public class NprTestCase
     public int N = 32;
     public int K = 1;
     public int stylesPerObject = 1;
+
+    public TestEffectAssignmentMode effectMode = TestEffectAssignmentMode.Runtime;
 }
 
 public class TestRunner : MonoBehaviour
@@ -59,10 +71,13 @@ public class TestRunner : MonoBehaviour
     NprStylesRendererFeature n;
 
     public bool setRendererTestmode = false;
+    public bool assignRuntimeTestEffectsInEditor = false;
     public bool setIdPrepassBBoxes = true;
     public bool setUseBBoxes = true;
     public bool setDebugBBoxes = false;
+    public bool useOcclusionCulling = true;
     public bool setBatchedDraws = true;
+    public bool idTextOcclusion = false;
 
     private string logDir = null;
 
@@ -79,6 +94,7 @@ public class TestRunner : MonoBehaviour
         //     values = new [] {0,1,2,4,8,16,32},
         //     K = 0,
         //     stylesPerObject = 0,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
         // new NprTestCase
         // {
@@ -87,6 +103,7 @@ public class TestRunner : MonoBehaviour
         //     variable = TestVariable.StylesPerObject,
         //     values = new [] {0,1,2,4,8,16,32},
         //     K = 32,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
         new NprTestCase
         {
@@ -97,6 +114,7 @@ public class TestRunner : MonoBehaviour
             N=1,
             K = 1,
             stylesPerObject = 1,
+             effectMode = TestEffectAssignmentMode.Runtime,
         },
         new NprTestCase
         {
@@ -107,6 +125,7 @@ public class TestRunner : MonoBehaviour
             N = 32,
             K = 32,
             stylesPerObject = 32,
+             effectMode = TestEffectAssignmentMode.Runtime,
         },
     };
 
@@ -185,6 +204,34 @@ public class TestRunner : MonoBehaviour
         logDir = Path.Combine(buildFolder, "ProfilingLogs");
     }
 
+    private void ConfigureTagsForTestMode(TestEffectAssignmentMode mode, bool includeInactive = false)
+    {
+        StylisedTag[] tags;
+        if(includeInactive)
+            tags = FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
+        else
+            tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (var tag in tags)
+        {
+            if (!tag) continue;
+
+            tag.SetTestEffectCount(n.TestEffectCount);
+
+            if (mode == TestEffectAssignmentMode.Inspector)
+            {
+                tag.UseInspectorTestEffects();
+            }
+            else
+            {
+                tag.UseRuntimeTestEffects();
+                tag.ClearRuntimeTestEffects();
+            }
+
+            tag.Apply();
+        }
+    }
+
     private void ApplyTestStylesToScene(int k, int stylesPerObject)
     {
         StylisedTag[] tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -203,19 +250,19 @@ public class TestRunner : MonoBehaviour
             if (!tag) continue;
 
             int baseStyle = objIndex % k;
-
-            // add styles to tag
+            List<int> styles = new();
 
             for (int t = 0; t < s; t++)
             {
                 int style = (baseStyle + t) % k;
                 Debug.Log($"adding style {style}");
-                tag.AddTestEffect(style);
+                styles.Add(style);
             }
-        }
 
-        foreach(var tag in tags)
+            tag.UseRuntimeTestEffects();
+            tag.SetRuntimeTestEffects(styles);
             tag.Apply();
+        }
 
         Debug.Log($"Applied K={k}, stylesPerObject={s}, objects={tags.Length}");
     }
@@ -259,23 +306,32 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.debugBBoxes = setDebugBBoxes;
         NprTestingConfig.IdBoundingBoxes = setIdPrepassBBoxes;
         NprTestingConfig.UseBoundingBoxes = setUseBBoxes;
+        NprTestingConfig.UseOcclusionCulling = useOcclusionCulling;
         NprTestingConfig.BatchedDraws = setBatchedDraws;
+        NprTestingConfig.IdTexOcclusion = idTextOcclusion;
 
         BBoxDebugStore.Clear();
 
-        if(NprTestingConfig.TestMode)
+        if (NprTestingConfig.TestMode)
         {
             n.EnableTestMode(32);
-            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+
+            if (assignRuntimeTestEffectsInEditor)
             {
-                for (int i = 0; i < 32; i++)
-                    tag.AddTestEffect(i);
-                tag.Apply();
+                                ConfigureTagsForTestMode(TestEffectAssignmentMode.Runtime, includeInactive: true);
+                foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+                {
+                    tag.SetRuntimeTestEffects(Enumerable.Range(0, n.TestEffectCount));
+                    tag.Apply();
+                }
             }
+            else
+                ConfigureTagsForTestMode(TestEffectAssignmentMode.Inspector, includeInactive: true);
         }
         else
         {
             n.DisableTestMode();
+
             foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
                 tag.Apply();
         }
@@ -368,17 +424,23 @@ public class TestRunner : MonoBehaviour
 
                     n.EnableTestMode(curN);
 
-                    Debug.Log($"Clearing styles before testing (BB={curUseBBoxes})");
-                    var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-                    foreach (var tag in tags)
+                    ConfigureTagsForTestMode(test.effectMode);
+
+                    if (test.effectMode == TestEffectAssignmentMode.Runtime)
                     {
-                        tag.ClearTestEffects();
-                        tag.Apply();
-                    }
-                    if (curK > 0 && curS > 0)
-                    {
-                        Debug.Log("Applying test styles");
-                        ApplyTestStylesToScene(curK, curS);
+                        Debug.Log($"Clearing runtime styles before testing (BB={curUseBBoxes})");
+                        var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                        foreach (var tag in tags)
+                        {
+                            tag.ClearRuntimeTestEffects();
+                            tag.Apply();
+                        }
+
+                        if (curK > 0 && curS > 0)
+                        {
+                            Debug.Log("Applying test styles");
+                            ApplyTestStylesToScene(curK, curS);
+                        }
                     }
 
                     Debug.Log($"Running {test.name} | {test.variable}={v} | BB={curUseBBoxes}");

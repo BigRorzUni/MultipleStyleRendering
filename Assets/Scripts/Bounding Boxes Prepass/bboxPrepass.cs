@@ -59,6 +59,14 @@ public class bboxPrepass : ScriptableRenderPass
             else 
                 nprFrameData.bboxes.Clear();
 
+            if(NprTestingConfig.UseOcclusionCulling)
+            {
+                if (nprFrameData.occlusionCandidateBoxes == null) 
+                    nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
+                else 
+                    nprFrameData.occlusionCandidateBoxes.Clear();
+            }
+
             // get all active tagged objects using the attached StylisedTag component
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
             foreach (var tag in tags)
@@ -77,8 +85,8 @@ public class bboxPrepass : ScriptableRenderPass
                         BoundingBox bbox;
                         if (NprTestingConfig.TestMode)
                         {
-                            bbox = BoundingBox.CreateTestBox(tag.testEffects, screenRect);
-                            nprFrameData.presentTestStyles |= tag.testEffects;
+                            bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
+                            nprFrameData.presentTestStyles |= tag.currentTestEffects;
                         }
                         else
                         {
@@ -105,7 +113,7 @@ public class bboxPrepass : ScriptableRenderPass
                 // add test effect to bbox mask
                 if(NprTestingConfig.TestMode)
                 {
-                    nprFrameData.presentTestStyles |= tag.testEffects;
+                    nprFrameData.presentTestStyles |= tag.currentTestEffects;
                 }
             }
         }
@@ -292,16 +300,55 @@ public class bboxPrepass : ScriptableRenderPass
                 toRemove.Clear();
                 newBoxes.Clear();
             }
-        }
 
-        // debug show all the final boxes
-        if(NprTestingConfig.debugBBoxes && NprTestingConfig.UseBoundingBoxes)
-        {
-            foreach(var bbox in nprFrameData.bboxes)
-            {                
-                BBoxDebugStore.Add(bbox.box, Color.green, $"Final {bbox.styles} test {bbox.testMask}");
+            // find occlusion candidates if enabled
+            if(NprTestingConfig.UseOcclusionCulling)
+            {
+                nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
+
+                for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+                {
+                    BoundingBox inner = nprFrameData.bboxes[i];
+
+                    for (int j = 0; j < nprFrameData.bboxes.Count; j++)
+                    {
+                        if (i == j)
+                            continue;
+
+                        BoundingBox outer = nprFrameData.bboxes[j];
+
+                        if (ContainsRect(outer.box, inner.box))
+                        {
+                            nprFrameData.occlusionCandidateBoxes.Add(inner);
+                            break;
+                        }
+                    }
+                }
+
+                //
+                OcclusionData.bboxes = nprFrameData.bboxes;
+                OcclusionData.occlusionCandidateBoxes = nprFrameData.occlusionCandidateBoxes;
+
+            }
+
+            // debug show all the final boxes
+            if(NprTestingConfig.debugBBoxes)
+            {
+                foreach(var bbox in nprFrameData.bboxes)
+                {                
+                    BBoxDebugStore.Add(bbox.box, Color.green, $"{nprFrameData.bboxes.IndexOf(bbox)} FINAL");
+                }
+
+                if(NprTestingConfig.UseOcclusionCulling)
+                {
+                    foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
+                    {                
+                        BBoxDebugStore.Add(bbox.box, Color.blue, $"{nprFrameData.bboxes.IndexOf(bbox)} OCCLUSION CANDIDATE");
+                    }
+                }
             }
         }
+
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -316,6 +363,12 @@ public class bboxPrepass : ScriptableRenderPass
             filterMode = FilterMode.Point
         });
     }
+
+    bool ContainsRect(RectInt outer, RectInt inner)
+    {
+        return outer.xMin <= inner.xMin && outer.xMax >= inner.xMax && outer.yMin <= inner.yMin && outer.yMax >= inner.yMax;
+    }
+
     // this describes the edges as the pair of vertices that they connect
     static readonly int[,] BoxEdges = new int[,]
     {

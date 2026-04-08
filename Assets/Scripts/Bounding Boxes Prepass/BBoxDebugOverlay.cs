@@ -29,6 +29,25 @@ public class BBoxDebugOverlay : MonoBehaviour
             }
         }
 
+        if(NprTestingConfig.UseOcclusionCulling)
+        {
+            var occluded = BBoxOcclusionDebugStore.Rects;
+            if (occluded != null && occluded.Count > 0)
+            {
+                foreach (var entry in occluded)
+                {
+                    DrawRectOutline(entry.rect, Color.red, thickness);
+
+                    if (drawLabels && !string.IsNullOrEmpty(entry.label))
+                    {
+                        GUI.color = Color.red;
+                        GUI.Label(new Rect(entry.rect.xMin + 4, Screen.height - entry.rect.yMax + 4, 300, 20), entry.label);
+                    }
+                }
+            }
+
+        }
+
         GUI.color = Color.white;
     }
 

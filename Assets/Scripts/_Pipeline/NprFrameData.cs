@@ -4,6 +4,13 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine;
 using System.Runtime.InteropServices;
 
+
+public static class OcclusionData
+{
+    public static List<BoundingBox> bboxes;
+    public static List<BoundingBox> occlusionCandidateBoxes;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct QuadInstanceData
 {
@@ -43,11 +50,15 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle sourceTexture;
 
     public List<BoundingBox> bboxes;
-
+    public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
+    public ComputeBuffer bboxVisibilityBuffer;
+    public ComputeBuffer bboxRectBuffer;
+    public int bboxVisibilityCount;
 
     public StyleBits.ImageSpaceEffect presentImageBits;
 
     public uint presentTestStyles;  
+
 
     public override void Reset()
     {
@@ -57,6 +68,12 @@ public sealed class NprFrameData : ContextItem
 
         if(bboxes != null)
             bboxes.Clear();
+
+        if(occlusionCandidateBoxes != null)
+            occlusionCandidateBoxes.Clear();
+
+        bboxVisibilityBuffer = null;
+        bboxVisibilityCount = 0;
 
         presentImageBits = 0;
         presentTestStyles = 0;
