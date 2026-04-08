@@ -51,6 +51,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
             int _UseOcclusion;
+            uint _OutlinesBit;
 
 
             struct Attributes 
@@ -154,8 +155,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             {
                 // discard if pixel is not tagged for outlining in id tex
                 uint mask = ReadMask32(i.uv);
-                const uint SS_OUTLINE_BIT = 1u << 0;
-                if ((mask & SS_OUTLINE_BIT) == 0u)
+                if ((mask & _OutlinesBit) == 0u)
                     clip(-1);
         
                 // step size

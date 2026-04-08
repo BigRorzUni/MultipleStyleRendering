@@ -35,6 +35,7 @@ Shader "Custom/Dithering"
             StructuredBuffer<uint> _BboxVisibilityFlags;
             int _UseOcclusion;
             int _CurrentBboxIndex;
+            uint _DitheringBit;
             
 
             struct Attributes 
@@ -94,8 +95,7 @@ Shader "Custom/Dithering"
                 uint mask = ReadMask32(i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
-                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
-                if ((mask & DITHERING_BIT) == 0u)
+                if ((mask & _DitheringBit) == 0u)
                     clip(-1);
 
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);

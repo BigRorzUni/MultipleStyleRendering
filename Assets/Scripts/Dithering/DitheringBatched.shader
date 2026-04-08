@@ -34,6 +34,7 @@ Shader "Custom/DitheringBatched"
             
             float4 _NprScreenSize; 
             int _UseOcclusion;
+            uint _DitheringBit;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -146,8 +147,7 @@ Shader "Custom/DitheringBatched"
                 uint mask = ReadMask32(i.screenUV);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
-                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
-                if ((mask & DITHERING_BIT) == 0u)
+                if ((mask & _DitheringBit) == 0u)
                     clip(-1);
 
                 uint2 pixelXY = (uint2)(i.screenUV * _SourceTex_TexelSize.zw);

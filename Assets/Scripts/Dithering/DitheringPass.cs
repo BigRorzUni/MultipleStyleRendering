@@ -10,10 +10,11 @@ using System.Runtime.InteropServices;
 public class DitheringPass : ScriptableRenderPass//, INprPass
 {
     Material _mat;
-    StyleBits.ImageSpaceEffect _requiredBit;
+    StyleBits.ImageSpaceEffect _ditheringBit;
 
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
+    static readonly int DitheringBitID = Shader.PropertyToID("_DitheringBit");
 
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
@@ -21,6 +22,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
     static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
+
 
     readonly List<Material> _tempMaterials = new();
 
@@ -59,6 +61,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
         public TextureHandle ids;
         public Material mat;
         public RectInt rect;
+        public int requiredBit;
 
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
@@ -76,7 +79,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        _requiredBit = requiredBit;
+        _ditheringBit = requiredBit;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -96,7 +99,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             return;
         if(!nprFrameData.sourceTexture.IsValid())
             return;
-        if ((nprFrameData.presentImageBits & _requiredBit) == 0)
+        if ((nprFrameData.presentImageBits & _ditheringBit) == 0)
             return;
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -130,11 +133,13 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.mat = _mat;
+                passData.requiredBit = (int)_ditheringBit;
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
                     data.mat.SetTexture(SourceTexID, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetInt(DitheringBitID, data.requiredBit);
 
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                 });
@@ -180,6 +185,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                         passData.mat = _mat;
                     }
                     passData.rect = bbox.box;
+                    passData.requiredBit = (int)_ditheringBit;
 
                     passData.visibilityBuffer = null;
                     passData.currentBBoxIndex = index;
@@ -200,6 +206,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     {
                         data.mat.SetTexture(SourceTexID, data.src);
                         data.mat.SetTexture(IdTexId, data.ids);
+                        data.mat.SetInt(DitheringBitID, data.requiredBit);
 
                         data.mat.SetInt(UseOcclusionID, data.useOcclusion);
                         data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
@@ -256,6 +263,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
 
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
+            passData.requiredBit = (int)_ditheringBit;
 
             passData.instanceBuffer = _instanceBuffer;
             passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
@@ -282,6 +290,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             {
                 data.mat.SetTexture(SourceTexID, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
+                data.mat.SetInt(DitheringBitID, data.requiredBit);
                 data.mat.SetBuffer(InstanceBufferID,data.instanceBuffer);
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
                 data.mat.SetInt(UseOcclusionID, data.useOcclusion);
