@@ -15,6 +15,7 @@ Shader "Custom/DummyBatched"
             ZWrite Off
             Cull Off
             Blend SrcAlpha OneMinusSrcAlpha
+            // Blend One One
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -35,6 +36,8 @@ Shader "Custom/DummyBatched"
 
             TEXTURE2D(_SourceTex);
             SAMPLER(sampler_SourceTex);
+
+            uint _RequiredBit;
 
             struct Attributes
             {
@@ -98,7 +101,14 @@ Shader "Custom/DummyBatched"
             uint ReadMask8(float2 uv)
             {
                 float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0); // unnormalise texture
+                return (uint)round(saturate(m) * 255.0);
+            }
+
+            float3 HashColour(float x)
+            {
+                float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
+                p += dot(p, p.yzx + 19.19);
+                return frac((p.xxy + p.yzz) * p.zyx);
             }
 
             float4 Frag (Varyings i) : SV_Target
@@ -106,11 +116,11 @@ Shader "Custom/DummyBatched"
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
                 uint mask = ReadMask8(i.screenUV);
 
-                // if no style applied then do nothing
-                if (mask == 0u)
+                if ((mask & _RequiredBit) == 0u)
                     return col;
 
-                return float4(1, 0, 0, 1);
+                float3 debugCol = HashColour((float)_RequiredBit);
+                return float4(debugCol, 1.0);
             }
             ENDHLSL
         }

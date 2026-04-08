@@ -21,10 +21,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private bboxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
+    private OcclusionDebugPass _occlusionDebugPass;
 
-    // OBJECT PASSES
-    // List<Effect> objectEffects = new();
-    // private ToonEffect toonEffect;
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -117,13 +115,15 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
+            _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+
             if(occlusionDebugShader == null)
             {
                 Debug.LogError("Could not find shader 'Custom/occlusionDebug'");
                 return;
             }
-
-            _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader, occlusionDebugShader);
+            
+            _occlusionDebugPass = new OcclusionDebugPass(occlusionDebugShader);
             
         }
 
@@ -270,5 +270,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     renderer.EnqueuePass(pass);
             }
         }
+
+        renderer.EnqueuePass(_occlusionDebugPass);
     }
 }

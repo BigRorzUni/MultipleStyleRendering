@@ -15,6 +15,7 @@ Shader "Custom/Dummy"
             ZWrite Off
             Cull Off
             Blend SrcAlpha OneMinusSrcAlpha
+            // Blend One One
 
             HLSLPROGRAM
             #pragma vertex Vert
