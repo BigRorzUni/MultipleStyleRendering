@@ -115,10 +115,16 @@ Shader "Custom/DitheringBatched"
                 return output;
             }
 
-            uint ReadMask8(float2 uv)
+            uint ReadMask32(float2 uv)
             {
-                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0);
+                float4 s = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv);
+
+                uint r = (uint)round(saturate(s.r) * 255.0);
+                uint g = (uint)round(saturate(s.g) * 255.0);
+                uint b = (uint)round(saturate(s.b) * 255.0);
+                uint a = (uint)round(saturate(s.a) * 255.0);
+
+                return r | (g << 8) | (b << 16) | (a << 24);
             }
 
             static const uint Bayer8x8[8 * 8] =
@@ -137,7 +143,7 @@ Shader "Custom/DitheringBatched"
             {
                 // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
-                uint mask = ReadMask8(i.screenUV);
+                uint mask = ReadMask32(i.screenUV);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
                 const uint DITHERING_BIT = 1u << 1; // change this to a uniform

@@ -64,7 +64,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
        // tweak format to fit what an id texture needs
         idTexDescriptor.depthBufferBits = 0;
         idTexDescriptor.msaaSamples = 1;
-        idTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
+        idTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm;
         idTexDescriptor.sRGB = false;
 
         // allocate id texture
@@ -73,7 +73,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
             name = "_StylisedIDTexture",
             colorFormat = idTexDescriptor.graphicsFormat,
             clearBuffer = true,
-            clearColor = Color.black,
+            clearColor = Color.clear,
             filterMode = FilterMode.Point,
             useMipMap = false
         });
