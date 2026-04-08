@@ -29,13 +29,14 @@ Shader "Custom/DummyBatched"
             };
 
             StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            
             float4 _NprScreenSize; 
+            int _UseOcclusion;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
-
-            TEXTURE2D(_SourceTex);
-            SAMPLER(sampler_SourceTex);
 
             uint _RequiredBit;
 
@@ -79,6 +80,21 @@ Shader "Custom/DummyBatched"
             {
                 Varyings o;
 
+                if (_UseOcclusion != 0)
+                {
+                    uint bboxIndex = _BboxIndices[v.instanceID];
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        return o;
+                    }
+                }
+
+
                 float2 uv = GetQuadUV(v.vertexID);
                 float4 rect = _InstanceData[v.instanceID].rect;
 
@@ -113,11 +129,11 @@ Shader "Custom/DummyBatched"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
                 uint mask = ReadMask8(i.screenUV);
 
+                // comment this out to debug occlusion (reverse occlusion check and occluded object will write to their bbox)
                 if ((mask & _RequiredBit) == 0u)
-                    return col;
+                    clip(-1);
 
                 float3 debugCol = HashColour((float)_RequiredBit);
                 return float4(debugCol, 1.0);

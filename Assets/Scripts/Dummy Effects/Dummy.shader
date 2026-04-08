@@ -23,13 +23,14 @@ Shader "Custom/Dummy"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_SourceTex);
-            SAMPLER(sampler_SourceTex);
-
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
 
             uint _RequiredBit;
+
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            int _UseOcclusion;
+            int _CurrentBboxIndex;
 
             struct Attributes
             {
@@ -65,12 +66,20 @@ Shader "Custom/Dummy"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
+                    if (visible == 0)
+                        clip(-1);
+
+                }
+
                 uint mask = ReadMask8(i.uv);
 
                 // if no style applied then do nothing
                 if ((mask & _RequiredBit) == 0u)
-                    return col;
+                    clip(-1);
 
                 float3 debugCol = HashColour((float)_RequiredBit);
                 return float4(debugCol, 1.0);
