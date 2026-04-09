@@ -14,27 +14,6 @@ public class BboxDebugPass : ScriptableRenderPass
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
 
-    ComputeBuffer _bboxMaskBuffer;
-    int _bboxMaskBufferCapacity = 0;
-    uint[] _bboxMaskInitData;
-
-    void EnsureMaskBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxMaskBuffer == null || _bboxMaskBufferCapacity < requiredCapacity)
-        {
-            if (_bboxMaskBuffer != null)
-                _bboxMaskBuffer.Release();
-
-            _bboxMaskBufferCapacity = requiredCapacity;
-            _bboxMaskBuffer = new ComputeBuffer(_bboxMaskBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
-            _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
-    }
-
     private class BBoxPassData
     {
         public Material mat;
@@ -71,9 +50,6 @@ public class BboxDebugPass : ScriptableRenderPass
 
         if(_bboxMat != null)
             CoreUtils.Destroy(_bboxMat);
-
-        if (_bboxMaskBuffer != null)
-            _bboxMaskBuffer.Release();
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -96,25 +72,11 @@ public class BboxDebugPass : ScriptableRenderPass
 
         if (_bboxMat != null)
         {
-            EnsureMaskBufferCapacity(nprFrameData.bboxVisibilityCount);
-
-            for (int i = 0; i < nprFrameData.bboxVisibilityCount; i++)
-            {
-                BoundingBox b = nprFrameData.bboxes[i];
-
-                if (!NprTestingConfig.TestMode)
-                    _bboxMaskInitData[i] = (uint)b.styles;
-                else
-                    _bboxMaskInitData[i] = b.testMask;
-            }
-
-            _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxVisibilityCount);
-
             using (var builder = renderGraph.AddRasterRenderPass("BBox Debug Overlay", out BBoxPassData passData))
             {
                 passData.mat = _bboxMat;
                 passData.rectBuffer = nprFrameData.bboxRectBuffer;
-                passData.maskBuffer = _bboxMaskBuffer;
+                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
                 passData.instanceCount = nprFrameData.bboxVisibilityCount;
 

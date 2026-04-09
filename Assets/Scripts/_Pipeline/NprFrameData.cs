@@ -67,18 +67,18 @@ public sealed class NprFrameData : ContextItem
         normalsTexture = TextureHandle.nullHandle;
         sourceTexture = TextureHandle.nullHandle;
 
-        if(bboxes != null)
+        if (bboxes != null)
             bboxes.Clear();
 
-        if(occlusionCandidateBoxes != null)
+        if (occlusionCandidateBoxes != null)
             occlusionCandidateBoxes.Clear();
 
         bboxVisibilityBuffer = null;
+        bboxRectBuffer = null;
+        bboxMaskBuffer = null;
         bboxVisibilityCount = 0;
 
         presentImageBits = 0;
         presentTestStyles = 0;
-
-
     }
 }
