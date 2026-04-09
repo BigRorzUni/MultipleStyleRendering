@@ -40,7 +40,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     private uint[] _bboxMaskInitData;
 
     private readonly ComputeBuffer _resultBuffer;
-    private readonly uint[] _resultData = new uint[1];
 
     // private int _writeIndex = 0;
     // private readonly bool[] _pendingReadback = new bool[2];
@@ -188,43 +187,11 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-        // if no potentially occluded boxes then skip this pass
-        if (nprFrameData.occlusionCandidateBoxes == null || nprFrameData.occlusionCandidateBoxes.Count == 0)
+
+        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
-        // if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-        //     return;
 
         Debug.Log("running bbox occlusion prepass");
-
-        // create / initialise GPU visibility buffer
-        EnsureVisibilityBufferCapacity(nprFrameData.bboxes.Count);
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-            _bboxVisibilityInitData[i] = 1u; // default visible
-
-        if (_bboxVisibilityBuffer == null || _bboxVisibilityInitData == null)
-            return;
-        
-        _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        // ensure GPU buffer with bbox rect data (for debug drawing)
-        EnsureRectBufferCapacity(nprFrameData.bboxes.Count);
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-        {
-            BoundingBox b = nprFrameData.bboxes[i];
-            _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
-        }
-
-        if (_bboxRectBuffer == null || _bboxRectInitData == null)
-            return;
-
-        _bboxRectBuffer.SetData(_bboxRectInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        // expose for later passes
-        nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
-        nprFrameData.bboxVisibilityCount = nprFrameData.bboxes.Count;
-        nprFrameData.bboxRectBuffer = _bboxRectBuffer;
 
         // loop over all potentially occluded boxes 
         if(!NprTestingConfig.IdTexOcclusion)

@@ -10,7 +10,7 @@ Shader "Custom/bboxDebug"
             Cull Off
             ZWrite Off
             ZTest Always
-            Blend Off
+            Blend SrcAlpha OneMinusSrcAlpha
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -19,13 +19,14 @@ Shader "Custom/bboxDebug"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct InstanceData
+            struct QuadInstanceData
             {
-                float4 rect; 
+                float4 rect;
             };
 
-            StructuredBuffer<InstanceData> _InstanceData;
-            float4 _NprScreenSize; 
+            StructuredBuffer<QuadInstanceData> _InstanceData;
+            StructuredBuffer<uint> _BBoxMasks;
+            float4 _NprScreenSize;
 
             struct Attributes
             {
@@ -36,7 +37,8 @@ Shader "Custom/bboxDebug"
             struct Varyings
             {
                 float4 posCS : SV_POSITION;
-                float2 screenUV : TEXCOORD0;
+                float2 localUV : TEXCOORD0;
+                uint instanceID : TEXCOORD1;
             };
 
             // each quad is made of 2 triangles based on the rect of the instance data
@@ -57,36 +59,70 @@ Shader "Custom/bboxDebug"
                     case 5: 
                         return float2(0, 1);
 
-
                     default:
                         return float2(0, 0); // should never happen
                 }
             }
 
+            uint HashUint(uint x)
+            {
+                x ^= x >> 16;
+                x *= 0x7feb352du;
+                x ^= x >> 15;
+                x *= 0x846ca68bu;
+                x ^= x >> 16;
+                return x;
+            }
+
+            float3 HashColour(uint x)
+            {
+                uint h1 = HashUint(x);
+                uint h2 = HashUint(x ^ 0x68bc21ebu);
+                uint h3 = HashUint(x ^ 0x02e5be93u);
+
+                return float3(
+                    (h1 & 255u) / 255.0,
+                    (h2 & 255u) / 255.0,
+                    (h3 & 255u) / 255.0
+                );
+            }
+
             Varyings Vert(Attributes input)
             {
-                Varyings output;
+                Varyings o;
 
                 float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;
 
-                // map local quad UV to pixel coords within bbox
                 float2 pixelPos = rect.xy + uv * rect.zw;
 
-                // convert to clip space
                 float2 ndc;
                 ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
-                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0; // flip y for Unity's screen space
+                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0;
 
-                output.posCS = float4(ndc, 0.0, 1.0);
-                output.screenUV = pixelPos * _NprScreenSize.zw;
-
-                return output;
+                o.posCS = float4(ndc, 0, 1);
+                o.localUV = uv;
+                o.instanceID = input.instanceID;
+                return o;
             }
 
-            half4 Frag(Varyings input) : SV_Target
+            half4 Frag(Varyings i) : SV_Target
             {
-                return half4(1, 0, 1, 1);
+                uint mask = _BBoxMasks[i.instanceID];
+                float3 colour = HashColour(mask);
+
+                float thickness = 0.03;
+
+                bool border =
+                    i.localUV.x < thickness ||
+                    i.localUV.x > 1.0 - thickness ||
+                    i.localUV.y < thickness ||
+                    i.localUV.y > 1.0 - thickness;
+
+                if (!border)
+                    clip(-1);
+
+                return half4(colour, 1.0);
             }
             ENDHLSL
         }
