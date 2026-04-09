@@ -9,19 +9,20 @@ using System.Runtime.InteropServices;
 [System.Serializable]
 public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 {
-    StyleBits.ImageSpaceEffect _requiredBit;
+    StyleBits.ImageSpaceEffect _outlinesBit;
     Material _mat;
 
-    static readonly int _DepthTexId = Shader.PropertyToID("_NprDepthTexture");
-    static readonly int _NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
-    static readonly int _IdTexId = Shader.PropertyToID("_NprIdTexture");
-    static readonly int _SourceTexId = Shader.PropertyToID("_NprSourceTexture");
+    static readonly int DepthTexId = Shader.PropertyToID("_NprDepthTexture");
+    static readonly int NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
+    static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
+    static readonly int SourceTexId = Shader.PropertyToID("_NprSourceTexture");
+    static readonly int OutlinesBitID = Shader.PropertyToID("_OutlinesBit");
 
-    static readonly int _ThicknessId = Shader.PropertyToID("_ThicknessPx");
-    static readonly int _DepthThresholdId = Shader.PropertyToID("_DepthThreshold");
-    static readonly int _DepthStrengthId = Shader.PropertyToID("_DepthStrength");
-    static readonly int _NormalThresholdId = Shader.PropertyToID("_NormalThreshold");
-    static readonly int _NormalStrengthId = Shader.PropertyToID("_NormalStrength");
+    static readonly int ThicknessId = Shader.PropertyToID("_ThicknessPx");
+    static readonly int DepthThresholdId = Shader.PropertyToID("_DepthThreshold");
+    static readonly int DepthStrengthId = Shader.PropertyToID("_DepthStrength");
+    static readonly int NormalThresholdId = Shader.PropertyToID("_NormalThreshold");
+    static readonly int NormalStrengthId = Shader.PropertyToID("_NormalStrength");
     static readonly int OutlineColourId = Shader.PropertyToID("_OutlineColour");
     
     float _depthThreshold = 0.02f;
@@ -85,6 +86,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public TextureHandle normals;
         public TextureHandle ids;
         public TextureHandle src;
+        public int requiredBit;
 
         public Material mat;
 
@@ -113,7 +115,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             _mat = CoreUtils.CreateEngineMaterial(shader);
 
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        _requiredBit = requiredBit;
+        _outlinesBit = requiredBit;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -138,7 +140,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         // using urp camera depth texture
         if (!frameData.activeDepthTexture.IsValid()) 
             return;
-        if ((nprFrameData.presentImageBits & _requiredBit) == 0)
+        if ((nprFrameData.presentImageBits & _outlinesBit) == 0)
             return;
 
         var camDesc = cameraData.cameraTargetDescriptor;
@@ -171,6 +173,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 passData.ids = nprFrameData.idTexture;
                 passData.normals = nprFrameData.normalsTexture;
                 passData.depth = frameData.activeDepthTexture;
+                passData.requiredBit = (int)_outlinesBit;
 
                 passData.mat = _mat;
 
@@ -191,18 +194,19 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
-                    data.mat.SetTexture(_SourceTexId, data.src);
-                    data.mat.SetTexture(_IdTexId, data.ids);
-                    data.mat.SetTexture(_NormalsTexId, data.normals);
-                    data.mat.SetTexture(_DepthTexId, data.depth);
+                    data.mat.SetTexture(SourceTexId, data.src);
+                    data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetTexture(NormalsTexId, data.normals);
+                    data.mat.SetTexture(DepthTexId, data.depth);
+                    data.mat.SetInt(OutlinesBitID, data.requiredBit);
 
                     data.mat.SetColor(OutlineColourId, data.outlineCol);
 
-                    data.mat.SetFloat(_ThicknessId, data.thicknessPx);
-                    data.mat.SetFloat(_DepthThresholdId, data.depthThreshold);
-                    data.mat.SetFloat(_DepthStrengthId, data.depthStrength);
-                    data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
-                    data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
+                    data.mat.SetFloat(ThicknessId, data.thicknessPx);
+                    data.mat.SetFloat(DepthThresholdId, data.depthThreshold);
+                    data.mat.SetFloat(DepthStrengthId, data.depthStrength);
+                    data.mat.SetFloat(NormalThresholdId, data.normalThreshold);
+                    data.mat.SetFloat(NormalStrengthId, data.normalStrength);
 
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
                 });
@@ -232,6 +236,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.normals = nprFrameData.normalsTexture;
                     passData.depth = frameData.activeDepthTexture; // provided by urp camera depth texture
                     passData.rect = bbox.box;
+                    passData.requiredBit = (int)_outlinesBit;
 
                     if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
@@ -273,18 +278,19 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
                     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                     {
-                        data.mat.SetTexture(_SourceTexId, data.src);
-                        data.mat.SetTexture(_IdTexId, data.ids);
-                        data.mat.SetTexture(_NormalsTexId, data.normals);
-                        data.mat.SetTexture(_DepthTexId, data.depth);
+                        data.mat.SetTexture(SourceTexId, data.src);
+                        data.mat.SetTexture(IdTexId, data.ids);
+                        data.mat.SetTexture(NormalsTexId, data.normals);
+                        data.mat.SetTexture(DepthTexId, data.depth);
+                        data.mat.SetInt(OutlinesBitID, data.requiredBit);
 
                         data.mat.SetColor(OutlineColourId, data.outlineCol);
 
-                        data.mat.SetFloat(_ThicknessId, data.thicknessPx);
-                        data.mat.SetFloat(_DepthThresholdId, data.depthThreshold);
-                        data.mat.SetFloat(_DepthStrengthId, data.depthStrength);
-                        data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
-                        data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
+                        data.mat.SetFloat(ThicknessId, data.thicknessPx);
+                        data.mat.SetFloat(DepthThresholdId, data.depthThreshold);
+                        data.mat.SetFloat(DepthStrengthId, data.depthStrength);
+                        data.mat.SetFloat(NormalThresholdId, data.normalThreshold);
+                        data.mat.SetFloat(NormalStrengthId, data.normalStrength);
 
                         data.mat.SetInt(UseOcclusionID, data.useOcclusion);
                         data.mat.SetInt(CurrentBBoxIndexID, data.currentBBoxIndex);
@@ -342,6 +348,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.ids = nprFrameData.idTexture;
             passData.normals = nprFrameData.normalsTexture;
             passData.depth = frameData.activeDepthTexture;
+            passData.requiredBit = (int)_outlinesBit;
 
             passData.mat = _mat;
 
@@ -381,18 +388,19 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
-                data.mat.SetTexture(_SourceTexId, data.src);
-                data.mat.SetTexture(_IdTexId, data.ids);
-                data.mat.SetTexture(_NormalsTexId, data.normals);
-                data.mat.SetTexture(_DepthTexId, data.depth);
+                data.mat.SetTexture(SourceTexId, data.src);
+                data.mat.SetTexture(IdTexId, data.ids);
+                data.mat.SetTexture(NormalsTexId, data.normals);
+                data.mat.SetTexture(DepthTexId, data.depth);
+                data.mat.SetInt(OutlinesBitID, data.requiredBit);
 
                 data.mat.SetColor(OutlineColourId, data.outlineCol);
 
-                data.mat.SetFloat(_ThicknessId, data.thicknessPx);
-                data.mat.SetFloat(_DepthThresholdId, data.depthThreshold);
-                data.mat.SetFloat(_DepthStrengthId, data.depthStrength);
-                data.mat.SetFloat(_NormalThresholdId, data.normalThreshold);
-                data.mat.SetFloat(_NormalStrengthId, data.normalStrength);
+                data.mat.SetFloat(ThicknessId, data.thicknessPx);
+                data.mat.SetFloat(DepthThresholdId, data.depthThreshold);
+                data.mat.SetFloat(DepthStrengthId, data.depthStrength);
+                data.mat.SetFloat(NormalThresholdId, data.normalThreshold);
+                data.mat.SetFloat(NormalStrengthId, data.normalStrength);
 
                 data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
@@ -418,6 +426,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
     }
 
+    // need to properly implement this
     public void Dispose()
     {
         if (_instanceBuffer != null)

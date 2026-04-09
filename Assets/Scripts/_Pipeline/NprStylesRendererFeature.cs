@@ -21,7 +21,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private bboxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
-    private OcclusionDebugPass _occlusionDebugPass;
+    private BboxDebugPass _bboxDebugPass;
 
 
     // IMAGE EFFECTS
@@ -43,6 +43,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
+    [SerializeField] private Shader bboxDebugShader;
 
 
     // TEST EFFECTS
@@ -116,14 +117,22 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
 
             _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+        }
 
+        if(NprTestingConfig.debugBBoxes && NprTestingConfig.UseBoundingBoxes)
+        {
             if(occlusionDebugShader == null)
             {
                 Debug.LogError("Could not find shader 'Custom/occlusionDebug'");
                 return;
             }
+            if(bboxDebugShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/bboxDebug'");
+                return;
+            }
             
-            _occlusionDebugPass = new OcclusionDebugPass(occlusionDebugShader);
+            _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader);
             
         }
 
@@ -271,6 +280,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
         }
 
-        renderer.EnqueuePass(_occlusionDebugPass);
+        if(NprTestingConfig.debugBBoxes)
+            renderer.EnqueuePass(_bboxDebugPass);
     }
 }

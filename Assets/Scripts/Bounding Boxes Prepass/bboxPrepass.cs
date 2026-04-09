@@ -3,13 +3,74 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using NUnit.Framework.Internal;
-
 [System.Serializable]
 public class bboxPrepass : ScriptableRenderPass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
+
+    private ComputeBuffer _bboxRectBuffer;
+    private int _bboxRectBufferCapacity = 0;
+    private QuadInstanceData[] _bboxRectInitData;
+
+    private ComputeBuffer _bboxVisibilityBuffer;
+    private int _bboxVisibilityBufferCapacity = 0;
+    private uint[] _bboxVisibilityInitData;
+
+    private ComputeBuffer _bboxMaskBuffer;
+    private int _bboxMaskBufferCapacity = 0;
+    private uint[] _bboxMaskInitData;
+
+    void EnsureMaskBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxMaskBuffer == null || _bboxMaskBufferCapacity < requiredCapacity)
+        {
+            if (_bboxMaskBuffer != null)
+                _bboxMaskBuffer.Release();
+
+            _bboxMaskBufferCapacity = requiredCapacity;
+            _bboxMaskBuffer = new ComputeBuffer(_bboxMaskBufferCapacity, sizeof(uint));
+        }
+
+        if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
+            _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
+    }
+
+    void EnsureVisibilityBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxVisibilityBuffer == null || _bboxVisibilityBufferCapacity < requiredCapacity)
+        {
+            if (_bboxVisibilityBuffer != null)
+                _bboxVisibilityBuffer.Release();
+
+            _bboxVisibilityBufferCapacity = requiredCapacity;
+            _bboxVisibilityBuffer = new ComputeBuffer(_bboxVisibilityBufferCapacity, sizeof(uint));
+        }
+
+        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
+    }
+
+    void EnsureRectBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxRectBuffer == null || _bboxRectBufferCapacity < requiredCapacity)
+        {
+            if (_bboxRectBuffer != null)
+                _bboxRectBuffer.Release();
+
+            _bboxRectBufferCapacity = requiredCapacity;
+            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
+        }
+
+        if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
+            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
+    }
 
     class PassData
     {
@@ -349,6 +410,37 @@ public class bboxPrepass : ScriptableRenderPass
             }
         }
 
+        // create / initialise GPU buffers
+        EnsureVisibilityBufferCapacity(nprFrameData.bboxes.Count);
+        EnsureRectBufferCapacity(nprFrameData.bboxes.Count);
+        EnsureMaskBufferCapacity(nprFrameData.bboxes.Count);
+
+        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+        {
+            _bboxVisibilityInitData[i] = 1u;
+
+            BoundingBox b = nprFrameData.bboxes[i];
+            _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+
+            if (!NprTestingConfig.TestMode)
+                _bboxMaskInitData[i] = (uint)b.styles;
+            else
+                _bboxMaskInitData[i] = b.testMask;
+        }
+
+        if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
+            _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxes.Count);
+
+        if (_bboxRectBuffer != null && _bboxRectInitData != null)
+            _bboxRectBuffer.SetData(_bboxRectInitData, 0, 0, nprFrameData.bboxes.Count);
+
+        if (_bboxMaskBuffer != null && _bboxMaskInitData != null)
+            _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxes.Count);
+
+        nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
+        nprFrameData.bboxVisibilityCount = nprFrameData.bboxes.Count;
+        nprFrameData.bboxRectBuffer = _bboxRectBuffer;
+        nprFrameData.bboxMaskBuffer = _bboxMaskBuffer;
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -503,6 +595,15 @@ public class bboxPrepass : ScriptableRenderPass
 
         rect = new RectInt(xMin, yMin, width, height);
         return true;
+    }
+
+    public void Dispose()
+    {
+        if (_bboxRectBuffer != null)
+            _bboxRectBuffer.Release();
+
+        if (_bboxVisibilityBuffer != null)
+            _bboxVisibilityBuffer.Release();
     }
 }
 

@@ -23,7 +23,6 @@ public class DummyPass : ScriptableRenderPass
     static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
     static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
-    static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
 
     ComputeBuffer _bboxIndexBuffer;
     int _bboxIndexBufferCapacity = 0;

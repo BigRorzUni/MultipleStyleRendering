@@ -8,7 +8,6 @@ using System.Collections.Generic;
 public class BBoxOcclusionPrepass : ScriptableRenderPass
 {
     private readonly Material _visibilityMat;
-    private readonly Material _occlusionDebugMat;
 
     private readonly ComputeShader _occlusionCompute;
     private readonly int _occlusionKernelSingle;
@@ -17,30 +16,15 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int VisibilityTexID = Shader.PropertyToID("_VisibilityTex");
     static readonly int ResultBufferID = Shader.PropertyToID("_Result");
     static readonly int RectID = Shader.PropertyToID("_Rect");
-    static readonly int ExpectedMaskID = Shader.PropertyToID("_ExpectedMask");
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
 
 
-    private ComputeBuffer _bboxRectBuffer;
-    private int _bboxRectBufferCapacity = 0;
-    private QuadInstanceData[] _bboxRectInitData;
 
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
-    static readonly int VisibilityFlagsID = Shader.PropertyToID("_BBoxVisibilityFlags");
-    static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
     static readonly int BBoxCountID = Shader.PropertyToID("_BboxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
-    private ComputeBuffer _bboxVisibilityBuffer;
-    private int _bboxVisibilityBufferCapacity = 0;
-    private uint[] _bboxVisibilityInitData;
-
-    private ComputeBuffer _bboxMaskBuffer;
-    private int _bboxMaskBufferCapacity = 0;
-    private uint[] _bboxMaskInitData;
-
     private readonly ComputeBuffer _resultBuffer;
-    private readonly uint[] _resultData = new uint[1];
 
     // private int _writeIndex = 0;
     // private readonly bool[] _pendingReadback = new bool[2];
@@ -57,66 +41,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
 
         if (_visibilityRT != null)
             _visibilityRT.Release();
-        
-        if (_bboxVisibilityBuffer != null)
-            _bboxVisibilityBuffer.Release();
-
-        if (_bboxMaskBuffer != null)
-            _bboxMaskBuffer.Release();
-
-        if (_bboxRectBuffer != null)
-            _bboxRectBuffer.Release();
     }
 
-    void EnsureVisibilityBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxVisibilityBuffer == null || _bboxVisibilityBufferCapacity < requiredCapacity)
-        {
-            if (_bboxVisibilityBuffer != null)
-                _bboxVisibilityBuffer.Release();
-
-            _bboxVisibilityBufferCapacity = requiredCapacity;
-            _bboxVisibilityBuffer = new ComputeBuffer(_bboxVisibilityBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
-        {
-            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
-        }
-    
-        if(_bboxMaskBuffer == null || _bboxMaskBufferCapacity < requiredCapacity)
-        {
-            if (_bboxMaskBuffer != null)
-                _bboxMaskBuffer.Release();
-
-            _bboxMaskBufferCapacity = requiredCapacity;
-            _bboxMaskBuffer = new ComputeBuffer(_bboxMaskBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
-        {
-            _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
-        }
-    }
-
-    void EnsureRectBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxRectBuffer == null || _bboxRectBufferCapacity < requiredCapacity)
-        {
-            if (_bboxRectBuffer != null)
-                _bboxRectBuffer.Release();
-
-            _bboxRectBufferCapacity = requiredCapacity;
-            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
-        }
-
-        if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
-            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
-            }
     private class RasterPassData
     {
         public BoundingBox bbox;
@@ -138,10 +64,10 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         public TextureHandle visibilityTex;
         public ComputeBuffer resultBuffer;
         public ComputeBuffer rectBuffer;
+        public ComputeBuffer maskBuffer;
         public RectInt rect;
         public ComputeShader compute;
         public int kernel;
-        public uint expectedMask;
         public uint bboxIndex;
     }
 
@@ -188,43 +114,24 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
+
+        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+            return;
+
+        if (nprFrameData.bboxVisibilityBuffer == null)
+            return;
+
+        if (nprFrameData.bboxRectBuffer == null)
+            return;
+
+        if (nprFrameData.bboxVisibilityCount <= 0)
+            return;
+
         // if no potentially occluded boxes then skip this pass
         if (nprFrameData.occlusionCandidateBoxes == null || nprFrameData.occlusionCandidateBoxes.Count == 0)
             return;
-        // if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-        //     return;
 
         Debug.Log("running bbox occlusion prepass");
-
-        // create / initialise GPU visibility buffer
-        EnsureVisibilityBufferCapacity(nprFrameData.bboxes.Count);
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-            _bboxVisibilityInitData[i] = 1u; // default visible
-
-        if (_bboxVisibilityBuffer == null || _bboxVisibilityInitData == null)
-            return;
-        
-        _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        // ensure GPU buffer with bbox rect data (for debug drawing)
-        EnsureRectBufferCapacity(nprFrameData.bboxes.Count);
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-        {
-            BoundingBox b = nprFrameData.bboxes[i];
-            _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
-        }
-
-        if (_bboxRectBuffer == null || _bboxRectInitData == null)
-            return;
-
-        _bboxRectBuffer.SetData(_bboxRectInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        // expose for later passes
-        nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
-        nprFrameData.bboxVisibilityCount = nprFrameData.bboxes.Count;
-        nprFrameData.bboxRectBuffer = _bboxRectBuffer;
 
         // loop over all potentially occluded boxes 
         if(!NprTestingConfig.IdTexOcclusion)
@@ -314,7 +221,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     builder.AllowPassCulling(false);
 
                     passData.visibilityTex = visibilityTex;
-                    passData.resultBuffer = _bboxVisibilityBuffer;
+                    passData.resultBuffer = nprFrameData.bboxVisibilityBuffer;
                     passData.rect = bbox.box;
                     passData.compute = _occlusionCompute;
                     passData.kernel = _occlusionKernelSingle;
@@ -351,25 +258,16 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         }
         else
         {
-            for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-            {
-                if (!NprTestingConfig.TestMode)
-                    _bboxMaskInitData[i] = (uint)nprFrameData.bboxes[i].styles;
-                else
-                    _bboxMaskInitData[i] = nprFrameData.bboxes[i].testMask;
-            }
-
-            _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxes.Count);
-
             using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse (ID Tex)", out ComputePassData passData))
             {
                 builder.AllowPassCulling(false);
 
                 passData.visibilityTex = nprFrameData.idTexture; // ID TEX OVER PER BBOX VISIBILITY CHECK // slight correctness loss but should be faster
-                passData.resultBuffer = _bboxVisibilityBuffer;
+                passData.resultBuffer = nprFrameData.bboxVisibilityBuffer;
                 passData.compute = _occlusionCompute;
                 passData.kernel = _occlusionKernelBatched;
-                passData.rectBuffer = _bboxRectBuffer;
+                passData.rectBuffer = nprFrameData.bboxRectBuffer;
+                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
 
                 builder.UseTexture(passData.visibilityTex, AccessFlags.Read);
 
@@ -379,7 +277,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, InstanceBufferID, data.rectBuffer);
                     ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, nprFrameData.bboxes.Count);
-                    ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, BBoxMaskBufferID, _bboxMaskBuffer);
+                    ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, BBoxMaskBufferID, data.maskBuffer);
 
                     // dispatch 1 threadgroup per bbox
                     ctx.cmd.DispatchCompute(data.compute, data.kernel, nprFrameData.bboxes.Count, 1, 1);

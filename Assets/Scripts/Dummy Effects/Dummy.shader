@@ -14,8 +14,6 @@ Shader "Custom/Dummy"
             ZTest Always
             ZWrite Off
             Cull Off
-            Blend SrcAlpha OneMinusSrcAlpha
-            // Blend One One
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -51,17 +49,41 @@ Shader "Custom/Dummy"
                 return o;
             }
 
-            uint ReadMask8(float2 uv)
+            uint ReadMask32(float2 uv)
             {
-                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0); // unnormalise texture
+                float4 s = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv);
+
+                uint r = (uint)round(saturate(s.r) * 255.0);
+                uint g = (uint)round(saturate(s.g) * 255.0);
+                uint b = (uint)round(saturate(s.b) * 255.0);
+                uint a = (uint)round(saturate(s.a) * 255.0);
+
+                return r | (g << 8) | (b << 16) | (a << 24);
             }
 
-            float3 HashColour(float x)
+            // copilot generated function
+            uint HashUint(uint x)
             {
-                float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
-                p += dot(p, p.yzx + 19.19);
-                return frac((p.xxy + p.yzz) * p.zyx);
+                x ^= x >> 16;
+                x *= 0x7feb352du;
+                x ^= x >> 15;
+                x *= 0x846ca68bu;
+                x ^= x >> 16;
+                return x;
+            }
+
+            // copilot generated function
+            float3 HashColour(uint x)
+            {
+                uint h1 = HashUint(x);
+                uint h2 = HashUint(x ^ 0x68bc21ebu);
+                uint h3 = HashUint(x ^ 0x02e5be93u);
+
+                return float3(
+                    (h1 & 255u) / 255.0,
+                    (h2 & 255u) / 255.0,
+                    (h3 & 255u) / 255.0
+                );
             }
 
             float4 Frag (Varyings i) : SV_Target
@@ -75,13 +97,13 @@ Shader "Custom/Dummy"
 
                 }
 
-                uint mask = ReadMask8(i.uv);
+                uint mask = ReadMask32(i.uv);
 
                 // if no style applied then do nothing
                 if ((mask & _RequiredBit) == 0u)
                     clip(-1);
 
-                float3 debugCol = HashColour((float)_RequiredBit);
+                float3 debugCol = HashColour(mask);
                 return float4(debugCol, 1.0);
             }
             ENDHLSL

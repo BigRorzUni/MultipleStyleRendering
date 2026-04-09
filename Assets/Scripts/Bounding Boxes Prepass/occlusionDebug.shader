@@ -39,16 +39,27 @@ Shader "Custom/OcclusionDebug"
                 float4 posCS : SV_POSITION;
             };
 
-            float2 GetQuadCorner(uint vertexID)
+            // each quad is made of 2 triangles based on the rect of the instance data
+            float2 GetQuadUV(uint vertexID)
             {
                 switch (vertexID)
                 {
-                    case 0: return float2(0, 0);
-                    case 1: return float2(1, 0);
-                    case 2: return float2(1, 1);
-                    case 3: return float2(0, 0);
-                    case 4: return float2(1, 1);
-                    default: return float2(0, 1);
+                    case 0: 
+                        return float2(0, 0);
+                    case 1: 
+                        return float2(1, 0);
+                    case 2: 
+                        return float2(1, 1);
+                    case 3: 
+                        return float2(0, 0);
+                    case 4: 
+                        return float2(1, 1);
+                    case 5: 
+                        return float2(0, 1);
+
+
+                    default:
+                        return float2(0, 0); // should never happen
                 }
             }
 
@@ -67,7 +78,7 @@ Shader "Custom/OcclusionDebug"
                     return o;
                 }
 
-                float2 uv = GetQuadCorner(input.vertexID);
+                float2 uv = GetQuadUV(input.vertexID);
                 float4 rect = _InstanceData[input.instanceID].rect;
 
                 float2 pixelPos = rect.xy + uv * rect.zw;
@@ -82,7 +93,7 @@ Shader "Custom/OcclusionDebug"
 
             half4 Frag(Varyings i) : SV_Target
             {
-                return half4(1, 0, 0, 0.6);
+                return half4(1, 0, 0, 0.5);
             }
             ENDHLSL
         }

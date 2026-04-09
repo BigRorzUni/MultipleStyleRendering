@@ -15,6 +15,18 @@ StructuredBuffer<uint> _ExpectedMasks;
 
 groupshared uint anyVisible;
 
+uint ReadMask32(int2 pixel)
+{
+    float4 value = _VisibilityTex.Load(int3(pixel, 0));
+
+    uint r = (uint)round(saturate(value.r) * 255.0);
+    uint g = (uint)round(saturate(value.g) * 255.0);
+    uint b = (uint)round(saturate(value.b) * 255.0);
+    uint a = (uint)round(saturate(value.a) * 255.0);
+
+    return r | (g << 8) | (b << 16) | (a << 24);
+}
+
 // SINGLE BBOX VERSION
 [numthreads(64, 1, 1)]
 void OcclusionCheckSingle(uint3 groupThreadID : SV_GroupThreadID)
@@ -83,7 +95,7 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
         float value = _VisibilityTex.Load(int3(pixel, 0)).r;
 
         // reconstruct mask from texture (0–255 range)
-        uint pixelMask = (uint)round(saturate(value) * 255.0);
+        uint pixelMask = ReadMask32(pixel);
 
         uint expectedMask = _ExpectedMasks[bboxIndex];
 

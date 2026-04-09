@@ -51,6 +51,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
             int _UseOcclusion;
+            uint _OutlinesBit;
 
 
             struct Attributes 
@@ -138,18 +139,23 @@ Shader "Custom/ScreenspaceOutlinesBatched"
                 return Linear01Depth(raw, _ZBufferParams);
             }
 
-            uint ReadMask8(float2 uv)
+            uint ReadMask32(float2 uv)
             {
-                float r = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv).r;
-                return (uint)round(saturate(r) * 255.0);
+                float4 s = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv);
+
+                uint r = (uint)round(saturate(s.r) * 255.0);
+                uint g = (uint)round(saturate(s.g) * 255.0);
+                uint b = (uint)round(saturate(s.b) * 255.0);
+                uint a = (uint)round(saturate(s.a) * 255.0);
+
+                return r | (g << 8) | (b << 16) | (a << 24);
             }
 
             float4 Frag (Varyings i) : SV_Target
             {
                 // discard if pixel is not tagged for outlining in id tex
-                uint mask = ReadMask8(i.uv);
-                const uint SS_OUTLINE_BIT = 1u << 0;
-                if ((mask & SS_OUTLINE_BIT) == 0u)
+                uint mask = ReadMask32(i.uv);
+                if ((mask & _OutlinesBit) == 0u)
                     clip(-1);
         
                 // step size

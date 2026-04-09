@@ -35,6 +35,7 @@ Shader "Custom/Dithering"
             StructuredBuffer<uint> _BboxVisibilityFlags;
             int _UseOcclusion;
             int _CurrentBboxIndex;
+            uint _DitheringBit;
             
 
             struct Attributes 
@@ -56,10 +57,16 @@ Shader "Custom/Dithering"
                 return o;
             }
 
-            uint ReadMask8(float2 uv)
+            uint ReadMask32(float2 uv)
             {
-                float m = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_NprIdTexture, uv).r;
-                return (uint)round(saturate(m) * 255.0); // unnormalise texture
+                float4 s = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv);
+
+                uint r = (uint)round(saturate(s.r) * 255.0);
+                uint g = (uint)round(saturate(s.g) * 255.0);
+                uint b = (uint)round(saturate(s.b) * 255.0);
+                uint a = (uint)round(saturate(s.a) * 255.0);
+
+                return r | (g << 8) | (b << 16) | (a << 24);
             }
 
             static const uint Bayer8x8[8*8] =
@@ -85,11 +92,10 @@ Shader "Custom/Dithering"
                 }
                 // get colour over bbox texture
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
-                uint mask = ReadMask8(i.uv);
+                uint mask = ReadMask32(i.uv);
 
                 // if pixels aren't tagged for dithering then leave them unchanged
-                const uint DITHERING_BIT = 1u << 1; // change this to a uniform
-                if ((mask & DITHERING_BIT) == 0u)
+                if ((mask & _DitheringBit) == 0u)
                     clip(-1);
 
                 uint2 pixelXY = (uint2)(i.uv * _SourceTex_TexelSize.zw);

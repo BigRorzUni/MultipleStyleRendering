@@ -45,24 +45,51 @@ Shader "Custom/ID"
             CBUFFER_END
 
             // copilot generated function
-            float3 HashColour(float x)
+            uint HashUint(uint x)
             {
-                float3 p = frac(float3(0.1031, 0.11369, 0.13787) * x);
-                p += dot(p, p.yzx + 19.19);
-                return frac((p.xxy + p.yzz) * p.zyx);
+                x ^= x >> 16;
+                x *= 0x7feb352du;
+                x ^= x >> 15;
+                x *= 0x846ca68bu;
+                x ^= x >> 16;
+                return x;
+            }
+
+            // copilot generated function
+            float3 HashColour(uint x)
+            {
+                uint h1 = HashUint(x);
+                uint h2 = HashUint(x ^ 0x68bc21ebu);
+                uint h3 = HashUint(x ^ 0x02e5be93u);
+
+                return float3(
+                    (h1 & 255u) / 255.0,
+                    (h2 & 255u) / 255.0,
+                    (h3 & 255u) / 255.0
+                );
+            }
+
+            float4 PackUIntToRGBA8(uint v)
+            {
+                // 32 bits, 8 per colour channel
+                uint r = v & 0xFFu;
+                uint g = (v >> 8) & 0xFFu;
+                uint b = (v >> 16) & 0xFFu;
+                uint a = (v >> 24) & 0xFFu;
+
+                return float4(r / 255.0, g / 255.0, b / 255.0, a / 255.0);
             }
 
             half4 frag(Varyings input) : SV_Target
             {
-                uint style = (uint)_ImageStyleID; 
+                uint style = (uint)_ImageStyleID;
 
                 #ifndef _DEBUG_ID_COLOUR
-                    float r = (float)style / 255.0; // the texture must be normalised
-                    return half4(r, 0, 0, 1);
+                    return PackUIntToRGBA8(style);
                 #else
-                    if (style == 0u) 
+                    if (style == 0u)
                         return half4(0,0,0,1);
-                    float3 c = HashColour((float)style);
+                    float3 c = HashColour(style); // hash gets unstable at higher indices
                     return half4(c, 1);
                 #endif
             }
