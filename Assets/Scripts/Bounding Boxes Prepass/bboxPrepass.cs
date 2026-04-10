@@ -13,11 +13,11 @@ public struct BBoxGenerationInput // 32 bytes total for GPU
     public float padding1; // 4 bytes
 
     public Vector3 extents; // 12 bytes
-    public uint mask; // 4 bytes byte
+    public uint mask; // 4 bytes
 
 }
 
-public class bboxPrepass : ScriptableRenderPass
+public class BBoxPrepass : ScriptableRenderPass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -121,9 +121,7 @@ public class bboxPrepass : ScriptableRenderPass
             _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
     }
 
-
-
-    class PassData
+    class ComputePassData
     {
         public TextureHandle src;
         public TextureHandle dst;
@@ -131,7 +129,7 @@ public class bboxPrepass : ScriptableRenderPass
         public Vector2 srcTexelSize;
     }
 
-    public bboxPrepass(ComputeShader bboxGeneration)
+    public BBoxPrepass(ComputeShader bboxGeneration)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
         if(bboxGeneration != null)
@@ -141,7 +139,7 @@ public class bboxPrepass : ScriptableRenderPass
         }
     }
 
-    public bboxPrepass(ComputeShader bboxGeneration, int testCount, bool testModeEnabled)
+    public BBoxPrepass(ComputeShader bboxGeneration, int testCount, bool testModeEnabled)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
         testStyleCount = testCount;
@@ -172,14 +170,14 @@ public class bboxPrepass : ScriptableRenderPass
         nprFrameData.presentImageBits = 0;
         nprFrameData.presentTestStyles = 0;
 
-        if(NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.BoundingBoxes)
         {
             if (nprFrameData.bboxes == null) 
                 nprFrameData.bboxes = new List<BoundingBox>();
             else 
                 nprFrameData.bboxes.Clear();
 
-            if(NprTestingConfig.UseOcclusionCulling && !NprTestingConfig.BatchedOcclusion)
+            if(NprTestingConfig.OcclusionCulling && !NprTestingConfig.BatchedOcclusion)
             {
                 if (nprFrameData.occlusionCandidateBoxes == null) 
                     nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
@@ -189,7 +187,7 @@ public class bboxPrepass : ScriptableRenderPass
 
             // get all active tagged objects using the attached StylisedTag component
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-            if(!(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
+            if(!(NprTestingConfig.BatchedBBoxGeneration && NprTestingConfig.BatchedDraws))
             {
                 foreach (var tag in tags)
                 {
@@ -339,197 +337,16 @@ public class bboxPrepass : ScriptableRenderPass
             }
         }
 
-        // merge bboxes for optimality
-        if (NprTestingConfig.UseBoundingBoxes && !(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
-        {
-            bool merged = false;
-            List<BoundingBox> newBoxes = new List<BoundingBox>();
-            List<BoundingBox> toRemove = new List<BoundingBox>();
-            while(!merged)
-            {
-                merged = true;
-                if(NprTestingConfig.TestMode)
-                {
-                    // Debug.Log("Merging bboxes with test mode on");
-                    foreach(var bboxA in nprFrameData.bboxes)
-                    {
-                        uint testEffectsA = bboxA.testMask;
-
-                        if(testEffectsA == 0)
-                            continue;
-
-                        foreach(var bboxB in nprFrameData.bboxes)
-                        {
-                            if (bboxA == bboxB)
-                                continue;
-
-                            uint testEffectsB = bboxB.testMask;
-
-                            // if they share any test effect bits
-                            if ((testEffectsA & testEffectsB) != 0)
-                            {
-                                // compute area of the two boxes
-                                int areaA = bboxA.box.width * bboxA.box.height;
-                                int areaB = bboxB.box.width * bboxB.box.height;
-
-                                // compute area of their union
-                                int UnionMinX = Mathf.Min(bboxA.box.xMin, bboxB.box.xMin);
-                                int UnionMinY = Mathf.Min(bboxA.box.yMin, bboxB.box.yMin);
-                                int UnionMaxX = Mathf.Max(bboxA.box.xMax, bboxB.box.xMax);
-                                int UnionMaxY = Mathf.Max(bboxA.box.yMax, bboxB.box.yMax);
-
-                                int unionArea = (UnionMaxX - UnionMinX) * (UnionMaxY - UnionMinY);
-
-                                if(unionArea < areaA + areaB)
-                                {
-                                    merged = true;
-                                    int unionWidth = UnionMaxX - UnionMinX;
-                                    int unionHeight = UnionMaxY - UnionMinY;
-                                    RectInt unionRect = new RectInt(UnionMinX, UnionMinY, unionWidth, unionHeight);
-                                    
-                                    // create new bbox with shared test bits
-                                    uint sharedTestEffects = testEffectsA & testEffectsB;
-                                    BoundingBox mergedBox = BoundingBox.CreateTestBox(sharedTestEffects, unionRect);
-
-                                    // remove shared bits from original boxes
-                                    bboxA.testMask &= ~sharedTestEffects;
-                                    bboxB.testMask &= ~sharedTestEffects;
-
-                                    mergedBox.renderers.AddRange(bboxA.renderers);
-                                    foreach (var r in bboxB.renderers)
-                                    {
-                                        if (!mergedBox.renderers.Contains(r))
-                                            mergedBox.renderers.Add(r);
-                                    }
-
-                                    // add merged box to list
-                                    newBoxes.Add(mergedBox); 
-
-                                    // debug show the merged box
-                                    // if(NprTestingConfig.debugBBoxes)
-                                        // BBoxDebugStore.Add(unionRect, Color.red, $"Merged {sharedTestEffects}");
-                                    
-                                    // remove b if it has no bits left
-                                    if (bboxB.testMask == 0)
-                                    {
-                                        toRemove.Add(bboxB);
-                                    }
-
-                                    // remove a if it has no bits left
-                                    if (bboxA.testMask == 0)
-                                    {
-                                        toRemove.Add(bboxA);
-                                        break; 
-                                    }
-                                }
-                            }
-                        }
-
-                    }
-
-                    nprFrameData.bboxes.RemoveAll(b => toRemove.Contains(b));
-                    nprFrameData.bboxes.AddRange(newBoxes);
-
-                    toRemove.Clear();
-                    newBoxes.Clear();
-                    
-                    continue;
-                }
-
-                foreach(var bboxA in nprFrameData.bboxes)
-                {
-                    StyleBits.ImageSpaceEffect effectsA = bboxA.styles;
-
-                    if(effectsA == 0)
-                        continue;
-
-                    foreach(var bboxB in nprFrameData.bboxes)
-                    {
-                        if (bboxA == bboxB)
-                            continue;
-
-                        StyleBits.ImageSpaceEffect effectsB = bboxB.styles;
-
-                        // if they share any image effect bits
-                        if ((effectsA & effectsB) != 0)
-                        {
-                            // compute area of the two boxes
-                            int areaA = bboxA.box.width * bboxA.box.height;
-                            int areaB = bboxB.box.width * bboxB.box.height;
-
-                            // compute area of their union
-                            int UnionMinX = Mathf.Min(bboxA.box.xMin, bboxB.box.xMin);
-                            int UnionMinY = Mathf.Min(bboxA.box.yMin, bboxB.box.yMin);
-                            int UnionMaxX = Mathf.Max(bboxA.box.xMax, bboxB.box.xMax);
-                            int UnionMaxY = Mathf.Max(bboxA.box.yMax, bboxB.box.yMax);
-
-                            int unionArea = (UnionMaxX - UnionMinX) * (UnionMaxY - UnionMinY);
-
-                            if(unionArea < areaA + areaB)
-                            {
-                                merged = true;
-                                int unionWidth = UnionMaxX - UnionMinX;
-                                int unionHeight = UnionMaxY - UnionMinY;
-                                RectInt unionRect = new RectInt(UnionMinX, UnionMinY, unionWidth, unionHeight);
-
-                                // create new bbox with shared bits
-                                StyleBits.ImageSpaceEffect sharedEffects = effectsA & effectsB;
-                                BoundingBox mergedBox = new BoundingBox((uint)sharedEffects, unionRect);
-
-                                // remove shared bits from original boxes
-                                bboxA.styles &= ~sharedEffects;
-                                bboxB.styles &= ~sharedEffects;
-
-                                mergedBox.renderers.AddRange(bboxA.renderers);
-                                foreach (var r in bboxB.renderers)
-                                {
-                                    if (!mergedBox.renderers.Contains(r))
-                                        mergedBox.renderers.Add(r);
-                                }
-
-                                // add merged box to list
-                                newBoxes.Add(mergedBox); 
-
-                                // debug show the merged box
-                                // if(NprTestingConfig.debugBBoxes)
-                                    // BBoxDebugStore.Add(unionRect, Color.orange, $"Merged {effectsA & effectsB}");
-
-                                // remove b if it has no bits left
-                                if (bboxB.styles == 0)
-                                {
-                                    toRemove.Add(bboxB);
-                                }
-
-                                // remove a if it has no bits left
-                                if (bboxA.styles == 0)
-                                {
-                                    toRemove.Add(bboxA);
-                                    break; 
-                                }
-
-                            }
-                        }
-                    }
-                }
-
-                nprFrameData.bboxes.RemoveAll(b => toRemove.Contains(b));
-                nprFrameData.bboxes.AddRange(newBoxes);
-
-                toRemove.Clear();
-                newBoxes.Clear();
-            }
-        }
-
-        if (NprTestingConfig.UseBoundingBoxes)
+        if (NprTestingConfig.BoundingBoxes)
             nprFrameData.bboxCount = nprFrameData.bboxes.Count;
         else
             nprFrameData.bboxCount = 0;
 
         // create / initialise GPU buffers
-        if (NprTestingConfig.UseBoundingBoxes)
+        if (NprTestingConfig.BoundingBoxes)
         {
             // if not batching generation then we need to generate rect and mask buffers here
-            if(!(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
+            if(!(NprTestingConfig.BatchedBBoxGeneration && NprTestingConfig.BatchedDraws))
             {
                 EnsureRectBufferCapacity(nprFrameData.bboxCount);
                 EnsureMaskBufferCapacity(nprFrameData.bboxCount);

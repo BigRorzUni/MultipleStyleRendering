@@ -1,0 +1,8 @@
+#pragma kernel MergeBboxes
+
+
+[numthreads(64,1,1)]
+void MergeBboxes(uint id : SV_DispatchThreadID)
+{
+
+}

@@ -127,7 +127,7 @@ public class DummyPass : ScriptableRenderPass
         }
 
         // FULLSCREEN MODE: ignore all bbox usage
-        if (!NprTestingConfig.UseBoundingBoxes)
+        if (!NprTestingConfig.BoundingBoxes)
         {
             using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {_name} Pass", out PassData passData))
             {
@@ -174,7 +174,7 @@ public class DummyPass : ScriptableRenderPass
 
                     passData.ids = nprFrameData.idTexture;
 
-                    if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if(NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         Material perPassMat = new Material(_mat);
                         _tempMaterials.Add(perPassMat);
@@ -192,7 +192,7 @@ public class DummyPass : ScriptableRenderPass
                     passData.currentBBoxIndex = index;
                     passData.useOcclusion = 0;
 
-                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                         passData.useOcclusion = 1;
@@ -217,7 +217,7 @@ public class DummyPass : ScriptableRenderPass
             return;
         }
 
-        if (NprTestingConfig.BatchedBboxGeneration)
+        if (NprTestingConfig.BatchedBBoxGeneration)
         {
             using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (GPU GEN BBOXES)", out PassData passData))
             {
@@ -236,7 +236,7 @@ public class DummyPass : ScriptableRenderPass
                 passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.useBboxIndices = 0;
 
-                if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                     passData.useOcclusion = 1;
@@ -328,7 +328,7 @@ public class DummyPass : ScriptableRenderPass
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
             passData.useBboxIndices = 1;
 
-            if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                 passData.bboxIndexBuffer = _bboxIndexBuffer;

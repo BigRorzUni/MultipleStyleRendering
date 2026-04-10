@@ -123,7 +123,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             });
         }
 
-        if(!NprTestingConfig.UseBoundingBoxes)
+        if(!NprTestingConfig.BoundingBoxes)
         {
             // dithering pass
             using (var builder = renderGraph.AddRasterRenderPass("Fullscreen Dithering Pass", out PassData passData))
@@ -179,7 +179,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     passData.src = nprFrameData.sourceTexture;
                     passData.ids = nprFrameData.idTexture;
 
-                    if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if(NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         Material perPassMat = new Material(_mat);
                         _tempMaterials.Add(perPassMat);
@@ -196,7 +196,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                     passData.currentBBoxIndex = index;
                     passData.useOcclusion = 0;
 
-                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                         passData.useOcclusion = 1;
@@ -229,7 +229,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             return;
         }
 
-        if (NprTestingConfig.BatchedBboxGeneration)
+        if (NprTestingConfig.BatchedBBoxGeneration)
         {
             using (var builder = renderGraph.AddRasterRenderPass("Batched Dithering Pass (GPU GEN BBOXES)", out PassData passData))
             {
@@ -250,7 +250,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
                 passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.useBboxIndices = 0;
 
-                if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                     passData.useOcclusion = 1;
@@ -345,7 +345,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
             passData.useBboxIndices = 1;
 
-            if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                 passData.bboxIndexBuffer = _bboxIndexBuffer;

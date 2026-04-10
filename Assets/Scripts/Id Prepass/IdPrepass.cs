@@ -80,7 +80,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         nprFrameData.idTexture = idTex;
 
         // FULLSCREEN MODE (RENDER LAYER MASK AND RENDERLISTHANDLE IS THIS FASTER THAN BBOXES?)
-        if (!NprTestingConfig.UseBoundingBoxes || !NprTestingConfig.IdBoundingBoxes)
+        if (!NprTestingConfig.BoundingBoxes || !NprTestingConfig.IdBoundingBoxes)
         {
             // Debug.Log("id prepass NOT using bounding boxes");
             DrawingSettings drawing = RenderingUtils.CreateDrawingSettings(

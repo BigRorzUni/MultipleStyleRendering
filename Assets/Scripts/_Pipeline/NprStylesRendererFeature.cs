@@ -19,8 +19,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // prepasses
     private IdPrepass _idPrepass;
     private NormalsPrepass _normalsPrepass;
-    private bboxPrepass _bboxPrepass;
+    private BBoxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
+    private BBoxMergingPrepass _bboxMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
 
 
@@ -44,6 +45,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
+    [SerializeField] private ComputeShader bboxMergingComputeShader;
     [SerializeField] private Shader bboxDebugShader;
 
 
@@ -97,20 +99,16 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if(bboxGenerationComputeShader == null)
         {
-                Debug.LogError("Occlusion compute shader GenerateBboxes not set.");
+            Debug.LogError("Occlusion compute shader 'GenerateBboxes' not set");
             return;        
         }
+
+        if(NprTestingConfig.TestMode)
+            _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader, testEffectCount, true);
         else
-        {
-            if(NprTestingConfig.TestMode)
-            {
-                _bboxPrepass = new bboxPrepass(bboxGenerationComputeShader, testEffectCount, true);
-            }
-            else
-                _bboxPrepass = new bboxPrepass(bboxGenerationComputeShader);
-        }
+            _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader);
         
-        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.OcclusionCulling && NprTestingConfig.BoundingBoxes)
         {
             if(occlusionShader == null)
             {
@@ -120,14 +118,25 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             if(occlusionComputeShader == null)
             {
-                Debug.LogError("Occlusion compute shader OcclusionCheck not set.");
+                Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
                 return;
             }
 
             _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
         }
 
-        if(NprTestingConfig.debugBBoxes && NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes)
+        {
+            if(bboxMergingComputeShader == null)
+            {
+                Debug.LogError("Merging compute shader 'MergeBboxes' not set");
+                return;
+            }
+
+            _bboxMergingPrepass = new BBoxMergingPrepass(bboxMergingComputeShader);
+        }
+
+        if(NprTestingConfig.DebugBBoxes && NprTestingConfig.BoundingBoxes)
         {
             if(occlusionDebugShader == null)
             {
@@ -140,8 +149,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
             
-            _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader);
-            
+            _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader); 
         }
 
         // object passes
@@ -153,7 +161,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
-        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
         {
             if (ssOutlineBatchedShader == null)
             {
@@ -172,7 +180,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
         }
 
-        if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
         {
             if (ditheringBatchedShader == null)
             {
@@ -200,7 +208,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if(NprTestingConfig.TestMode)
         {
-            if(NprTestingConfig.BatchedDraws && NprTestingConfig.UseBoundingBoxes)
+            if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
             {
                 if(testDummyBatchedShader == null)
                 {
@@ -267,9 +275,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
-        if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
+        if(NprTestingConfig.OcclusionCulling && NprTestingConfig.BoundingBoxes)
         {
             renderer.EnqueuePass(_bboxOcclusionPrepass);
+        }
+
+        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes)
+        {
+            renderer.EnqueuePass(_bboxMergingPrepass);
         }
 
         // compute normals
@@ -288,7 +301,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
         }
 
-        if(NprTestingConfig.debugBBoxes)
+        if(NprTestingConfig.DebugBBoxes)
             renderer.EnqueuePass(_bboxDebugPass);
     }
 }
