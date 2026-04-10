@@ -20,7 +20,7 @@ public static class NprTestingConfig
 
     public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
     public static bool BatchedBboxGeneration = false;
-    public static bool IdTexOcclusion = false;
+    public static bool BatchedOcclusion = false;
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
     public static int StylesPerObject = 0; // max styles per object
@@ -79,7 +79,7 @@ public class TestRunner : MonoBehaviour
     public bool useOcclusionCulling = true;
     public bool setBatchedDraws = true;
     public bool setBatchedBboxGeneration = false;
-    public bool idTextOcclusion = false;
+    public bool useBatchedOcclusion = false;
 
     private string logDir = null;
 
@@ -310,10 +310,8 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.UseBoundingBoxes = setUseBBoxes;
         NprTestingConfig.UseOcclusionCulling = useOcclusionCulling;
         NprTestingConfig.BatchedDraws = setBatchedDraws;
-        NprTestingConfig.IdTexOcclusion = idTextOcclusion;
+        NprTestingConfig.BatchedOcclusion = useBatchedOcclusion;
         NprTestingConfig.BatchedBboxGeneration = setBatchedBboxGeneration;
-
-        BBoxDebugStore.Clear();
 
         if (NprTestingConfig.TestMode)
         {

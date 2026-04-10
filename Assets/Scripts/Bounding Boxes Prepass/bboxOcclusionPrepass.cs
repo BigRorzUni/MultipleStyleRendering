@@ -18,19 +18,11 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int RectID = Shader.PropertyToID("_Rect");
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
 
-
-
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int BBoxCountID = Shader.PropertyToID("_BboxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
     private readonly ComputeBuffer _resultBuffer;
-
-    // private int _writeIndex = 0;
-    // private readonly bool[] _pendingReadback = new bool[2];
-    // private readonly RectInt[] _pendingRects = new RectInt[2];
-
-    // private readonly List<RectInt> _pendingRemovalRects = new List<RectInt>();
 
     private RenderTexture _visibilityRT;
 
@@ -71,18 +63,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         public uint bboxIndex;
     }
 
-    // public void Dispose()
-    // {
-    //     for (int i = 0; i < 2; i++)
-    //     {
-    //         if (_resultBuffers[i] != null)
-    //         {
-    //             _resultBuffers[i].Release();
-    //             _resultBuffers[i] = null;
-    //         }
-    //     }
-    // }
-
     public BBoxOcclusionPrepass(Shader visibilityShader, ComputeShader occlusionComputeShader)
     {
          if (visibilityShader != null)
@@ -114,28 +94,67 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-
-        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-            return;
-
         if (nprFrameData.bboxVisibilityBuffer == null)
             return;
 
         if (nprFrameData.bboxRectBuffer == null)
             return;
 
-        if (nprFrameData.bboxVisibilityCount <= 0)
+        if (nprFrameData.bboxMaskBuffer == null)
             return;
 
-        // if no potentially occluded boxes then skip this pass
-        if (nprFrameData.occlusionCandidateBoxes == null || nprFrameData.occlusionCandidateBoxes.Count == 0)
+        if (nprFrameData.bboxCount <= 0)
             return;
 
-        Debug.Log("running bbox occlusion prepass");
+        // Debug.Log("running bbox occlusion prepass");
 
-        // loop over all potentially occluded boxes 
-        if(!NprTestingConfig.IdTexOcclusion)
+        // if gpu generates bboxes it can only use batched occlusion, cpu side should get the opportunity to test which way is better
+        bool useBatchedOcclusion = NprTestingConfig.BatchedBboxGeneration || NprTestingConfig.BatchedOcclusion;
+
+        if(!useBatchedOcclusion)
         {
+            if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+                return;
+
+            nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
+
+            for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+            {
+                BoundingBox inner = nprFrameData.bboxes[i];
+
+                for (int j = 0; j < nprFrameData.bboxes.Count; j++)
+                {
+                    if (i == j)
+                        continue;
+
+                    BoundingBox outer = nprFrameData.bboxes[j];
+
+                    uint innerMask;
+                    uint outerMask;
+
+                    if (!NprTestingConfig.TestMode)
+                    {
+                        innerMask = (uint)inner.styles;
+                        outerMask = (uint)outer.styles;
+                    }
+                    else
+                    {
+                        innerMask = inner.testMask;
+                        outerMask = outer.testMask;
+                    }
+
+                    if (ContainsRect(outer.box, inner.box) && ((outerMask & innerMask) != 0))
+                    {
+                        nprFrameData.occlusionCandidateBoxes.Add(inner);
+                        break;
+                    }
+                }
+            }
+
+            if (nprFrameData.occlusionCandidateBoxes.Count == 0)
+                return;
+
+            // loop over all potentially occluded boxes 
             foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
             {
                 if (bbox == null || bbox.renderers == null || bbox.renderers.Count == 0)
@@ -201,20 +220,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     });
                 }
 
-                // DEBUG
-                // using (var builder = renderGraph.AddRasterRenderPass("Debug VisibilityTex", out DebugPassData passData))
-                // {
-                //     builder.UseTexture(visibilityTex, AccessFlags.Read);
-                //     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-                //
-                //     passData.src = visibilityTex;
-                //
-                //     builder.SetRenderFunc(static (DebugPassData data, RasterGraphContext ctx) =>
-                //     {
-                //         Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
-                //     });
-                // }
-
                 // scan visibilityTex and output one 0/1 result into the gpu visibility buffer
                 using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse", out ComputePassData passData))
                 {
@@ -233,13 +238,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     }
 
                     passData.bboxIndex = (uint)bboxIndex;
-                    // passData.bboxIndex = (uint)nprFrameData.bboxes.IndexOf(bbox);
-
-                    // if (!NprTestingConfig.TestMode)
-                    //     passData.expectedMask = (uint)bbox.styles;
-                    // else
-                    //     passData.expectedMask = bbox.testMask;
-
                     builder.UseTexture(passData.visibilityTex, AccessFlags.Read);
 
                     builder.SetRenderFunc(static (ComputePassData data, ComputeGraphContext ctx) =>
@@ -247,7 +245,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                         ctx.cmd.SetComputeTextureParam(data.compute, data.kernel, VisibilityTexID, data.visibilityTex);
                         ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
                         ctx.cmd.SetComputeVectorParam(data.compute, RectID, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                        // ctx.cmd.SetComputeIntParam(data.compute, ExpectedMaskID, (int)data.expectedMask);
                         ctx.cmd.SetComputeIntParam(data.compute, BBoxIndexID, (int)data.bboxIndex);
 
                         // shader executes over all pixels in the bbox
@@ -276,13 +273,18 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                     ctx.cmd.SetComputeTextureParam(data.compute, data.kernel, VisibilityTexID, data.visibilityTex);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, InstanceBufferID, data.rectBuffer);
-                    ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, nprFrameData.bboxes.Count);
+                    ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, nprFrameData.bboxCount);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, BBoxMaskBufferID, data.maskBuffer);
 
                     // dispatch 1 threadgroup per bbox
-                    ctx.cmd.DispatchCompute(data.compute, data.kernel, nprFrameData.bboxes.Count, 1, 1);
+                    ctx.cmd.DispatchCompute(data.compute, data.kernel, nprFrameData.bboxCount, 1, 1);
                 });
             }
         }
+    }
+
+    bool ContainsRect(RectInt outer, RectInt inner)
+    {
+        return outer.xMin <= inner.xMin && outer.xMax >= inner.xMax && outer.yMin <= inner.yMin && outer.yMax >= inner.yMax;
     }
 }
