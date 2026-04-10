@@ -29,9 +29,11 @@ Shader "Custom/DummyBatched"
             StructuredBuffer<InstanceData> _InstanceData;
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
+            StructuredBuffer<uint> _BBoxMasks;
             
             float4 _NprScreenSize; 
             int _UseOcclusion;
+            int _UseBboxIndices;
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -68,7 +70,6 @@ Shader "Custom/DummyBatched"
                     case 5: 
                         return float2(0, 1);
 
-
                     default:
                         return float2(0, 0); // should never happen
                 }
@@ -78,9 +79,21 @@ Shader "Custom/DummyBatched"
             {
                 Varyings o;
 
+                uint bboxIndex = v.instanceID;
+                if (_UseBboxIndices != 0)
+                    bboxIndex = _BboxIndices[v.instanceID];
+
+                uint bboxMask = _BBoxMasks[bboxIndex];
+
+                if ((bboxMask & _RequiredBit) == 0u)
+                {
+                    o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                    o.screenUV = float2(0.0, 0.0);
+                    return o;
+                }
+
                 if (_UseOcclusion != 0)
                 {
-                    uint bboxIndex = _BboxIndices[v.instanceID];
                     uint visible = _BboxVisibilityFlags[bboxIndex];
 
                     // visible (1) -> draw
@@ -88,10 +101,10 @@ Shader "Custom/DummyBatched"
                     if (visible == 0)
                     {
                         o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        o.screenUV = float2(0.0, 0.0);
                         return o;
                     }
                 }
-
 
                 float2 uv = GetQuadUV(v.vertexID);
                 float4 rect = _InstanceData[v.instanceID].rect;

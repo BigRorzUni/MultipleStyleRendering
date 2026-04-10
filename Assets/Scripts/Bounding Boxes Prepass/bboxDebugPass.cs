@@ -54,7 +54,7 @@ public class BboxDebugPass : ScriptableRenderPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (_occlusionMat == null || !NprTestingConfig.debugBBoxes)
+        if (!NprTestingConfig.debugBBoxes)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -68,9 +68,12 @@ public class BboxDebugPass : ScriptableRenderPass
         if (nprFrameData.bboxRectBuffer == null)
             return;
 
+        if (nprFrameData.bboxCount <= 0)
+            return;
+
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
-        if (_bboxMat != null)
+        if (_bboxMat != null && nprFrameData.bboxMaskBuffer != null)
         {
             using (var builder = renderGraph.AddRasterRenderPass("BBox Debug Overlay", out BBoxPassData passData))
             {
@@ -78,7 +81,7 @@ public class BboxDebugPass : ScriptableRenderPass
                 passData.rectBuffer = nprFrameData.bboxRectBuffer;
                 passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-                passData.instanceCount = nprFrameData.bboxVisibilityCount;
+                passData.instanceCount = nprFrameData.bboxCount;
 
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
                 builder.AllowGlobalStateModification(true);
@@ -102,6 +105,9 @@ public class BboxDebugPass : ScriptableRenderPass
         }
 
         if(!NprTestingConfig.UseOcclusionCulling)
+            return;
+
+        if (_occlusionMat == null)
             return;
 
         if (nprFrameData.bboxVisibilityBuffer == null)

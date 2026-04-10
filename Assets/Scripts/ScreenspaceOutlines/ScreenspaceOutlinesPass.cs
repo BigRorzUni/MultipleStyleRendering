@@ -45,6 +45,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int CurrentBBoxIndexID = Shader.PropertyToID("_CurrentBboxIndex");
+    static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
+    static readonly int UseBboxIndicesID = Shader.PropertyToID("_UseBboxIndices");
 
     // make sure the compute buffer is big enough for the given instance count
     void EnsureInstanceBufferCapacity(int count)
@@ -107,6 +109,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public ComputeBuffer bboxIndexBuffer;
         public int useOcclusion;
         public int currentBBoxIndex;
+
+        public ComputeBuffer maskBuffer;
+        public int useBboxIndices;
     }
 
     public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
@@ -308,42 +313,115 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             return;
         }
 
-        // Debug.Log("Batched outline pass");
+        if (NprTestingConfig.BatchedBboxGeneration)
+        {
+            using (var builder = renderGraph.AddRasterRenderPass($"Batched Outline Pass (GPU GEN BBOXES)", out PassData passData))
+            {
+                passData.src = nprFrameData.sourceTexture;
+                passData.ids = nprFrameData.idTexture;
+                passData.normals = nprFrameData.normalsTexture;
+                passData.depth = frameData.activeDepthTexture;
+                passData.requiredBit = (int)_outlinesBit;
 
-        List<BoundingBox> batchedBBoxes = new List<BoundingBox>();
-        List<QuadInstanceData> instances = new List<QuadInstanceData>();
+                passData.mat = _mat;
+
+                passData.outlineCol = _outlineColour;
+                passData.thicknessPx = _outlineThickness;
+                passData.depthThreshold = _depthThreshold;
+                passData.depthStrength = _depthStrength;
+                passData.normalThreshold = _normalThreshold;
+                passData.normalStrength = _normalStrength;
+
+                passData.instanceBuffer = nprFrameData.bboxRectBuffer;
+                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+                passData.instanceCount = nprFrameData.bboxVisibilityCount;
+
+                passData.visibilityBuffer = null;
+                passData.bboxIndexBuffer = null;
+                passData.useOcclusion = 0;
+
+                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+                passData.useBboxIndices = 0;
+
+                if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                {
+                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.useOcclusion = 1;
+                }
+
+                builder.UseTexture(passData.src, AccessFlags.Read);
+                builder.UseTexture(passData.ids, AccessFlags.Read);
+                builder.UseTexture(passData.normals, AccessFlags.Read);
+                builder.UseTexture(passData.depth, AccessFlags.Read);
+
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                builder.AllowGlobalStateModification(true);
+
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(SourceTexId, data.src);
+                    data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetTexture(NormalsTexId, data.normals);
+                    data.mat.SetTexture(DepthTexId, data.depth);
+                    data.mat.SetInt(OutlinesBitID, data.requiredBit);
+
+                    data.mat.SetColor(OutlineColourId, data.outlineCol);
+
+                    data.mat.SetFloat(ThicknessId, data.thicknessPx);
+                    data.mat.SetFloat(DepthThresholdId, data.depthThreshold);
+                    data.mat.SetFloat(DepthStrengthId, data.depthStrength);
+                    data.mat.SetFloat(NormalThresholdId, data.normalThreshold);
+                    data.mat.SetFloat(NormalStrengthId, data.normalStrength);
+
+                    data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
+                    data.mat.SetVector(ScreenParamsID, data.screenSize);
+
+                    data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+
+                    if (data.useOcclusion != 0)
+                        data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+
+                    data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
+                    data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
+
+                    ctx.cmd.DrawProcedural(
+                        Matrix4x4.identity,
+                        data.mat,
+                        0,
+                        MeshTopology.Triangles,
+                        6,
+                        data.instanceCount
+                    );
+                });
+            }
+
+            return;
+        }
+
+        // Debug.Log("Batched outline pass");
         List<uint> bboxIndices = new List<uint>();
 
         foreach (var bbox in nprFrameData.bboxes)
         {
-            if (bbox.box.width <= 0 || bbox.box.height <= 0)
-                continue;
+            int index = nprFrameData.bboxes.IndexOf(bbox);
 
             if ((bbox.styles & StyleBits.ImageSpaceEffect.Outline) == 0)
                 continue;
 
-            batchedBBoxes.Add(bbox);
+            if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                continue;
 
-            instances.Add(new QuadInstanceData
-            {
-                rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-            });
-
-            bboxIndices.Add((uint)nprFrameData.bboxes.IndexOf(bbox));
+            bboxIndices.Add((uint)index);
         }
 
-        if (instances.Count == 0)
+        if (bboxIndices.Count == 0)
             return;
-
-        EnsureInstanceBufferCapacity(instances.Count);
-        _instanceBuffer.SetData(instances);
 
         EnsureIndexBufferCapacity(bboxIndices.Count);
         _bboxIndexBuffer.SetData(bboxIndices);
 
-        using (var builder = renderGraph.AddRasterRenderPass($"Batched Outline Pass", out PassData passData))
+        using (var builder = renderGraph.AddRasterRenderPass($"Batched Outline Pass (CPU GEN BBOXES)", out PassData passData))
         {
-            // passData.source = nprFrameData.sourceTexture;
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
             passData.normals = nprFrameData.normalsTexture;
@@ -359,13 +437,30 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.normalThreshold = _normalThreshold;
             passData.normalStrength = _normalStrength;
 
+            List<QuadInstanceData> instanceData = new List<QuadInstanceData>();
+
+            foreach (uint bboxIndex in bboxIndices)
+            {
+                BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
+                instanceData.Add(new QuadInstanceData
+                {
+                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
+                });
+            }
+
+            EnsureInstanceBufferCapacity(instanceData.Count);
+            _instanceBuffer.SetData(instanceData);
             passData.instanceBuffer = _instanceBuffer;
+
             passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-            passData.instanceCount = instances.Count;
+            passData.instanceCount = bboxIndices.Count;
 
             passData.visibilityBuffer = null;
             passData.bboxIndexBuffer = null;
             passData.useOcclusion = 0;
+
+            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+            passData.useBboxIndices = 1;
 
             if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
             {
@@ -374,17 +469,13 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 passData.useOcclusion = 1;
             }
 
-            // read from normal, id, depth and source textures
-            // builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
             builder.UseTexture(passData.src, AccessFlags.Read);
             builder.UseTexture(passData.ids, AccessFlags.Read);
             builder.UseTexture(passData.normals, AccessFlags.Read);
             builder.UseTexture(passData.depth, AccessFlags.Read);
 
-            // write to bbox colour
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
             builder.AllowGlobalStateModification(true);
-
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
@@ -413,13 +504,16 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     data.mat.SetBuffer(BBoxIndicesID, data.bboxIndexBuffer);
                 }
 
+                data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
+                data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
+
                 ctx.cmd.DrawProcedural(
                     Matrix4x4.identity,
-                    data.mat, // dummy material
+                    data.mat,
                     0,
                     MeshTopology.Triangles,
-                    6, // 2 triangles per quad
-                    data.instanceCount // 1 instance per bbox
+                    6,
+                    data.instanceCount
                 );
             });
         }

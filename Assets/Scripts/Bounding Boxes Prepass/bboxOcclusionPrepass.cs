@@ -258,7 +258,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         }
         else
         {
-            using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse (ID Tex)", out ComputePassData passData))
+            using (var builder = renderGraph.AddComputePass("BBox Occlusion Analysis (ID Tex)", out ComputePassData passData))
             {
                 builder.AllowPassCulling(false);
 

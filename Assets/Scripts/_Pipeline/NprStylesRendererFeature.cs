@@ -40,6 +40,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
     // [SerializeField] private Shader pixelisationShader;
 
+    [SerializeField] private ComputeShader bboxGenerationComputeShader;
     [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
@@ -94,13 +95,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _normalsPrepass = new NormalsPrepass(normalsShader);
 
 
-        if(NprTestingConfig.TestMode)
+        if(bboxGenerationComputeShader == null)
         {
-            _bboxPrepass = new bboxPrepass(testEffectCount, true);
+                Debug.LogError("Occlusion compute shader GenerateBboxes not set.");
+            return;        
         }
         else
-            _bboxPrepass = new bboxPrepass();
-
+        {
+            if(NprTestingConfig.TestMode)
+            {
+                _bboxPrepass = new bboxPrepass(bboxGenerationComputeShader, testEffectCount, true);
+            }
+            else
+                _bboxPrepass = new bboxPrepass(bboxGenerationComputeShader);
+        }
         
         if(NprTestingConfig.UseOcclusionCulling && NprTestingConfig.UseBoundingBoxes)
         {
