@@ -313,8 +313,6 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.BatchedOcclusion = useBatchedOcclusion;
         NprTestingConfig.BatchedBboxGeneration = setBatchedBboxGeneration;
 
-        BBoxDebugStore.Clear();
-
         if (NprTestingConfig.TestMode)
         {
             n.EnableTestMode(32);

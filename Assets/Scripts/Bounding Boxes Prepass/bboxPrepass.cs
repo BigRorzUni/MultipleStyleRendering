@@ -161,9 +161,6 @@ public class bboxPrepass : ScriptableRenderPass
 
         if(camera == null)
             return;
-
-        if(NprTestingConfig.debugBBoxes)
-            BBoxDebugStore.Clear();
             
         // get/create NPR frame data
         NprFrameData nprFrameData;
@@ -341,8 +338,6 @@ public class bboxPrepass : ScriptableRenderPass
                 }
             }
         }
-
-        // OCCLUSION?
 
         // merge bboxes for optimality
         if (NprTestingConfig.UseBoundingBoxes && !(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
