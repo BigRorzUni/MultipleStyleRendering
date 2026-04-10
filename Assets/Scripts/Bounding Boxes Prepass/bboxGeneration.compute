@@ -18,21 +18,60 @@ StructuredBuffer<BBoxGenerationInput> _Inputs;
 RWStructuredBuffer<QuadInstanceData> _Rects;
 
 int _BBoxCount;
-float4x4 _VP;
+float4x4 _WorldToCamera;
+float4x4 _Projection;
 float2 _ScreenSize;
+float _NearZ;
+
+uint2 GetBoxEdge(uint edgeIndex)
+{
+    switch (edgeIndex)
+    {
+        case 0: 
+            return uint2(0,1);
+        case 1:
+            return uint2(1,3);
+        case 2: 
+            return uint2(3,2);
+        case 3: 
+            return uint2(2,0);
+        case 4: 
+            return uint2(4,5);
+        case 5: 
+            return uint2(5,7);
+        case 6: 
+            return uint2(7,6);
+        case 7: 
+            return uint2(6,4);
+        case 8: 
+            return uint2(0,4);
+        case 9: 
+            return uint2(1,5);
+        case 10: 
+            return uint2(2,6);
+        case 11: 
+            return uint2(3,7);
+            
+        default: 
+            return uint2(0,0);
+    }
+}
 
 [numthreads(64,1,1)]
 void GenerateBboxes(uint id : SV_DispatchThreadID)
 {
-    if (id >= (uint)_BBoxCount) return;
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    const float eps = 1e-5;
 
     BBoxGenerationInput input = _Inputs[id];
 
     float3 c = input.center;
     float3 e = input.extents;
 
-    // 8 corners
-    float3 corners[8] = {
+    float3 worldCorners[8] =
+    {
         c + float3(-e.x,-e.y,-e.z),
         c + float3( e.x,-e.y,-e.z),
         c + float3(-e.x, e.y,-e.z),
@@ -43,15 +82,70 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
         c + float3( e.x, e.y, e.z)
     };
 
-    // initialise mins and maxes
-    float minX = 1e9, maxX = -1e9; 
-    float minY = 1e9 , maxY = -1e9;
-
-    for (int i = 0; i < 8; i++)
+    float3 camCorners[8];
+    [unroll]
+    for (int camCornerIndex = 0; camCornerIndex < 8; camCornerIndex++)
     {
-        float4 clip = mul(_VP, float4(corners[i], 1.0));
+        float4 cam = mul(_WorldToCamera, float4(worldCorners[camCornerIndex], 1.0));
+        camCorners[camCornerIndex] = cam.xyz;
+    }
 
-        if (abs(clip.w) < 1e-5) continue;
+    float3 clippedPoints[20];
+    int clippedCount = 0;
+
+    [unroll]
+    for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
+    {
+        if (camCorners[cornerIndex].z <= _NearZ + eps)
+        {
+            clippedPoints[clippedCount] = camCorners[cornerIndex];
+            clippedCount++;
+        }
+    }
+
+    [unroll]
+    for (int edgeIndex = 0; edgeIndex < 12; edgeIndex++)
+    {
+        uint2 edge = GetBoxEdge(edgeIndex);
+
+        float3 a = camCorners[edge.x];
+        float3 b = camCorners[edge.y];
+
+        bool aIn = a.z <= _NearZ + eps;
+        bool bIn = b.z <= _NearZ + eps;
+
+        if (aIn != bIn)
+        {
+            float denom = b.z - a.z;
+            if (abs(denom) > eps)
+            {
+                float t = (_NearZ - a.z) / denom;
+                float3 clippedPoint = lerp(a, b, t);
+                clippedPoints[clippedCount] = clippedPoint;
+                clippedCount++;
+            }
+        }
+    }
+
+    if (clippedCount == 0)
+    {
+        _Rects[id].rect = float4(0,0,0,0);
+        return;
+    }
+
+    float minX = 1e9;
+    float minY = 1e9;
+    float maxX = -1e9;
+    float maxY = -1e9;
+    int valid = 0;
+
+    [loop]
+    for (int pointIndex = 0; pointIndex < clippedCount; pointIndex++)
+    {
+        float4 clip = mul(_Projection, float4(clippedPoints[pointIndex], 1.0));
+
+        if (abs(clip.w) < eps)
+            continue;
 
         float3 ndc = clip.xyz / clip.w;
 
@@ -62,6 +156,14 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
         maxX = max(maxX, sx);
         minY = min(minY, sy);
         maxY = max(maxY, sy);
+
+        valid++;
+    }
+
+    if (valid == 0)
+    {
+        _Rects[id].rect = float4(0,0,0,0);
+        return;
     }
 
     minX = clamp(minX, 0.0, _ScreenSize.x);
@@ -72,7 +174,6 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     float width = maxX - minX;
     float height = maxY - minY;
 
-    // collapse if not visible
     if (width <= 0 || height <= 0)
     {
         _Rects[id].rect = float4(0,0,0,0);
