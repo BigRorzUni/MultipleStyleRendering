@@ -7,13 +7,13 @@ using System.Runtime.InteropServices;
 [System.Serializable]
 
 [StructLayout(LayoutKind.Sequential)]
-public struct BBoxGenerationInput
+public struct BBoxGenerationInput // 32 bytes total for GPU 
 {
-    public Vector3 center;
-    public float padding; // fills to 16 bytes
+    public Vector3 center; // 12 bytes
+    public float padding1; // 4 bytes
 
-    public Vector3 extents;
-    public uint mask;
+    public Vector3 extents; // 12 bytes
+    public uint mask; // 4 bytes byte
 
 }
 
