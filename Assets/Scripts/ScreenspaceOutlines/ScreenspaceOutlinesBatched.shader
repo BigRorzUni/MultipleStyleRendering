@@ -50,7 +50,9 @@ Shader "Custom/ScreenspaceOutlinesBatched"
 
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
+            StructuredBuffer<uint> _BBoxMasks;
             int _UseOcclusion;
+            int _UseBboxIndices;
             uint _OutlinesBit;
 
 
@@ -94,9 +96,21 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             {
                 Varyings o;
 
+                uint bboxIndex = v.instanceID;
+                if (_UseBboxIndices != 0)
+                    bboxIndex = _BboxIndices[v.instanceID];
+
+                uint bboxMask = _BBoxMasks[bboxIndex];
+
+                if ((bboxMask & _OutlinesBit) == 0u)
+                {
+                    o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                    o.uv = float2(0.0, 0.0);
+                    return o;
+                }
+
                 if (_UseOcclusion != 0)
                 {
-                    uint bboxIndex = _BboxIndices[v.instanceID];
                     uint visible = _BboxVisibilityFlags[bboxIndex];
 
                     // visible (1) -> draw
@@ -104,6 +118,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
                     if (visible == 0)
                     {
                         o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        o.uv = float2(0.0, 0.0);
                         return o;
                     }
                 }

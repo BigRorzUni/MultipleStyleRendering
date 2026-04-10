@@ -1,0 +1,83 @@
+#pragma kernel GenerateBboxes
+
+struct BBoxGenerationInput
+{
+    float3 center;
+    float pad0;
+
+    float3 extents;
+    uint mask;
+};
+
+struct QuadInstanceData
+{
+    float4 rect;
+};
+
+StructuredBuffer<BBoxGenerationInput> _Inputs;
+RWStructuredBuffer<QuadInstanceData> _Rects;
+
+int _BBoxCount;
+float4x4 _VP;
+float2 _ScreenSize;
+
+[numthreads(64,1,1)]
+void GenerateBboxes(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount) return;
+
+    BBoxGenerationInput input = _Inputs[id];
+
+    float3 c = input.center;
+    float3 e = input.extents;
+
+    // 8 corners
+    float3 corners[8] = {
+        c + float3(-e.x,-e.y,-e.z),
+        c + float3( e.x,-e.y,-e.z),
+        c + float3(-e.x, e.y,-e.z),
+        c + float3( e.x, e.y,-e.z),
+        c + float3(-e.x,-e.y, e.z),
+        c + float3( e.x,-e.y, e.z),
+        c + float3(-e.x, e.y, e.z),
+        c + float3( e.x, e.y, e.z)
+    };
+
+    // initialise mins and maxes
+    float minX = 1e9, maxX = -1e9; 
+    float minY = 1e9 , maxY = -1e9;
+
+    for (int i = 0; i < 8; i++)
+    {
+        float4 clip = mul(_VP, float4(corners[i], 1.0));
+
+        if (abs(clip.w) < 1e-5) continue;
+
+        float3 ndc = clip.xyz / clip.w;
+
+        float sx = (ndc.x * 0.5 + 0.5) * _ScreenSize.x;
+        float sy = (ndc.y * 0.5 + 0.5) * _ScreenSize.y;
+
+        minX = min(minX, sx);
+        maxX = max(maxX, sx);
+        minY = min(minY, sy);
+        maxY = max(maxY, sy);
+    }
+
+    minX = clamp(minX, 0.0, _ScreenSize.x);
+    maxX = clamp(maxX, 0.0, _ScreenSize.x);
+    minY = clamp(minY, 0.0, _ScreenSize.y);
+    maxY = clamp(maxY, 0.0, _ScreenSize.y);
+
+    float width = maxX - minX;
+    float height = maxY - minY;
+
+    // collapse if not visible
+    if (width <= 0 || height <= 0)
+    {
+        _Rects[id].rect = float4(0,0,0,0);
+        return;
+    }
+
+    _Rects[id].rect = float4(minX, minY, width, height);
+}

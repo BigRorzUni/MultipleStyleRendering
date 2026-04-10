@@ -19,6 +19,7 @@ public static class NprTestingConfig
     public static bool UseOcclusionCulling = true; // whether to use occlusion culling on bboxes
 
     public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
+    public static bool BatchedBboxGeneration = false;
     public static bool IdTexOcclusion = false;
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
@@ -77,6 +78,7 @@ public class TestRunner : MonoBehaviour
     public bool setDebugBBoxes = false;
     public bool useOcclusionCulling = true;
     public bool setBatchedDraws = true;
+    public bool setBatchedBboxGeneration = false;
     public bool idTextOcclusion = false;
 
     private string logDir = null;
@@ -309,6 +311,7 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.UseOcclusionCulling = useOcclusionCulling;
         NprTestingConfig.BatchedDraws = setBatchedDraws;
         NprTestingConfig.IdTexOcclusion = idTextOcclusion;
+        NprTestingConfig.BatchedBboxGeneration = setBatchedBboxGeneration;
 
         BBoxDebugStore.Clear();
 
@@ -318,7 +321,7 @@ public class TestRunner : MonoBehaviour
 
             if (assignRuntimeTestEffectsInEditor)
             {
-                                ConfigureTagsForTestMode(TestEffectAssignmentMode.Runtime, includeInactive: true);
+                ConfigureTagsForTestMode(TestEffectAssignmentMode.Runtime, includeInactive: true);
                 foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
                 {
                     tag.SetRuntimeTestEffects(Enumerable.Range(0, n.TestEffectCount));

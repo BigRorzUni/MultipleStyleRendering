@@ -51,6 +51,8 @@ public sealed class NprFrameData : ContextItem
 
     public List<BoundingBox> bboxes;
     public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
+
+    public int bboxCount;
     public ComputeBuffer bboxVisibilityBuffer;
     public ComputeBuffer bboxRectBuffer;
     public ComputeBuffer bboxMaskBuffer;

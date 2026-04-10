@@ -3,20 +3,101 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Runtime.InteropServices;
 [System.Serializable]
+
+[StructLayout(LayoutKind.Sequential)]
+public struct BBoxGenerationInput
+{
+    public Vector3 center;
+    public float padding; // fills to 16 bytes
+
+    public Vector3 extents;
+    public uint mask;
+
+}
+
 public class bboxPrepass : ScriptableRenderPass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
+    // bbox compute shader
+    readonly ComputeShader _bboxGeneration;
+    readonly int _bboxGenerationKernel;
+
+    static readonly int BBoxInputBufferID = Shader.PropertyToID("_Inputs");
+    static readonly int BBoxRectBufferID = Shader.PropertyToID("_Rects");
+    static readonly int BBoxCountID = Shader.PropertyToID("_BBoxCount");
+    static readonly int ViewProjectionID = Shader.PropertyToID("_VP");
+    static readonly int ScreenSizeID = Shader.PropertyToID("_ScreenSize");
+
+    // input to gpu bbox generation
+    ComputeBuffer _bboxInputBuffer;
+    int _bboxInputCapacity = 0;
+
+    void EnsureInputBufferCapacity(int count)
+    {
+        int required = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxInputBuffer == null || _bboxInputCapacity < required)
+        {
+            if (_bboxInputBuffer != null)
+                _bboxInputBuffer.Release();
+
+            _bboxInputCapacity = required;
+            _bboxInputBuffer = new ComputeBuffer(
+                _bboxInputCapacity,
+                Marshal.SizeOf<BBoxGenerationInput>()
+            );
+        }
+    }
+
+    // bounding box rect buffer
     private ComputeBuffer _bboxRectBuffer;
     private int _bboxRectBufferCapacity = 0;
     private QuadInstanceData[] _bboxRectInitData;
 
+    void EnsureRectBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxRectBuffer == null || _bboxRectBufferCapacity < requiredCapacity)
+        {
+            if (_bboxRectBuffer != null)
+                _bboxRectBuffer.Release();
+
+            _bboxRectBufferCapacity = requiredCapacity;
+            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
+        }
+
+        if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
+            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
+    }
+
+    // bounding box visibility buffer 
     private ComputeBuffer _bboxVisibilityBuffer;
     private int _bboxVisibilityBufferCapacity = 0;
     private uint[] _bboxVisibilityInitData;
 
+    void EnsureVisibilityBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_bboxVisibilityBuffer == null || _bboxVisibilityBufferCapacity < requiredCapacity)
+        {
+            if (_bboxVisibilityBuffer != null)
+                _bboxVisibilityBuffer.Release();
+
+            _bboxVisibilityBufferCapacity = requiredCapacity;
+            _bboxVisibilityBuffer = new ComputeBuffer(_bboxVisibilityBufferCapacity, sizeof(uint));
+        }
+
+        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
+    }
+
+    // bounding box masks buffer
     private ComputeBuffer _bboxMaskBuffer;
     private int _bboxMaskBufferCapacity = 0;
     private uint[] _bboxMaskInitData;
@@ -38,39 +119,7 @@ public class bboxPrepass : ScriptableRenderPass
             _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
     }
 
-    void EnsureVisibilityBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
 
-        if (_bboxVisibilityBuffer == null || _bboxVisibilityBufferCapacity < requiredCapacity)
-        {
-            if (_bboxVisibilityBuffer != null)
-                _bboxVisibilityBuffer.Release();
-
-            _bboxVisibilityBufferCapacity = requiredCapacity;
-            _bboxVisibilityBuffer = new ComputeBuffer(_bboxVisibilityBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
-            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
-    }
-
-    void EnsureRectBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxRectBuffer == null || _bboxRectBufferCapacity < requiredCapacity)
-        {
-            if (_bboxRectBuffer != null)
-                _bboxRectBuffer.Release();
-
-            _bboxRectBufferCapacity = requiredCapacity;
-            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
-        }
-
-        if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
-            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
-    }
 
     class PassData
     {
@@ -80,16 +129,27 @@ public class bboxPrepass : ScriptableRenderPass
         public Vector2 srcTexelSize;
     }
 
-    public bboxPrepass()
+    public bboxPrepass(ComputeShader bboxGeneration)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
+        if(bboxGeneration != null)
+        {
+            _bboxGeneration = bboxGeneration;
+            _bboxGenerationKernel = _bboxGeneration.FindKernel("GenerateBboxes");
+        }
     }
 
-    public bboxPrepass(int testCount, bool testModeEnabled)
+    public bboxPrepass(ComputeShader bboxGeneration, int testCount, bool testModeEnabled)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
         testStyleCount = testCount;
         _testModeEnabled = testModeEnabled;
+
+        if(bboxGeneration != null)
+        {
+            _bboxGeneration = bboxGeneration;
+            _bboxGenerationKernel = _bboxGeneration.FindKernel("GenerateBboxes");
+        }
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -120,7 +180,7 @@ public class bboxPrepass : ScriptableRenderPass
             else 
                 nprFrameData.bboxes.Clear();
 
-            if(NprTestingConfig.UseOcclusionCulling)
+            if(NprTestingConfig.UseOcclusionCulling && !NprTestingConfig.IdTexOcclusion)
             {
                 if (nprFrameData.occlusionCandidateBoxes == null) 
                     nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
@@ -130,41 +190,138 @@ public class bboxPrepass : ScriptableRenderPass
 
             // get all active tagged objects using the attached StylisedTag component
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-            foreach (var tag in tags)
+            if(!(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
             {
-                GameObject obj = tag.gameObject;
-                Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
-
-                foreach(Renderer renderer in renderers)
+                foreach (var tag in tags)
                 {
-                    // check that the object wants an image effect applied and is visible, otherwise skip
-                    if(renderer == null || (renderer.renderingLayerMask & (uint)StyleBits.ImageSpaceBit) == 0 || !renderer.isVisible)
-                        continue;
+                    GameObject obj = tag.gameObject;
+                    Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
 
-                    if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
+                    foreach(Renderer renderer in renderers)
                     {
+                        // check that the object wants an image effect applied and is visible, otherwise skip
+                        if(renderer == null || (renderer.renderingLayerMask & StyleBits.ImageSpaceBit) == 0 || !renderer.isVisible)
+                            continue;
+
+                        if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
+                        {
+                            BoundingBox bbox;
+                            if (NprTestingConfig.TestMode)
+                            {
+                                bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
+                                nprFrameData.presentTestStyles |= tag.currentTestEffects;
+                            }
+                            else
+                            {
+                                bbox = new BoundingBox((uint)tag.imageEffects, screenRect);
+                            }
+
+                            // image effects are still tracked separately
+                            nprFrameData.presentImageBits |= tag.imageEffects;
+
+                            bbox.renderers.Add(renderer); 
+
+                            nprFrameData.bboxes.Add(bbox);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // gather cpu bounds and masks
+                List<BBoxGenerationInput> gpuInputs = new List<BBoxGenerationInput>();
+
+                foreach (var tag in tags)
+                {
+                    GameObject obj = tag.gameObject;
+                    Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+
+                    foreach (Renderer renderer in renderers)
+                    {
+                        // check that the object wants an image effect applied and is visible, otherwise skip
+                        if (renderer == null || (renderer.renderingLayerMask & StyleBits.ImageSpaceBit) == 0 || !renderer.isVisible)
+                            continue;
+
+                        uint mask;
                         BoundingBox bbox;
+
                         if (NprTestingConfig.TestMode)
                         {
-                            bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
+                            mask = tag.currentTestEffects;
                             nprFrameData.presentTestStyles |= tag.currentTestEffects;
+                            bbox = BoundingBox.CreateTestBox(mask, new RectInt(0, 0, 0, 0));
                         }
                         else
                         {
-                            bbox = new BoundingBox((uint)tag.imageEffects, screenRect);
+                            mask = (uint)tag.imageEffects;
+                            bbox = new BoundingBox(mask, new RectInt(0, 0, 0, 0));
                         }
 
                         // image effects are still tracked separately
                         nprFrameData.presentImageBits |= tag.imageEffects;
 
-                        bbox.renderers.Add(renderer); 
-
+                        bbox.renderers.Add(renderer);
                         nprFrameData.bboxes.Add(bbox);
+
+                        Bounds b = renderer.bounds;
+
+                        gpuInputs.Add(new BBoxGenerationInput
+                        {
+                            center = b.center,
+                            extents = b.extents,
+                            mask = mask
+                        });
                     }
                 }
+                
+                nprFrameData.bboxCount = gpuInputs.Count;
+
+                EnsureInputBufferCapacity(nprFrameData.bboxCount);
+                EnsureMaskBufferCapacity(nprFrameData.bboxCount);
+                EnsureRectBufferCapacity(nprFrameData.bboxCount);
+
+                if (nprFrameData.bboxCount > 0)
+                {
+                    // upload bounds to GPU
+                    _bboxInputBuffer.SetData(gpuInputs);
+
+                    // initialise mask buffer
+                    for (int i = 0; i < nprFrameData.bboxCount; i++)
+                    {
+                        _bboxMaskInitData[i] = gpuInputs[i].mask;
+                    }
+
+                    _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxCount);
+
+                    if (_bboxGeneration == null)
+                    {
+                        Debug.LogError("bboxPrepass: bbox generation compute shader not assigned.");
+                        return;
+                    }
+
+                    Matrix4x4 vp = camera.projectionMatrix * camera.worldToCameraMatrix;
+
+                    // compute shader to write rect buffer
+                    CommandBuffer cmd = CommandBufferPool.Get("GPU BBox Generation");
+
+                    cmd.SetComputeBufferParam(_bboxGeneration, _bboxGenerationKernel, BBoxInputBufferID, _bboxInputBuffer);
+                    cmd.SetComputeBufferParam(_bboxGeneration, _bboxGenerationKernel, BBoxRectBufferID, _bboxRectBuffer);
+                    cmd.SetComputeIntParam(_bboxGeneration, BBoxCountID, nprFrameData.bboxCount);
+                    cmd.SetComputeMatrixParam(_bboxGeneration, ViewProjectionID, vp);
+                    cmd.SetComputeVectorParam(_bboxGeneration, ScreenSizeID, new Vector2(camera.pixelWidth, camera.pixelHeight));
+
+                    int threadGroupsX = Mathf.CeilToInt(nprFrameData.bboxCount / 64.0f);
+                    cmd.DispatchCompute(_bboxGeneration, _bboxGenerationKernel, threadGroupsX, 1, 1);
+
+                    Graphics.ExecuteCommandBuffer(cmd);
+                    CommandBufferPool.Release(cmd);
+                }
+
+                nprFrameData.bboxMaskBuffer = _bboxMaskBuffer;
+                nprFrameData.bboxRectBuffer = _bboxRectBuffer;
             }
         }
-        else // if not using bounding boxes, we gather the present image/test    effect bits for the whole screen without needing to check visibility
+        else // if not using bounding boxes, we gather the present image/test effect bits for the whole screen without needing to check visibility
         {
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
             foreach (var tag in tags)
@@ -178,12 +335,11 @@ public class bboxPrepass : ScriptableRenderPass
                 }
             }
         }
-        // need to check that the object in the bbox is actually visible
-        // not sure how this would work (raycasts?)
 
+        // OCCLUSION?
 
         // merge bboxes for optimality
-        if(NprTestingConfig.UseBoundingBoxes)
+        if (NprTestingConfig.UseBoundingBoxes && !(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
         {
             bool merged = false;
             List<BoundingBox> newBoxes = new List<BoundingBox>();
@@ -411,36 +567,61 @@ public class bboxPrepass : ScriptableRenderPass
         }
 
         // create / initialise GPU buffers
-        EnsureVisibilityBufferCapacity(nprFrameData.bboxes.Count);
-        EnsureRectBufferCapacity(nprFrameData.bboxes.Count);
-        EnsureMaskBufferCapacity(nprFrameData.bboxes.Count);
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+        if (NprTestingConfig.UseBoundingBoxes)
         {
-            _bboxVisibilityInitData[i] = 1u;
+            // if not batching generation then we need to generate rect and mask buffers here
+            if(!(NprTestingConfig.BatchedBboxGeneration && NprTestingConfig.BatchedDraws))
+            {
+                EnsureRectBufferCapacity(nprFrameData.bboxes.Count);
+                EnsureMaskBufferCapacity(nprFrameData.bboxes.Count);
 
-            BoundingBox b = nprFrameData.bboxes[i];
-            _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+                for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+                {
+                    BoundingBox b = nprFrameData.bboxes[i];
+                    _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
 
-            if (!NprTestingConfig.TestMode)
-                _bboxMaskInitData[i] = (uint)b.styles;
-            else
-                _bboxMaskInitData[i] = b.testMask;
+                    if (!NprTestingConfig.TestMode)
+                        _bboxMaskInitData[i] = (uint)b.styles;
+                    else
+                        _bboxMaskInitData[i] = b.testMask;
+                }
+
+                if (_bboxRectBuffer != null && _bboxRectInitData != null)
+                    _bboxRectBuffer.SetData(_bboxRectInitData, 0, 0, nprFrameData.bboxes.Count);
+
+                if (_bboxMaskBuffer != null && _bboxMaskInitData != null)
+                    _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxes.Count);
+
+                nprFrameData.bboxRectBuffer = _bboxRectBuffer;
+                nprFrameData.bboxMaskBuffer = _bboxMaskBuffer;
+            }
+
+            // visibility is always needed for occlusion culling
+            EnsureVisibilityBufferCapacity(nprFrameData.bboxCount);
+
+            for (int i = 0; i < nprFrameData.bboxes.Count; i++)
+            {
+                _bboxVisibilityInitData[i] = 1u;
+
+                BoundingBox b = nprFrameData.bboxes[i];
+                _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+
+                if (!NprTestingConfig.TestMode)
+                    _bboxMaskInitData[i] = (uint)b.styles;
+                else
+                    _bboxMaskInitData[i] = b.testMask;
+            }
+
+            if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
+                _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxes.Count);
+
+            nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
+            nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
+
+            
         }
 
-        if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
-            _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxes.Count);
 
-        if (_bboxRectBuffer != null && _bboxRectInitData != null)
-            _bboxRectBuffer.SetData(_bboxRectInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        if (_bboxMaskBuffer != null && _bboxMaskInitData != null)
-            _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxes.Count);
-
-        nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
-        nprFrameData.bboxVisibilityCount = nprFrameData.bboxes.Count;
-        nprFrameData.bboxRectBuffer = _bboxRectBuffer;
-        nprFrameData.bboxMaskBuffer = _bboxMaskBuffer;
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -599,72 +780,16 @@ public class bboxPrepass : ScriptableRenderPass
 
     public void Dispose()
     {
+        if (_bboxInputBuffer != null)
+            _bboxInputBuffer.Release();
+
         if (_bboxRectBuffer != null)
             _bboxRectBuffer.Release();
 
         if (_bboxVisibilityBuffer != null)
             _bboxVisibilityBuffer.Release();
+
+        if (_bboxMaskBuffer != null)
+            _bboxMaskBuffer.Release();
     }
 }
-
-                    // Bounds rendererBounds = renderer.bounds;
-                    // Vector3 centre = rendererBounds.center;
-                    // Vector3 ext = rendererBounds.extents;
-
-                    // // corner of the renderer boudns
-                    // Vector3[] corners = new Vector3[8]
-                    // {
-                    //     centre + new Vector3(-ext.x, -ext.y, -ext.z),
-                    //     centre + new Vector3(ext.x, -ext.y, -ext.z),
-                    //     centre + new Vector3(-ext.x, ext.y, -ext.z),
-                    //     centre + new Vector3(ext.x, ext.y, -ext.z),
-                    //     centre + new Vector3(-ext.x, -ext.y, ext.z),
-                    //     centre + new Vector3(ext.x, -ext.y, ext.z),
-                    //     centre + new Vector3(-ext.x, ext.y, ext.z),
-                    //     centre + new Vector3(ext.x, ext.y, ext.z)
-                    // };
-
-                    // // get min and max of screen coordinates for the bounding box
-                    // float minX = float.MaxValue, maxX = float.MinValue;
-                    // float minY = float.MaxValue, maxY = float.MinValue;
-                    // int validCorners = 0;
-
-                    // foreach (var corner in corners)
-                    // {
-                    //     Vector3 screenPoint = camera.WorldToScreenPoint(corner);
-
-                    //     // ignore points behind camera
-                    //     // if (screenPoint.z <= 0f)
-                    //     //     continue;
-
-                    //     validCorners++;
-
-                    //     minX = Mathf.Min(minX, screenPoint.x);
-                    //     maxX = Mathf.Max(maxX, screenPoint.x);
-                    //     minY = Mathf.Min(minY, screenPoint.y);
-                    //     maxY = Mathf.Max(maxY, screenPoint.y);
-                    // }
-
-                    // // if nothing was in front of the camera, skip
-                    // if (validCorners == 0)
-                    //     continue;
-
-                    // // clamp final bounds to screen
-                    // minX = Mathf.Clamp(minX, 0f, camera.pixelWidth);
-                    // maxX = Mathf.Clamp(maxX, 0f, camera.pixelWidth);
-                    // minY = Mathf.Clamp(minY, 0f, camera.pixelHeight);
-                    // maxY = Mathf.Clamp(maxY, 0f, camera.pixelHeight);
-
-                    // // convert to ints
-                    // int xMin = Mathf.FloorToInt(minX);
-                    // int yMin = Mathf.FloorToInt(minY);
-                    // int xMax = Mathf.CeilToInt(maxX);
-                    // int yMax = Mathf.CeilToInt(maxY);
-
-                    // // compute size
-                    // int width = xMax - xMin;
-                    // int height = yMax - yMin;
-
-                    // // skip degenerate boxes
-                    // if (width <= 0 || height <= 0)
-                    //     continue;

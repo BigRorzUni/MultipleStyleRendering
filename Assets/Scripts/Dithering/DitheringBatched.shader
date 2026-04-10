@@ -31,9 +31,11 @@ Shader "Custom/DitheringBatched"
             StructuredBuffer<InstanceData> _InstanceData;
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
+            StructuredBuffer<uint> _BBoxMasks;
             
             float4 _NprScreenSize; 
             int _UseOcclusion;
+            int _UseBboxIndices;
             uint _DitheringBit;
 
             TEXTURE2D(_NprIdTexture);
@@ -73,7 +75,6 @@ Shader "Custom/DitheringBatched"
                     case 5: 
                         return float2(0, 1);
 
-
                     default:
                         return float2(0, 0); // should never happen
                 }
@@ -83,9 +84,22 @@ Shader "Custom/DitheringBatched"
             {
                 Varyings output;
 
+                uint bboxIndex = input.instanceID;
+                if (_UseBboxIndices != 0)
+                    bboxIndex = _BboxIndices[input.instanceID];
+
+                uint bboxMask = _BBoxMasks[bboxIndex];
+
+                // if this bbox does not have the dithering bit then collapse it
+                if ((bboxMask & _DitheringBit) == 0u)
+                {
+                    output.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                    output.screenUV = float2(0.0, 0.0);
+                    return output;
+                }
+
                 if (_UseOcclusion != 0)
                 {
-                    uint bboxIndex = _BboxIndices[input.instanceID];
                     uint visible = _BboxVisibilityFlags[bboxIndex];
 
                     // visible (1) -> draw
@@ -93,6 +107,7 @@ Shader "Custom/DitheringBatched"
                     if (visible == 0)
                     {
                         output.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        output.screenUV = float2(0.0, 0.0);
                         return output;
                     }
                 }
