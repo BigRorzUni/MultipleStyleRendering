@@ -182,7 +182,7 @@ public class bboxPrepass : ScriptableRenderPass
             else 
                 nprFrameData.bboxes.Clear();
 
-            if(NprTestingConfig.UseOcclusionCulling && !NprTestingConfig.IdTexOcclusion)
+            if(NprTestingConfig.UseOcclusionCulling && !NprTestingConfig.BatchedOcclusion)
             {
                 if (nprFrameData.occlusionCandidateBoxes == null) 
                     nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
@@ -523,53 +523,6 @@ public class bboxPrepass : ScriptableRenderPass
                 toRemove.Clear();
                 newBoxes.Clear();
             }
-
-            // find occlusion candidates if enabled
-            if(NprTestingConfig.UseOcclusionCulling)
-            {
-                nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
-
-                for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-                {
-                    BoundingBox inner = nprFrameData.bboxes[i];
-
-                    for (int j = 0; j < nprFrameData.bboxes.Count; j++)
-                    {
-                        if (i == j)
-                            continue;
-
-                        BoundingBox outer = nprFrameData.bboxes[j];
-
-                        if (ContainsRect(outer.box, inner.box))
-                        {
-                            nprFrameData.occlusionCandidateBoxes.Add(inner);
-                            break;
-                        }
-                    }
-                }
-
-                //
-                OcclusionData.bboxes = nprFrameData.bboxes;
-                OcclusionData.occlusionCandidateBoxes = nprFrameData.occlusionCandidateBoxes;
-
-            }
-
-            // debug show all the final boxes
-            if(NprTestingConfig.debugBBoxes)
-            {
-                foreach(var bbox in nprFrameData.bboxes)
-                {                
-                    BBoxDebugStore.Add(bbox.box, Color.green, $"{nprFrameData.bboxes.IndexOf(bbox)} FINAL");
-                }
-
-                if(NprTestingConfig.UseOcclusionCulling)
-                {
-                    foreach(var bbox in nprFrameData.occlusionCandidateBoxes)
-                    {                
-                        BBoxDebugStore.Add(bbox.box, Color.blue, $"{nprFrameData.bboxes.IndexOf(bbox)} OCCLUSION CANDIDATE");
-                    }
-                }
-            }
         }
 
         if (NprTestingConfig.UseBoundingBoxes)
@@ -634,11 +587,6 @@ public class bboxPrepass : ScriptableRenderPass
             clearBuffer = false,
             filterMode = FilterMode.Point
         });
-    }
-
-    bool ContainsRect(RectInt outer, RectInt inner)
-    {
-        return outer.xMin <= inner.xMin && outer.xMax >= inner.xMax && outer.yMin <= inner.yMin && outer.yMax >= inner.yMax;
     }
 
     // this describes the edges as the pair of vertices that they connect
