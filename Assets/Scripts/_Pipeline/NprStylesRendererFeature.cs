@@ -21,7 +21,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private BBoxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
-    private BBoxMergingPrepass _bboxMergingPrepass;
+    // private BBoxMergingPrepass _bboxMergingPrepass;
+    private CpuMergingPrepass _cpuMergingPrepass;
+    private GpuMergingPrepass _gpuMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
 
 
@@ -34,12 +36,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // shaders
     [SerializeField] private Shader idShader;
     [SerializeField] private Shader normalsShader;
-    // [SerializeField] private Shader toonShader;
+
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ssOutlineBatchedShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader ditheringBatchedShader;
-    // [SerializeField] private Shader pixelisationShader;
 
     [SerializeField] private ComputeShader bboxGenerationComputeShader;
     [SerializeField] private Shader occlusionShader;
@@ -127,13 +128,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes)
         {
-            if(bboxMergingComputeShader == null)
-            {
-                Debug.LogError("Merging compute shader 'MergeBboxes' not set");
-                return;
-            }
+            if (!NprTestingConfig.BatchedBBoxMerging)
+                {
+                    _cpuMergingPrepass = new CpuMergingPrepass();
+                }
+                else
+                {
+                    if(bboxMergingComputeShader == null)
+                    {
+                        Debug.LogError("Merging compute shader 'MergeBboxes' not set");
+                        return;
+                    }
 
-            _bboxMergingPrepass = new BBoxMergingPrepass(bboxMergingComputeShader);
+                    _gpuMergingPrepass = new GpuMergingPrepass(bboxMergingComputeShader);
+                }
         }
 
         if(NprTestingConfig.DebugBBoxes && NprTestingConfig.BoundingBoxes)
@@ -151,14 +159,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             
             _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader); 
         }
-
-        // object passes
-        // if (toonShader == null)
-        // {
-        //     Debug.LogError("Could not find shader 'Custom/Toon'");
-        //     return;
-        // }
-        // toonEffect = new ToonEffect(toonShader);
 
         // screen passes
         if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
@@ -275,14 +275,19 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
+        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && !NprTestingConfig.BatchedBBoxMerging)
+        {
+            renderer.EnqueuePass(_cpuMergingPrepass);
+        }
+
         if(NprTestingConfig.OcclusionCulling && NprTestingConfig.BoundingBoxes)
         {
             renderer.EnqueuePass(_bboxOcclusionPrepass);
         }
 
-        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes)
+        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && NprTestingConfig.BatchedBBoxMerging && NprTestingConfig.BatchedDraws)
         {
-            renderer.EnqueuePass(_bboxMergingPrepass);
+            renderer.EnqueuePass(_gpuMergingPrepass);
         }
 
         // compute normals

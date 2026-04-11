@@ -143,7 +143,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                         outerMask = outer.testMask;
                     }
 
-                    if (ContainsRect(outer.box, inner.box) && ((outerMask & innerMask) != 0))
+                    if (ContainsRect(outer.box, inner.box))
                     {
                         nprFrameData.occlusionCandidateBoxes.Add(inner);
                         break;
