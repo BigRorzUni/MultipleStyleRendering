@@ -12,6 +12,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
     readonly ComputeShader _bboxMerging;
     readonly int _findPairsKernel;
     readonly int _resolvePairsKernel;
+    readonly int _emitMergedKernel;
 
 
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
@@ -23,6 +24,11 @@ public class GpuMergingPrepass : ScriptableRenderPass
     static readonly int ValidPairBufferID = Shader.PropertyToID("_ValidPairs");
     static readonly int CanMergeBufferID = Shader.PropertyToID("_CanMerge");
 
+    static readonly int OutputRectBufferID = Shader.PropertyToID("_OutputRects");
+    static readonly int OutputMaskBufferID = Shader.PropertyToID("_OutputMasks");
+    static readonly int OutputVisibilityBufferID = Shader.PropertyToID("_OutputVisibility");
+    static readonly int OutputCountBufferID = Shader.PropertyToID("_OutputCount");
+
 
     static readonly int BBoxCountID = Shader.PropertyToID("_BBoxCount");
 
@@ -33,6 +39,19 @@ public class GpuMergingPrepass : ScriptableRenderPass
     int _validPairBufferCapacity = 0;
 
     ComputeBuffer _canMergeBuffer;
+
+
+
+    ComputeBuffer _outputRectBuffer;
+    int _outputRectBufferCapacity = 0;
+
+    ComputeBuffer _outputMaskBuffer;
+    int _outputMaskBufferCapacity = 0;
+
+    ComputeBuffer _outputVisibilityBuffer;
+    int _outputVisibilityBufferCapacity = 0;
+
+    ComputeBuffer _outputCountBuffer;
 
     void EnsurePairBufferCapacity(int count)
     {
@@ -68,6 +87,54 @@ public class GpuMergingPrepass : ScriptableRenderPass
             _canMergeBuffer = new ComputeBuffer(1, sizeof(uint));
     }
 
+    void EnsureOutputRectBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
+
+        if (_outputRectBuffer == null || _outputRectBufferCapacity < requiredCapacity)
+        {
+            if (_outputRectBuffer != null)
+                _outputRectBuffer.Release();
+
+            _outputRectBufferCapacity = requiredCapacity;
+            _outputRectBuffer = new ComputeBuffer(_outputRectBufferCapacity, sizeof(float) * 4);
+        }
+    }
+
+    void EnsureOutputMaskBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
+
+        if (_outputMaskBuffer == null || _outputMaskBufferCapacity < requiredCapacity)
+        {
+            if (_outputMaskBuffer != null)
+                _outputMaskBuffer.Release();
+
+            _outputMaskBufferCapacity = requiredCapacity;
+            _outputMaskBuffer = new ComputeBuffer(_outputMaskBufferCapacity, sizeof(uint));
+        }
+    }
+
+    void EnsureOutputVisibilityBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
+
+        if (_outputVisibilityBuffer == null || _outputVisibilityBufferCapacity < requiredCapacity)
+        {
+            if (_outputVisibilityBuffer != null)
+                _outputVisibilityBuffer.Release();
+
+            _outputVisibilityBufferCapacity = requiredCapacity;
+            _outputVisibilityBuffer = new ComputeBuffer(_outputVisibilityBufferCapacity, sizeof(uint));
+        }
+    }
+
+    void EnsureOutputCountBuffer()
+    {
+        if (_outputCountBuffer == null)
+            _outputCountBuffer = new ComputeBuffer(1, sizeof(uint));
+    }
+
     public GpuMergingPrepass(ComputeShader bboxMerging)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
@@ -77,6 +144,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
             _bboxMerging = bboxMerging;
             _findPairsKernel = _bboxMerging.FindKernel("FindMergePairs");
             _resolvePairsKernel = _bboxMerging.FindKernel("ResolveMergePairs");
+            _emitMergedKernel = _bboxMerging.FindKernel("EmitMergedBoxes");
         }
     }
 
@@ -86,6 +154,8 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
         public int findPairsKernel;
         public int resolvePairsKernel;
+        public int emitMergedKernel;
+
 
 
         public ComputeBuffer rectBuffer;
@@ -96,6 +166,11 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
         public ComputeBuffer validPairBuffer;
         public ComputeBuffer canMergeBuffer;
+
+        public ComputeBuffer outputRectBuffer;
+        public ComputeBuffer outputMaskBuffer;
+        public ComputeBuffer outputVisibilityBuffer;
+        public ComputeBuffer outputCountBuffer;
 
 
 
@@ -146,6 +221,13 @@ public class GpuMergingPrepass : ScriptableRenderPass
         uint[] canMergeInit = new uint[1] {0u};
         _canMergeBuffer.SetData(canMergeInit, 0, 0, 1);
 
+        EnsureOutputRectBufferCapacity(nprFrameData.bboxCount);
+        EnsureOutputMaskBufferCapacity(nprFrameData.bboxCount);
+        EnsureOutputVisibilityBufferCapacity(nprFrameData.bboxCount);
+        EnsureOutputCountBuffer();
+
+        uint[] outputCountInit = new uint[1] { 0u };
+        _outputCountBuffer.SetData(outputCountInit, 0, 0, 1);
 
         using (var builder = renderGraph.AddComputePass("GPU BBox Merging", out ComputePassData passData))
         {
@@ -153,6 +235,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
             passData.findPairsKernel = _findPairsKernel;
             passData.resolvePairsKernel = _resolvePairsKernel;
+            passData.emitMergedKernel = _emitMergedKernel;
 
             passData.rectBuffer = nprFrameData.bboxRectBuffer;
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
@@ -162,6 +245,11 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
             passData.validPairBuffer = _validPairBuffer;
             passData.canMergeBuffer = _canMergeBuffer;
+
+            passData.outputRectBuffer = _outputRectBuffer;
+            passData.outputMaskBuffer = _outputMaskBuffer;
+            passData.outputVisibilityBuffer = _outputVisibilityBuffer;
+            passData.outputCountBuffer = _outputCountBuffer;
 
 
             passData.bboxCount = nprFrameData.bboxCount;
@@ -181,7 +269,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
                 ctx.cmd.DispatchCompute(data.compute, data.findPairsKernel, threadGroupsX, 1, 1);
 
 
-                // resolve pairs into mergeable and unmergeable
+                // resolve pairs to avoid conflicts
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, PairBufferID, data.pairBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, ValidPairBufferID, data.validPairBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, CanMergeBufferID, data.canMergeBuffer);
@@ -189,8 +277,32 @@ public class GpuMergingPrepass : ScriptableRenderPass
                 ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
 
                 ctx.cmd.DispatchCompute(data.compute, data.resolvePairsKernel, threadGroupsX, 1, 1);
+
+                // merge bboxes, remove null ones, return the results
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, RectBufferID, data.rectBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, MaskBufferID, data.maskBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, VisibilityBufferID, data.visibilityBuffer);
+
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, PairBufferID, data.pairBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, ValidPairBufferID, data.validPairBuffer);
+
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputRectBufferID, data.outputRectBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputMaskBufferID, data.outputMaskBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputVisibilityBufferID, data.outputVisibilityBuffer);
+
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputCountBufferID, data.outputCountBuffer);
+
+                ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
+
+                ctx.cmd.DispatchCompute(data.compute, data.emitMergedKernel, threadGroupsX, 1, 1);
             });
         }
+
+        // merged output buffers are now the canonical bbox data
+        nprFrameData.bboxRectBuffer = _outputRectBuffer;
+        nprFrameData.bboxMaskBuffer = _outputMaskBuffer;
+        nprFrameData.bboxVisibilityBuffer = _outputVisibilityBuffer;
+        nprFrameData.bboxCountBuffer = _outputCountBuffer;
     }
 
     public void Dispose()
@@ -203,5 +315,17 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
         if (_canMergeBuffer != null)
             _canMergeBuffer.Release();
+
+        if (_outputRectBuffer != null)
+            _outputRectBuffer.Release();
+
+        if (_outputMaskBuffer != null)
+            _outputMaskBuffer.Release();
+
+        if (_outputVisibilityBuffer != null)
+            _outputVisibilityBuffer.Release();
+
+        if (_outputCountBuffer != null)
+            _outputCountBuffer.Release();
     }
 }

@@ -44,14 +44,18 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle normalsTexture;
     public TextureHandle sourceTexture;
 
+    // CPU PATH
     public List<BoundingBox> bboxes;
     public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
 
     public int bboxCount;
+
+    // GPU PATH
     public ComputeBuffer bboxVisibilityBuffer;
     public ComputeBuffer bboxRectBuffer;
     public ComputeBuffer bboxMaskBuffer;
     public int bboxVisibilityCount;
+    public ComputeBuffer bboxCountBuffer;
 
     public StyleBits.ImageSpaceEffect presentImageBits;
 

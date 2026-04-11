@@ -1,5 +1,6 @@
 #pragma kernel FindMergePairs
 #pragma kernel ResolveMergePairs
+#pragma kernel EmitMergedBoxes
 
 StructuredBuffer<float4> _Rects;
 StructuredBuffer<uint> _Masks;
@@ -9,6 +10,12 @@ RWStructuredBuffer<int> _Pairs;
 
 RWStructuredBuffer<uint> _ValidPairs;
 RWStructuredBuffer<uint> _CanMerge;
+
+RWStructuredBuffer<float4> _OutputRects;
+RWStructuredBuffer<uint> _OutputMasks;
+RWStructuredBuffer<uint> _OutputVisibility;
+
+RWStructuredBuffer<uint> _OutputCount;
 
 int _BBoxCount;
 
@@ -88,4 +95,81 @@ void ResolveMergePairs(uint id : SV_DispatchThreadID)
         uint originalValue;
         InterlockedMax(_CanMerge[0], 1u, originalValue);
     }
+}
+
+float4 UnionRect(float4 a, float4 b)
+{
+    float minX = min(a.x, b.x);
+    float minY = min(a.y, b.y);
+    float maxX = max(a.x + a.z, b.x + b.z);
+    float maxY = max(a.y + a.w, b.y + b.w);
+
+    return float4(minX, minY, maxX - minX, maxY - minY);
+}
+
+[numthreads(64,1,1)]
+void EmitMergedBoxes(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    int partner = _Pairs[id];
+
+    // owner of a valid pair
+    if (_ValidPairs[id] != 0)
+    {
+        float4 rectA = _Rects[id];
+        float4 rectB = _Rects[partner];
+
+        uint maskA = _Masks[id];
+        uint maskB = _Masks[partner];
+        uint visA = _Visibility[id];
+        uint visB = _Visibility[partner];
+
+        uint sharedMask = maskA & maskB;
+        uint leftoverA = maskA & (~sharedMask);
+        uint leftoverB = maskB & (~sharedMask);
+
+        uint outIndex;
+
+        // merged shared box
+        InterlockedAdd(_OutputCount[0], 1u, outIndex);
+        _OutputRects[outIndex] = UnionRect(rectA, rectB);
+        _OutputMasks[outIndex] = sharedMask;
+        _OutputVisibility[outIndex] = visA | visB;
+
+        // leftover A
+        if (leftoverA != 0)
+        {
+            InterlockedAdd(_OutputCount[0], 1u, outIndex);
+            _OutputRects[outIndex] = rectA;
+            _OutputMasks[outIndex] = leftoverA;
+            _OutputVisibility[outIndex] = visA;
+        }
+
+        // leftover B
+        if (leftoverB != 0)
+        {
+            InterlockedAdd(_OutputCount[0], 1u, outIndex);
+            _OutputRects[outIndex] = rectB;
+            _OutputMasks[outIndex] = leftoverB;
+            _OutputVisibility[outIndex] = visB;
+        }
+
+        return;
+    }
+
+    // non-owner member of a valid pair emits nothing
+    if (partner >= 0 && partner < _BBoxCount)
+    {
+        if (_ValidPairs[partner] != 0 && _Pairs[partner] == (int)id)
+            return;
+    }
+
+    // untouched box
+    uint outIndex;
+    InterlockedAdd(_OutputCount[0], 1u, outIndex);
+    _OutputRects[outIndex] = _Rects[id];
+    _OutputMasks[outIndex] = _Masks[id];
+    _OutputVisibility[outIndex] = _Visibility[id];
 }
