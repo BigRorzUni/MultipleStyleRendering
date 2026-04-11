@@ -1,0 +1,175 @@
+#pragma kernel FindMergePairs
+#pragma kernel ResolveMergePairs
+#pragma kernel EmitMergedBoxes
+
+StructuredBuffer<float4> _Rects;
+StructuredBuffer<uint> _Masks;
+StructuredBuffer<uint> _Visibility;
+
+RWStructuredBuffer<int> _Pairs;
+
+RWStructuredBuffer<uint> _ValidPairs;
+RWStructuredBuffer<uint> _CanMerge;
+
+RWStructuredBuffer<float4> _OutputRects;
+RWStructuredBuffer<uint> _OutputMasks;
+RWStructuredBuffer<uint> _OutputVisibility;
+
+RWStructuredBuffer<uint> _OutputCount;
+
+int _BBoxCount;
+
+int RectArea(float4 rect)
+{
+    return (int)(rect.z * rect.w);
+}
+
+int UnionArea(float4 a, float4 b)
+{
+    float minX = min(a.x, b.x);
+    float minY = min(a.y, b.y);
+    float maxX = max(a.x + a.z, b.x + b.z);
+    float maxY = max(a.y + a.w, b.y + b.w);
+
+    return (int)((maxX - minX) * (maxY - minY));
+}
+
+
+
+[numthreads(64,1,1)]
+void FindMergePairs(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    _Pairs[id] = -1;
+
+    if (_Visibility[id] == 0 || _Masks[id] == 0)
+        return;
+
+    float4 rectA = _Rects[id];
+    uint maskA = _Masks[id];
+    int areaA = RectArea(rectA);
+
+    for (uint j = 0; j < (uint)_BBoxCount; j++)
+    {
+        if (j == id)
+            continue;
+
+        if (_Visibility[j] == 0 || _Masks[j] == 0)
+            continue;
+
+        uint sharedMask = maskA & _Masks[j];
+        if (sharedMask == 0)
+            continue;
+
+        float4 rectB = _Rects[j];
+        int areaB = RectArea(rectB);
+        int unionArea = UnionArea(rectA, rectB);
+
+        if (unionArea < areaA + areaB)
+        {
+            _Pairs[id] = (int)j;
+            return;
+        }
+    }
+}
+
+[numthreads(64,1,1)]
+void ResolveMergePairs(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    _ValidPairs[id] = 0;
+
+    int partner = _Pairs[id];
+
+    if (partner < 0 || partner >= _BBoxCount)
+        return;
+
+    if (_Pairs[partner] == (int)id && id < (uint)partner)
+    {
+        _ValidPairs[id] = 1;
+
+        uint originalValue;
+        InterlockedMax(_CanMerge[0], 1u, originalValue);
+    }
+}
+
+float4 UnionRect(float4 a, float4 b)
+{
+    float minX = min(a.x, b.x);
+    float minY = min(a.y, b.y);
+    float maxX = max(a.x + a.z, b.x + b.z);
+    float maxY = max(a.y + a.w, b.y + b.w);
+
+    return float4(minX, minY, maxX - minX, maxY - minY);
+}
+
+[numthreads(64,1,1)]
+void EmitMergedBoxes(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    int partner = _Pairs[id];
+
+    // owner of a valid pair
+    if (_ValidPairs[id] != 0)
+    {
+        float4 rectA = _Rects[id];
+        float4 rectB = _Rects[partner];
+
+        uint maskA = _Masks[id];
+        uint maskB = _Masks[partner];
+        uint visA = _Visibility[id];
+        uint visB = _Visibility[partner];
+
+        uint sharedMask = maskA & maskB;
+        uint leftoverA = maskA & (~sharedMask);
+        uint leftoverB = maskB & (~sharedMask);
+
+        uint outIndex;
+
+        // merged shared box
+        InterlockedAdd(_OutputCount[0], 1u, outIndex);
+        _OutputRects[outIndex] = UnionRect(rectA, rectB);
+        _OutputMasks[outIndex] = sharedMask;
+        _OutputVisibility[outIndex] = visA | visB;
+
+        // leftover A
+        if (leftoverA != 0)
+        {
+            InterlockedAdd(_OutputCount[0], 1u, outIndex);
+            _OutputRects[outIndex] = rectA;
+            _OutputMasks[outIndex] = leftoverA;
+            _OutputVisibility[outIndex] = visA;
+        }
+
+        // leftover B
+        if (leftoverB != 0)
+        {
+            InterlockedAdd(_OutputCount[0], 1u, outIndex);
+            _OutputRects[outIndex] = rectB;
+            _OutputMasks[outIndex] = leftoverB;
+            _OutputVisibility[outIndex] = visB;
+        }
+
+        return;
+    }
+
+    // non-owner member of a valid pair emits nothing
+    if (partner >= 0 && partner < _BBoxCount)
+    {
+        if (_ValidPairs[partner] != 0 && _Pairs[partner] == (int)id)
+            return;
+    }
+
+    // untouched box
+    uint outIndex;
+    InterlockedAdd(_OutputCount[0], 1u, outIndex);
+    _OutputRects[outIndex] = _Rects[id];
+    _OutputMasks[outIndex] = _Masks[id];
+    _OutputVisibility[outIndex] = _Visibility[id];
+}

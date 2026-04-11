@@ -109,7 +109,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         // Debug.Log("running bbox occlusion prepass");
 
         // if gpu generates bboxes it can only use batched occlusion, cpu side should get the opportunity to test which way is better
-        bool useBatchedOcclusion = NprTestingConfig.BatchedBboxGeneration || NprTestingConfig.BatchedOcclusion;
+        bool useBatchedOcclusion = NprTestingConfig.BatchedBBoxGeneration || NprTestingConfig.BatchedOcclusion;
 
         if(!useBatchedOcclusion)
         {
@@ -143,7 +143,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                         outerMask = outer.testMask;
                     }
 
-                    if (ContainsRect(outer.box, inner.box) && ((outerMask & innerMask) != 0))
+                    if (ContainsRect(outer.box, inner.box))
                     {
                         nprFrameData.occlusionCandidateBoxes.Add(inner);
                         break;

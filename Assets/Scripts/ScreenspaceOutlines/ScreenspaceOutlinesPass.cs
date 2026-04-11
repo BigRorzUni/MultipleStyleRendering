@@ -58,7 +58,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             _instanceBuffer.Release();
 
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<Vector4>());
     }
     void EnsureIndexBufferCapacity(int count)
     {
@@ -165,7 +165,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             });
         }
 
-        if(!NprTestingConfig.UseBoundingBoxes)
+        if(!NprTestingConfig.BoundingBoxes)
         {
             // FULLSCREEN MODE: ignore all bbox usage and just draw a single fullscreen pass    
             using (var builder = renderGraph.AddRasterRenderPass("Fullscreen Outline Pass", out PassData passData))
@@ -243,7 +243,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.rect = bbox.box;
                     passData.requiredBit = (int)_outlinesBit;
 
-                    if(NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if(NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         Material perPassMat = new Material(_mat);
                         _tempMaterials.Add(perPassMat);
@@ -266,7 +266,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                     passData.useOcclusion = 0;
 
 
-                    if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                         passData.useOcclusion = 1;
@@ -313,7 +313,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             return;
         }
 
-        if (NprTestingConfig.BatchedBboxGeneration)
+        if (NprTestingConfig.BatchedBBoxGeneration)
         {
             using (var builder = renderGraph.AddRasterRenderPass($"Batched Outline Pass (GPU GEN BBOXES)", out PassData passData))
             {
@@ -343,7 +343,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.useBboxIndices = 0;
 
-                if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                     passData.useOcclusion = 1;
@@ -437,15 +437,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.normalThreshold = _normalThreshold;
             passData.normalStrength = _normalStrength;
 
-            List<QuadInstanceData> instanceData = new List<QuadInstanceData>();
+            List<Vector4> instanceData = new List<Vector4>();
 
             foreach (uint bboxIndex in bboxIndices)
             {
                 BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
-                instanceData.Add(new QuadInstanceData
-                {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
+                instanceData.Add(new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height));
             }
 
             EnsureInstanceBufferCapacity(instanceData.Count);
@@ -462,7 +459,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
             passData.useBboxIndices = 1;
 
-            if (NprTestingConfig.UseOcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
                 passData.bboxIndexBuffer = _bboxIndexBuffer;

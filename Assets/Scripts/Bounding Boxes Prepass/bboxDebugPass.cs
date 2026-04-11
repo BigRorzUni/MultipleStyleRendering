@@ -54,7 +54,7 @@ public class BboxDebugPass : ScriptableRenderPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (!NprTestingConfig.debugBBoxes)
+        if (!NprTestingConfig.DebugBBoxes)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -104,7 +104,7 @@ public class BboxDebugPass : ScriptableRenderPass
             }
         }
 
-        if(!NprTestingConfig.UseOcclusionCulling)
+        if(!NprTestingConfig.OcclusionCulling)
             return;
 
         if (_occlusionMat == null)
