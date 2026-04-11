@@ -58,7 +58,7 @@ public class BBoxPrepass : ScriptableRenderPass
     // bounding box rect buffer
     private ComputeBuffer _bboxRectBuffer;
     private int _bboxRectBufferCapacity = 0;
-    private QuadInstanceData[] _bboxRectInitData;
+    private Vector4[] _bboxRectInitData;
 
     void EnsureRectBufferCapacity(int count)
     {
@@ -70,11 +70,11 @@ public class BBoxPrepass : ScriptableRenderPass
                 _bboxRectBuffer.Release();
 
             _bboxRectBufferCapacity = requiredCapacity;
-            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
+            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, Marshal.SizeOf<Vector4>());
         }
 
         if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
-            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
+            _bboxRectInitData = new Vector4[_bboxRectBufferCapacity];
     }
 
     // bounding box visibility buffer 
@@ -354,7 +354,7 @@ public class BBoxPrepass : ScriptableRenderPass
                 for (int i = 0; i < nprFrameData.bboxCount; i++)
                 {
                     BoundingBox b = nprFrameData.bboxes[i];
-                    _bboxRectInitData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+                    _bboxRectInitData[i] = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
 
                     if (!NprTestingConfig.TestMode)
                         _bboxMaskInitData[i] = (uint)b.styles;

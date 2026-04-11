@@ -43,7 +43,7 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             _instanceBuffer.Release();
 
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<Vector4>());
     }
     void EnsureIndexBufferCapacity(int count)
     {
@@ -320,15 +320,12 @@ public class DitheringPass : ScriptableRenderPass//, INprPass
             passData.ids = nprFrameData.idTexture;
             passData.requiredBit = (int)_ditheringBit;
 
-            List<QuadInstanceData> instances = new List<QuadInstanceData>();
+            List<Vector4> instances = new List<Vector4>();
 
             foreach (uint bboxIndex in bboxIndices)
             {
                 BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
-                instances.Add(new QuadInstanceData
-                {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
+                instances.Add(new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height));
             }
 
             EnsureInstanceBufferCapacity(instances.Count);

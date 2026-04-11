@@ -53,7 +53,7 @@ public class DummyPass : ScriptableRenderPass
             _instanceBuffer.Release();
 
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<Vector4>());
     }
 
     private class PassData
@@ -305,15 +305,12 @@ public class DummyPass : ScriptableRenderPass
             passData.instanceCount = bboxIndices.Count;
             passData.requiredBit = _requiredBit;
 
-            List<QuadInstanceData> instanceData = new List<QuadInstanceData>();
+            List<Vector4> instanceData = new List<Vector4>();
 
             foreach (uint bboxIndex in bboxIndices)
             {
                 BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
-                instanceData.Add(new QuadInstanceData
-                {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
+                instanceData.Add(new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height));
             }
 
             EnsureInstanceBufferCapacity(instanceData.Count);

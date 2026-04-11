@@ -11,11 +11,6 @@ public static class OcclusionData
     public static List<BoundingBox> occlusionCandidateBoxes;
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public struct QuadInstanceData
-{
-    public Vector4 rect;  
-}
 
 public class BoundingBox
 {

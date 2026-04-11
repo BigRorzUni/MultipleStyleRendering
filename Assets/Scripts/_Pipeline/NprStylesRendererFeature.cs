@@ -160,7 +160,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader); 
         }
 
-        // screen passes
+        // effect passes
         if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
         {
             if (ssOutlineBatchedShader == null)
@@ -198,10 +198,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
             ditheringEffect = new DitheringEffect(ditheringShader);
         }
-        // add object passes in their execution order
-        // objectEffects.Clear();
-        // objectEffects.Add(toonEffect);
-        //_objectPasses.Add(outlinePass);
 
         // add image effects in their execution order
         imageEffects.Clear();
@@ -212,7 +208,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             {
                 if(testDummyBatchedShader == null)
                 {
-                    Debug.LogError("useTestEffects is enabled and batched draws is on but dummy batched shader is not set.");
+                    Debug.LogError("Could not find shader 'Custom/DummyBatched");
                     return;
                 }
                 for (int i = 0; i < testEffectCount; i++)
@@ -227,7 +223,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             {
                 if (testDummyShader == null)
                 {
-                    Debug.LogError("useTestEffects is enabled but dummy shader is not set.");
+                    Debug.LogError("Could not find shader 'Custom/Dummy");                   
                     return;
                 }
 
@@ -254,18 +250,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public override void AddRenderPasses(ScriptableRenderer renderer,
     ref RenderingData renderingData)
     {
-        // object effects
-        // foreach(var effect in objectEffects)
-        // {
-        //     foreach(var pass in effect.Passes)
-        //     {
-        //         if (pass is INprPass nprPass)
-        //             nprPass.ApplySettings(settings);
-        //         if(settings.debugView == NprDebugView.None)
-        //             renderer.EnqueuePass(pass);
-        //     }
-        // }
-        
+
         if (_idPrepass == null || _bboxPrepass == null) return;
 
         // need to compute bounding boxes after id texture is created
@@ -285,7 +270,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             renderer.EnqueuePass(_bboxOcclusionPrepass);
         }
 
-        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && NprTestingConfig.BatchedBBoxMerging && NprTestingConfig.BatchedDraws)
+        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && NprTestingConfig.BatchedBBoxMerging)
         {
             renderer.EnqueuePass(_gpuMergingPrepass);
         }

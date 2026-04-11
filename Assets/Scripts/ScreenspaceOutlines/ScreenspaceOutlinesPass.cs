@@ -58,7 +58,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             _instanceBuffer.Release();
 
         _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<Vector4>());
     }
     void EnsureIndexBufferCapacity(int count)
     {
@@ -437,15 +437,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.normalThreshold = _normalThreshold;
             passData.normalStrength = _normalStrength;
 
-            List<QuadInstanceData> instanceData = new List<QuadInstanceData>();
+            List<Vector4> instanceData = new List<Vector4>();
 
             foreach (uint bboxIndex in bboxIndices)
             {
                 BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
-                instanceData.Add(new QuadInstanceData
-                {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
+                instanceData.Add(new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height));
             }
 
             EnsureInstanceBufferCapacity(instanceData.Count);
