@@ -1,10 +1,14 @@
-#pragma kernel FindMergePartners
+#pragma kernel FindMergePairs
+#pragma kernel ResolveMergePairs
 
 StructuredBuffer<float4> _Rects;
 StructuredBuffer<uint> _Masks;
 StructuredBuffer<uint> _Visibility;
 
-RWStructuredBuffer<int> _Partners;
+RWStructuredBuffer<int> _Pairs;
+
+RWStructuredBuffer<uint> _ValidPairs;
+RWStructuredBuffer<uint> _CanMerge;
 
 int _BBoxCount;
 
@@ -26,12 +30,12 @@ int UnionArea(float4 a, float4 b)
 
 
 [numthreads(64,1,1)]
-void FindMergePartners(uint id : SV_DispatchThreadID)
+void FindMergePairs(uint id : SV_DispatchThreadID)
 {
     if (id >= (uint)_BBoxCount)
         return;
 
-    _Partners[id] = -1;
+    _Pairs[id] = -1;
 
     if (_Visibility[id] == 0 || _Masks[id] == 0)
         return;
@@ -58,8 +62,30 @@ void FindMergePartners(uint id : SV_DispatchThreadID)
 
         if (unionArea < areaA + areaB)
         {
-            _Partners[id] = (int)j;
+            _Pairs[id] = (int)j;
             return;
         }
+    }
+}
+
+[numthreads(64,1,1)]
+void ResolveMergePairs(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    _ValidPairs[id] = 0;
+
+    int partner = _Pairs[id];
+
+    if (partner < 0 || partner >= _BBoxCount)
+        return;
+
+    if (_Pairs[partner] == (int)id && id < (uint)partner)
+    {
+        _ValidPairs[id] = 1;
+
+        uint originalValue;
+        InterlockedMax(_CanMerge[0], 1u, originalValue);
     }
 }
