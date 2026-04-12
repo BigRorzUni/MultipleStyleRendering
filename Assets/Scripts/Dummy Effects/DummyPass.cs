@@ -74,6 +74,9 @@ public class DummyPass : ScriptableRenderPass
 
         public ComputeBuffer maskBuffer;
         public int useBboxIndices;
+
+        public ComputeBuffer indirectArgsBuffer;
+        public int useIndirect;
     }
 
     private class CopyPassData
@@ -93,25 +96,26 @@ public class DummyPass : ScriptableRenderPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (_mat == null) return;
+        if (_mat == null)
+            return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
         NprFrameData nprFrameData;
-            if (frameContext.Contains<NprFrameData>())
-                nprFrameData = frameContext.Get<NprFrameData>();
-            else
-                nprFrameData = frameContext.Create<NprFrameData>();
+        if (frameContext.Contains<NprFrameData>())
+            nprFrameData = frameContext.Get<NprFrameData>();
+        else
+            nprFrameData = frameContext.Create<NprFrameData>();
 
-        if (!nprFrameData.idTexture.IsValid())       
+        if (!nprFrameData.idTexture.IsValid())
             return;
-        if (!nprFrameData.sourceTexture.IsValid())   
+        if (!nprFrameData.sourceTexture.IsValid())
             return;
         if ((nprFrameData.presentTestStyles & _requiredBit) == 0)
             return;
 
-        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;    
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
         using (var builder = renderGraph.AddRasterRenderPass($"{_name} Source Copy", out CopyPassData copyPass))
         {
@@ -136,7 +140,6 @@ public class DummyPass : ScriptableRenderPass
                 passData.requiredBit = _requiredBit;
 
                 builder.UseTexture(passData.ids, AccessFlags.Read);
-
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -151,8 +154,73 @@ public class DummyPass : ScriptableRenderPass
             return;
         }
 
+        // GPU MERGED INDIRECT PATH
+        // if GPU merging has run, its output buffers are canonical for drawing
+        if (nprFrameData.bboxIndirectArgsBuffer != null)
+        {
+            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null)
+                return;
+
+            using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (INDIRECT)", out PassData passData))
+            {
+                passData.ids = nprFrameData.idTexture;
+                passData.mat = _mat;
+                passData.instanceBuffer = nprFrameData.bboxRectBuffer;
+                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+                passData.instanceCount = 0;
+                passData.requiredBit = _requiredBit;
+
+                passData.visibilityBuffer = null;
+                passData.bboxIndexBuffer = null;
+                passData.useOcclusion = 0;
+                passData.currentBBoxIndex = 0;
+
+                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+                passData.useBboxIndices = 0;
+
+                passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+                passData.useIndirect = 1;
+
+                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                {
+                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.useOcclusion = 1;
+                }
+
+                builder.UseTexture(passData.ids, AccessFlags.Read);
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                builder.AllowGlobalStateModification(true);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
+                    data.mat.SetVector(ScreenParamsID, data.screenSize);
+                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
+                    data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+
+                    if (data.useOcclusion != 0)
+                        data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+
+                    data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
+                    data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
+
+                    ctx.cmd.DrawProceduralIndirect(
+                        Matrix4x4.identity,
+                        data.mat,
+                        0,
+                        MeshTopology.Triangles,
+                        data.indirectArgsBuffer,
+                        0
+                    );
+                });
+            }
+
+            return;
+        }
+
         // BBOX MODE
-        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0) 
+        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
         if (!NprTestingConfig.BatchedDraws)
@@ -164,7 +232,7 @@ public class DummyPass : ScriptableRenderPass
 
                 if ((bbox.testMask & _requiredBit) == 0)
                     continue;
-                
+
                 // Debug.Log($"[DummyPass] Rendering bbox {bbox.box} | " + $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " + $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}");
 
                 int index = nprFrameData.bboxes.IndexOf(bbox);
@@ -174,7 +242,7 @@ public class DummyPass : ScriptableRenderPass
 
                     passData.ids = nprFrameData.idTexture;
 
-                    if(NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                     {
                         Material perPassMat = new Material(_mat);
                         _tempMaterials.Add(perPassMat);
@@ -199,7 +267,6 @@ public class DummyPass : ScriptableRenderPass
                     }
 
                     builder.UseTexture(passData.ids, AccessFlags.Read);
-
                     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
@@ -236,6 +303,9 @@ public class DummyPass : ScriptableRenderPass
                 passData.maskBuffer = nprFrameData.bboxMaskBuffer;
                 passData.useBboxIndices = 0;
 
+                passData.indirectArgsBuffer = null;
+                passData.useIndirect = 0;
+
                 if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
@@ -243,7 +313,6 @@ public class DummyPass : ScriptableRenderPass
                 }
 
                 builder.UseTexture(passData.ids, AccessFlags.Read);
-
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
                 builder.AllowGlobalStateModification(true);
 
@@ -328,6 +397,9 @@ public class DummyPass : ScriptableRenderPass
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
             passData.useBboxIndices = 1;
 
+            passData.indirectArgsBuffer = null;
+            passData.useIndirect = 0;
+
             if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
@@ -336,7 +408,6 @@ public class DummyPass : ScriptableRenderPass
             }
 
             builder.UseTexture(passData.ids, AccessFlags.Read);
-
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
             builder.AllowGlobalStateModification(true);
 
@@ -366,7 +437,7 @@ public class DummyPass : ScriptableRenderPass
                     data.instanceCount
                 );
             });
-        }   
+        }
     }
 
     public void Dispose()
@@ -382,7 +453,7 @@ public class DummyPass : ScriptableRenderPass
             if (_tempMaterials[i] != null)
                 CoreUtils.Destroy(_tempMaterials[i]);
         }
-        
+
         _tempMaterials.Clear();
     }
 }

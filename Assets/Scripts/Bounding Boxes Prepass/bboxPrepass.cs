@@ -169,6 +169,8 @@ public class BBoxPrepass : ScriptableRenderPass
 
         nprFrameData.presentImageBits = 0;
         nprFrameData.presentTestStyles = 0;
+        nprFrameData.bboxCountBuffer = null;
+        nprFrameData.bboxIndirectArgsBuffer = null;
 
         if(NprTestingConfig.BoundingBoxes)
         {
@@ -386,6 +388,16 @@ public class BBoxPrepass : ScriptableRenderPass
             nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
             nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
         }
+
+        NprGpuDebugState.SetBuffers(
+            nprFrameData.bboxRectBuffer,
+            nprFrameData.bboxMaskBuffer,
+            nprFrameData.bboxVisibilityBuffer,
+            nprFrameData.bboxCountBuffer,
+            nprFrameData.bboxIndirectArgsBuffer,
+            nprFrameData.bboxCount,
+            nprFrameData.bboxVisibilityCount
+        );
 
         // initialise source texture
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;

@@ -100,7 +100,7 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
         uint expectedMask = _ExpectedMasks[bboxIndex];
 
         // check if any expected ID bit is present
-        if ((pixelMask & expectedMask) != 0u) // if using id
+        if ((pixelMask == expectedMask)) // if using id
             anyVisible = 1;
     }
 

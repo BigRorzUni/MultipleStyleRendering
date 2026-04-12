@@ -53,10 +53,13 @@ public sealed class NprFrameData : ContextItem
     public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
 
     public int bboxCount;
+    public int bboxVisibilityCount;
+
     public ComputeBuffer bboxVisibilityBuffer;
     public ComputeBuffer bboxRectBuffer;
     public ComputeBuffer bboxMaskBuffer;
-    public int bboxVisibilityCount;
+    public ComputeBuffer bboxCountBuffer;
+    public ComputeBuffer bboxIndirectArgsBuffer;
 
     public StyleBits.ImageSpaceEffect presentImageBits;
 
@@ -75,9 +78,14 @@ public sealed class NprFrameData : ContextItem
         if (occlusionCandidateBoxes != null)
             occlusionCandidateBoxes.Clear();
 
-        bboxVisibilityBuffer = null;
         bboxRectBuffer = null;
         bboxMaskBuffer = null;
+        bboxVisibilityBuffer = null;
+
+        bboxCountBuffer = null;
+        bboxIndirectArgsBuffer = null;
+
+        bboxCount = 0;
         bboxVisibilityCount = 0;
 
         presentImageBits = 0;
