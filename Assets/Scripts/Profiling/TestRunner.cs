@@ -11,6 +11,10 @@ using System.Collections.Generic;
 
 public static class NprTestingConfig
 {
+    public static NprRenderMode RenderMode;
+
+    public static bool UseMerging;
+    public static bool UseOcclusion;
     public static bool TestMode = false;
     public static bool BoundingBoxes = true;
 
@@ -72,6 +76,12 @@ public class TestRunner : MonoBehaviour
     [SerializeField] private int startupFrames = 500;
     [SerializeField] private int framesToCapture = 1000;
     NprStylesRendererFeature n;
+
+    [Header("pipeline config")]
+    public bool useNewPipelineConfig = false;
+    public NprRenderMode setRenderMode = NprRenderMode.CPU;
+    public bool setUseMerging = true;
+    public bool setUseOcclusion = true;
 
     public bool setRendererTestmode = false;
     public bool setRuntimeTestEffectsInEditor = false;
@@ -318,6 +328,11 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.BatchedBBoxGeneration = setBatchedBboxGeneration;
         NprTestingConfig.BatchedBBoxMerging = setBatchedBboxMerging;
         NprTestingConfig.BBoxMerging = setBboxMerging;
+
+        NprTestingConfig.RenderMode = setRenderMode;
+        NprTestingConfig.UseMerging = setUseMerging;
+        NprTestingConfig.UseOcclusion = setUseOcclusion;
+
 
         if (NprTestingConfig.TestMode)
         {

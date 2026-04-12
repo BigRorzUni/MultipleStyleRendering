@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 [System.Serializable]
 public class BboxDebugPass : ScriptableRenderPass
@@ -14,6 +16,40 @@ public class BboxDebugPass : ScriptableRenderPass
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
 
+    ComputeBuffer _cpuRectBuffer;
+    int _cpuRectBufferCapacity = 0;
+
+    ComputeBuffer _cpuMaskBuffer;
+    int _cpuMaskBufferCapacity = 0;
+
+    void EnsureCpuRectBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_cpuRectBuffer == null || _cpuRectBufferCapacity < requiredCapacity)
+        {
+            if (_cpuRectBuffer != null)
+                _cpuRectBuffer.Release();
+
+            _cpuRectBufferCapacity = requiredCapacity;
+            _cpuRectBuffer = new ComputeBuffer(_cpuRectBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        }
+    }
+
+    void EnsureCpuMaskBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_cpuMaskBuffer == null || _cpuMaskBufferCapacity < requiredCapacity)
+        {
+            if (_cpuMaskBuffer != null)
+                _cpuMaskBuffer.Release();
+
+            _cpuMaskBufferCapacity = requiredCapacity;
+            _cpuMaskBuffer = new ComputeBuffer(_cpuMaskBufferCapacity, sizeof(uint));
+        }
+    }
+
     private class BBoxPassData
     {
         public Material mat;
@@ -21,6 +57,9 @@ public class BboxDebugPass : ScriptableRenderPass
         public ComputeBuffer maskBuffer;
         public Vector4 screenSize;
         public int instanceCount;
+
+        public ComputeBuffer indirectArgsBuffer;
+        public int useIndirect;
     }
 
     private class OcclusionPassData
@@ -30,14 +69,17 @@ public class BboxDebugPass : ScriptableRenderPass
         public ComputeBuffer visibilityBuffer;
         public Vector4 screenSize;
         public int instanceCount;
+
+        public ComputeBuffer indirectArgsBuffer;
+        public int useIndirect;
     }
 
     public BboxDebugPass(Shader occlusionShader, Shader bboxShader)
     {
-        if(occlusionShader != null)
+        if (occlusionShader != null)
             _occlusionMat = CoreUtils.CreateEngineMaterial(occlusionShader);
-        
-        if(bboxShader != null)
+
+        if (bboxShader != null)
             _bboxMat = CoreUtils.CreateEngineMaterial(bboxShader);
 
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
@@ -48,13 +90,22 @@ public class BboxDebugPass : ScriptableRenderPass
         if (_occlusionMat != null)
             CoreUtils.Destroy(_occlusionMat);
 
-        if(_bboxMat != null)
+        if (_bboxMat != null)
             CoreUtils.Destroy(_bboxMat);
+
+        if (_cpuRectBuffer != null)
+            _cpuRectBuffer.Release();
+
+        if (_cpuMaskBuffer != null)
+            _cpuMaskBuffer.Release();
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (!NprTestingConfig.DebugBBoxes)
+            return;
+
+        if (NprTestingConfig.RenderMode == NprRenderMode.Fullscreen)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -65,83 +116,181 @@ public class BboxDebugPass : ScriptableRenderPass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (nprFrameData.bboxRectBuffer == null)
-            return;
-
-        if (nprFrameData.bboxCount <= 0)
-            return;
-
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
+        Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
-        if (_bboxMat != null && nprFrameData.bboxMaskBuffer != null)
+        bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
+        bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
+
+        ComputeBuffer rectBuffer = null;
+        ComputeBuffer maskBuffer = null;
+        ComputeBuffer visibilityBuffer = null;
+        ComputeBuffer indirectArgsBuffer = null;
+
+        int bboxInstanceCount = 0;
+        int occlusionInstanceCount = 0;
+        bool useIndirect = false;
+
+        if (gpuMode)
         {
-            using (var builder = renderGraph.AddRasterRenderPass("BBox Debug Overlay", out BBoxPassData passData))
+            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null)
+                return;
+
+            rectBuffer = nprFrameData.bboxRectBuffer;
+            maskBuffer = nprFrameData.bboxMaskBuffer;
+            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+
+            indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+            useIndirect = indirectArgsBuffer != null;
+
+            if (!useIndirect)
             {
-                passData.mat = _bboxMat;
-                passData.rectBuffer = nprFrameData.bboxRectBuffer;
-                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-                passData.instanceCount = nprFrameData.bboxCount;
+                bboxInstanceCount = nprFrameData.bboxCount;
+                occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
+            }
+        }
+        else if (cpuMode)
+        {
+            if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+                return;
 
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-                builder.AllowGlobalStateModification(true);
+            int count = nprFrameData.bboxes.Count;
 
-                builder.SetRenderFunc(static (BBoxPassData data, RasterGraphContext ctx) =>
+            EnsureCpuRectBufferCapacity(count);
+            EnsureCpuMaskBufferCapacity(count);
+
+            QuadInstanceData[] rectData = new QuadInstanceData[count];
+            uint[] maskData = new uint[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                BoundingBox bbox = nprFrameData.bboxes[i];
+                rectData[i].rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height);
+
+                if (NprTestingConfig.TestMode)
+                    maskData[i] = bbox.testMask;
+                else
+                    maskData[i] = (uint)bbox.styles;
+            }
+
+            _cpuRectBuffer.SetData(rectData, 0, 0, count);
+            _cpuMaskBuffer.SetData(maskData, 0, 0, count);
+
+            rectBuffer = _cpuRectBuffer;
+            maskBuffer = _cpuMaskBuffer;
+            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+
+            bboxInstanceCount = count;
+            occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
+            useIndirect = false;
+        }
+
+        if (_bboxMat != null && rectBuffer != null && maskBuffer != null)
+        {
+            if (useIndirect || bboxInstanceCount > 0)
+            {
+                using (var builder = renderGraph.AddRasterRenderPass("BBox Debug Overlay", out BBoxPassData passData))
                 {
-                    data.mat.SetBuffer(InstanceBufferID, data.rectBuffer);
-                    data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
-                    data.mat.SetVector(ScreenParamsID, data.screenSize);
+                    passData.mat = _bboxMat;
+                    passData.rectBuffer = rectBuffer;
+                    passData.maskBuffer = maskBuffer;
+                    passData.screenSize = screenSize;
+                    passData.instanceCount = bboxInstanceCount;
 
-                    ctx.cmd.DrawProcedural(
-                        Matrix4x4.identity,
-                        data.mat,
-                        0,
-                        MeshTopology.Triangles,
-                        6,
-                        data.instanceCount
-                    );
-                });
+                    passData.indirectArgsBuffer = indirectArgsBuffer;
+                    passData.useIndirect = useIndirect ? 1 : 0;
+
+                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                    builder.AllowGlobalStateModification(true);
+
+                    builder.SetRenderFunc(static (BBoxPassData data, RasterGraphContext ctx) =>
+                    {
+                        data.mat.SetBuffer(InstanceBufferID, data.rectBuffer);
+                        data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
+                        data.mat.SetVector(ScreenParamsID, data.screenSize);
+
+                        if (data.useIndirect != 0 && data.indirectArgsBuffer != null)
+                        {
+                            ctx.cmd.DrawProceduralIndirect(
+                                Matrix4x4.identity,
+                                data.mat,
+                                0,
+                                MeshTopology.Triangles,
+                                data.indirectArgsBuffer,
+                                0
+                            );
+                        }
+                        else
+                        {
+                            ctx.cmd.DrawProcedural(
+                                Matrix4x4.identity,
+                                data.mat,
+                                0,
+                                MeshTopology.Triangles,
+                                6,
+                                data.instanceCount
+                            );
+                        }
+                    });
+                }
             }
         }
 
-        if(!NprTestingConfig.OcclusionCulling)
+        if (!NprTestingConfig.UseOcclusion)
             return;
 
         if (_occlusionMat == null)
             return;
 
-        if (nprFrameData.bboxVisibilityBuffer == null)
+        if (rectBuffer == null || visibilityBuffer == null)
             return;
 
-        if (nprFrameData.bboxVisibilityCount <= 0)
-            return;
-
-        using (var builder = renderGraph.AddRasterRenderPass("Occlusion Debug Overlay", out OcclusionPassData passData))
+        if (useIndirect || occlusionInstanceCount > 0)
         {
-            passData.mat = _occlusionMat;
-            passData.rectBuffer = nprFrameData.bboxRectBuffer;
-            passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-            passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-            passData.instanceCount = nprFrameData.bboxVisibilityCount;
-
-            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-            builder.AllowGlobalStateModification(true);
-
-            builder.SetRenderFunc(static (OcclusionPassData data, RasterGraphContext ctx) =>
+            using (var builder = renderGraph.AddRasterRenderPass("Occlusion Debug Overlay", out OcclusionPassData passData))
             {
-                data.mat.SetBuffer(InstanceBufferID, data.rectBuffer);
-                data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
-                data.mat.SetVector(ScreenParamsID, data.screenSize);
+                passData.mat = _occlusionMat;
+                passData.rectBuffer = rectBuffer;
+                passData.visibilityBuffer = visibilityBuffer;
+                passData.screenSize = screenSize;
+                passData.instanceCount = occlusionInstanceCount;
 
-                ctx.cmd.DrawProcedural(
-                    Matrix4x4.identity,
-                    data.mat,
-                    0,
-                    MeshTopology.Triangles,
-                    6,
-                    data.instanceCount
-                );
-            });
+                passData.indirectArgsBuffer = indirectArgsBuffer;
+                passData.useIndirect = useIndirect ? 1 : 0;
+
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+                builder.AllowGlobalStateModification(true);
+
+                builder.SetRenderFunc(static (OcclusionPassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetBuffer(InstanceBufferID, data.rectBuffer);
+                    data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+                    data.mat.SetVector(ScreenParamsID, data.screenSize);
+
+                    if (data.useIndirect != 0 && data.indirectArgsBuffer != null)
+                    {
+                        ctx.cmd.DrawProceduralIndirect(
+                            Matrix4x4.identity,
+                            data.mat,
+                            0,
+                            MeshTopology.Triangles,
+                            data.indirectArgsBuffer,
+                            0
+                        );
+                    }
+                    else
+                    {
+                        ctx.cmd.DrawProcedural(
+                            Matrix4x4.identity,
+                            data.mat,
+                            0,
+                            MeshTopology.Triangles,
+                            6,
+                            data.instanceCount
+                        );
+                    }
+                });
+            }
         }
     }
 }

@@ -9,8 +9,9 @@ public enum NprDebugView
     Normals,
     Edges
 }
+
 public interface INprPass
-{    
+{
     void ApplySettings(Settings settings);
 }
 
@@ -21,11 +22,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private NormalsPrepass _normalsPrepass;
     private BBoxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
-    // private BBoxMergingPrepass _bboxMergingPrepass;
     private CpuMergingPrepass _cpuMergingPrepass;
     private GpuMergingPrepass _gpuMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
-
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -49,10 +48,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private ComputeShader bboxMergingComputeShader;
     [SerializeField] private Shader bboxDebugShader;
 
-
     // TEST EFFECTS
-
-    
     [SerializeField, Min(1)] private int testEffectCount = 32;
     public int TestEffectCount => testEffectCount;
 
@@ -60,7 +56,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader testDummyShader;
     [SerializeField] private Shader testDummyBatchedShader;
 
-  
     // settings
     public Settings settings = new();
 
@@ -68,7 +63,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     {
         NprTestingConfig.TestMode = true;
         testEffectCount = Mathf.Clamp(styleCount, 1, 32);
-
         Create();
     }
 
@@ -78,11 +72,36 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         Create();
     }
 
-    // Called when the renderer feature is first created or reset.
+    bool UseBoundingBoxes()
+    {
+        return NprTestingConfig.RenderMode != NprRenderMode.Fullscreen;
+    }
+
+    bool UseGpuMode()
+    {
+        return NprTestingConfig.RenderMode == NprRenderMode.GPU;
+    }
+
+    bool UseCpuMode()
+    {
+        return NprTestingConfig.RenderMode == NprRenderMode.CPU;
+    }
+
+    bool UseBatchedScreenPasses()
+    {
+        return UseGpuMode();
+    }
+
     public override void Create()
     {
-        // find associated shaders and create passes
-        // prepasses:
+        _idPrepass = null;
+        _normalsPrepass = null;
+        _bboxPrepass = null;
+        _bboxOcclusionPrepass = null;
+        _cpuMergingPrepass = null;
+        _gpuMergingPrepass = null;
+        _bboxDebugPass = null;
+
         if (idShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ID'");
@@ -97,27 +116,26 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         _normalsPrepass = new NormalsPrepass(normalsShader);
 
-
-        if(bboxGenerationComputeShader == null)
+        if (bboxGenerationComputeShader == null)
         {
             Debug.LogError("Occlusion compute shader 'GenerateBboxes' not set");
-            return;        
+            return;
         }
 
-        if(NprTestingConfig.TestMode)
+        if (NprTestingConfig.TestMode)
             _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader, testEffectCount, true);
         else
             _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader);
-        
-        if(NprTestingConfig.OcclusionCulling && NprTestingConfig.BoundingBoxes)
+
+        if (NprTestingConfig.UseOcclusion && UseBoundingBoxes())
         {
-            if(occlusionShader == null)
+            if (occlusionShader == null)
             {
                 Debug.LogError("Could not find shader 'Custom/bboxOcclusion'");
                 return;
             }
 
-            if(occlusionComputeShader == null)
+            if (occlusionComputeShader == null)
             {
                 Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
                 return;
@@ -126,42 +144,42 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
         }
 
-        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes)
+        if (NprTestingConfig.UseMerging && UseBoundingBoxes())
         {
-            if (!NprTestingConfig.BatchedBBoxMerging)
+            if (UseCpuMode())
+            {
+                _cpuMergingPrepass = new CpuMergingPrepass();
+            }
+            else if (UseGpuMode())
+            {
+                if (bboxMergingComputeShader == null)
                 {
-                    _cpuMergingPrepass = new CpuMergingPrepass();
+                    Debug.LogError("Merging compute shader 'MergeBboxes' not set");
+                    return;
                 }
-                else
-                {
-                    if(bboxMergingComputeShader == null)
-                    {
-                        Debug.LogError("Merging compute shader 'MergeBboxes' not set");
-                        return;
-                    }
 
-                    _gpuMergingPrepass = new GpuMergingPrepass(bboxMergingComputeShader);
-                }
+                _gpuMergingPrepass = new GpuMergingPrepass(bboxMergingComputeShader);
+            }
         }
 
-        if(NprTestingConfig.DebugBBoxes && NprTestingConfig.BoundingBoxes)
+        if (NprTestingConfig.DebugBBoxes && UseBoundingBoxes())
         {
-            if(occlusionDebugShader == null)
+            if (occlusionDebugShader == null)
             {
                 Debug.LogError("Could not find shader 'Custom/occlusionDebug'");
                 return;
             }
-            if(bboxDebugShader == null)
+
+            if (bboxDebugShader == null)
             {
                 Debug.LogError("Could not find shader 'Custom/bboxDebug'");
                 return;
             }
-            
-            _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader); 
+
+            _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader);
         }
 
-        // effect passes
-        if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
+        if (UseBatchedScreenPasses())
         {
             if (ssOutlineBatchedShader == null)
             {
@@ -180,7 +198,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             outlinesEffect = new ScreenspaceOutlinesEffect(ssOutlinesShader);
         }
 
-        if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
+        if (UseBatchedScreenPasses())
         {
             if (ditheringBatchedShader == null)
             {
@@ -189,7 +207,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
             ditheringEffect = new DitheringEffect(ditheringBatchedShader);
         }
-        else    
+        else
         {
             if (ditheringShader == null)
             {
@@ -199,25 +217,20 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             ditheringEffect = new DitheringEffect(ditheringShader);
         }
 
-        // add image effects in their execution order
         imageEffects.Clear();
 
-        if(NprTestingConfig.TestMode)
+        if (NprTestingConfig.TestMode)
         {
-            if(NprTestingConfig.BatchedDraws && NprTestingConfig.BoundingBoxes)
+            if (UseBatchedScreenPasses())
             {
-                if(testDummyBatchedShader == null)
+                if (testDummyBatchedShader == null)
                 {
-                    Debug.LogError("Could not find shader 'Custom/DummyBatched");
+                    Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy batched shader is not set.");
                     return;
                 }
+
                 for (int i = 0; i < testEffectCount; i++)
-                {
                     imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyBatchedShader, i));
-
-                    //Debug.Log($"Added test_effect_{i} (BATCHED)");
-                }
-
             }
             else
             {
@@ -228,18 +241,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 }
 
                 for (int i = 0; i < testEffectCount; i++)
-                {
                     imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
-
-                    //Debug.Log($"Added test_effect_{i}");
-                }
             }
 
-            //Debug.Log("render feature in test mode");
             Debug.Log("Queued test pases");
         }
         else
-        {           
+        {
             imageEffects.Add(ditheringEffect);
             imageEffects.Add(outlinesEffect);
 
@@ -247,51 +255,41 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
     }
 
-    public override void AddRenderPasses(ScriptableRenderer renderer,
-    ref RenderingData renderingData)
+    public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        if (_idPrepass == null || _bboxPrepass == null)
+            return;
 
-        if (_idPrepass == null || _bboxPrepass == null) return;
-
-        // need to compute bounding boxes after id texture is created
         renderer.EnqueuePass(_bboxPrepass);
 
-        // always produce id texture
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
-        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && !NprTestingConfig.BatchedBBoxMerging)
-        {
+        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
             renderer.EnqueuePass(_cpuMergingPrepass);
-        }
 
-        if(NprTestingConfig.OcclusionCulling && NprTestingConfig.BoundingBoxes)
-        {
+        if (NprTestingConfig.UseOcclusion && UseBoundingBoxes() && _bboxOcclusionPrepass != null)
             renderer.EnqueuePass(_bboxOcclusionPrepass);
-        }
 
-        if(NprTestingConfig.BBoxMerging && NprTestingConfig.BoundingBoxes && NprTestingConfig.BatchedBBoxMerging)
-        {
+        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode() && _gpuMergingPrepass != null)
             renderer.EnqueuePass(_gpuMergingPrepass);
-        }
 
-        // compute normals
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
-        // image effects
-        foreach(var effect in imageEffects)
+        foreach (var effect in imageEffects)
         {
-            foreach(var pass in effect.Passes)
+            foreach (var pass in effect.Passes)
             {
                 if (pass is INprPass nprPass)
                     nprPass.ApplySettings(settings);
-                if(settings.debugView == NprDebugView.None)
+
+                if (settings.debugView == NprDebugView.None)
                     renderer.EnqueuePass(pass);
             }
         }
 
-        if(NprTestingConfig.DebugBBoxes)
+        if (NprTestingConfig.DebugBBoxes && _bboxDebugPass != null)
             renderer.EnqueuePass(_bboxDebugPass);
     }
 }

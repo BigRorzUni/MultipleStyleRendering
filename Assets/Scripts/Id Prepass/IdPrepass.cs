@@ -17,14 +17,12 @@ public class IdPrepass : ScriptableRenderPass, INprPass
     public void ApplySettings(Settings settings)
     {
         debugToScreen = settings.debugView == NprDebugView.StylisedID;
-    }  
+    }
 
     class PassData
     {
         public RendererListHandle rendererList;
         public bool debug;
-        public Material mat;
-        public BoundingBox bbox;
     }
 
     const string DebugKeyword = "_DEBUG_ID_COLOUR";
@@ -44,7 +42,8 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (_idShader == null) return;
+        if (_idShader == null)
+            return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -61,7 +60,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         // match id texture to camera resolution + settings
         RenderTextureDescriptor idTexDescriptor = cameraData.cameraTargetDescriptor;
 
-       // tweak format to fit what an id texture needs
+        // tweak format to fit what an id texture needs
         idTexDescriptor.depthBufferBits = 0;
         idTexDescriptor.msaaSamples = 1;
         idTexDescriptor.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm;
@@ -79,127 +78,51 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         });
         nprFrameData.idTexture = idTex;
 
-        // FULLSCREEN MODE (RENDER LAYER MASK AND RENDERLISTHANDLE IS THIS FASTER THAN BBOXES?)
-        if (!NprTestingConfig.BoundingBoxes || !NprTestingConfig.IdBoundingBoxes)
+        DrawingSettings drawing = RenderingUtils.CreateDrawingSettings(
+            _shaderTagId,
+            renderingData,
+            cameraData,
+            lightData,
+            SortingCriteria.CommonOpaque
+        );
+
+        drawing.overrideShader = _idShader;
+        drawing.overrideShaderPassIndex = 0;
+
+        RendererListParams rlp = new RendererListParams(
+            renderingData.cullResults,
+            drawing,
+            _filteringSettings
+        );
+
+        RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
+
+        using (var builder = renderGraph.AddRasterRenderPass("Fullscreen ID Prepass", out PassData passData))
         {
-            // Debug.Log("id prepass NOT using bounding boxes");
-            DrawingSettings drawing = RenderingUtils.CreateDrawingSettings(
-                _shaderTagId,
-                renderingData,
-                cameraData,
-                lightData,
-                SortingCriteria.CommonOpaque
-            );
+            if (debugToScreen)
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0);
+            else
+                builder.SetRenderAttachment(nprFrameData.idTexture, 0);
 
-            drawing.overrideShader = _idShader;
-            drawing.overrideShaderPassIndex = 0;
+            builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
+            builder.UseRendererList(rendererList);
+            builder.AllowGlobalStateModification(true);
 
-            RendererListParams rlp = new RendererListParams(
-                renderingData.cullResults,
-                drawing,
-                _filteringSettings
-            );
+            passData.rendererList = rendererList;
+            passData.debug = debugToScreen;
 
-            RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
-
-            using (var builder = renderGraph.AddRasterRenderPass("Fullscreen ID Prepass", out PassData passData))
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
-                if (debugToScreen)
-                    builder.SetRenderAttachment(frameData.activeColorTexture, 0);
+                if (data.debug)
+                    ctx.cmd.EnableShaderKeyword(DebugKeyword);
                 else
-                    builder.SetRenderAttachment(nprFrameData.idTexture, 0);
+                    ctx.cmd.DisableShaderKeyword(DebugKeyword);
 
-                builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
-                builder.UseRendererList(rendererList);
-                builder.AllowGlobalStateModification(true);
+                ctx.cmd.DrawRendererList(data.rendererList);
 
-                passData.rendererList = rendererList;
-                passData.debug = debugToScreen;
-
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-                {
-                    if (data.debug)
-                        ctx.cmd.EnableShaderKeyword(DebugKeyword);
-                    else
-                        ctx.cmd.DisableShaderKeyword(DebugKeyword);
-
-                    ctx.cmd.DrawRendererList(data.rendererList);
-
-                    if (data.debug)
-                        ctx.cmd.DisableShaderKeyword(DebugKeyword);
-                });
-            }
-
-            return;
-        }
-        
-
-        // BBOX MODE
-        // Debug.Log("id prepass is using bounding boxes");
-
-        if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
-            return;
-
-        foreach (var bbox in nprFrameData.bboxes)
-        {
-            // Debug.Log($"BBox {bbox.box} has {bbox.renderers.Count} renderers");
-
-            if (bbox == null || bbox.box.width <= 0 || bbox.box.height <= 0)
-                continue;
-
-            if (bbox.renderers == null || bbox.renderers.Count == 0)
-                continue;
-
-            using (var builder = renderGraph.AddRasterRenderPass($"BBox ID Prepass ({bbox.box})", out PassData passData))
-            {
-                if (debugToScreen)
-                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.ReadWrite);
-                else
-                    builder.SetRenderAttachment(nprFrameData.idTexture, 0, AccessFlags.ReadWrite);
-
-                builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
-                builder.AllowGlobalStateModification(true);
-
-                passData.mat = _idMat;
-                passData.bbox = bbox;
-                passData.debug = debugToScreen;
-
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-                {
-                    if (data.debug)
-                        ctx.cmd.EnableShaderKeyword(DebugKeyword);
-                    else
-                        ctx.cmd.DisableShaderKeyword(DebugKeyword);
-
-                    ctx.cmd.EnableScissorRect(new Rect(data.bbox.box.x, data.bbox.box.y, data.bbox.box.width, data.bbox.box.height));
-
-                    List<Renderer> renderers = data.bbox.renderers;
-                    for (int i = 0; i < renderers.Count; i++)
-                    {
-                        // render each renderer in the bbox using the id material
-                        Renderer renderer = renderers[i];
-                        if (renderer == null)
-                            continue;
-
-                        // submesh index is needed for meshes with multiple materials across submeshes
-                        int submeshCount;
-                        if (renderer.sharedMaterials != null)
-                            submeshCount = renderer.sharedMaterials.Length;
-                        else
-                            submeshCount = 1;
-
-                        for (int sub = 0; sub < submeshCount; sub++)
-                        {
-                            ctx.cmd.DrawRenderer(renderer, data.mat, sub, 0);
-                        }
-                    }
-
-                    ctx.cmd.DisableScissorRect();
-
-                    if (data.debug)
-                        ctx.cmd.DisableShaderKeyword(DebugKeyword);
-                });
-            }
+                if (data.debug)
+                    ctx.cmd.DisableShaderKeyword(DebugKeyword);
+            });
         }
     }
 }

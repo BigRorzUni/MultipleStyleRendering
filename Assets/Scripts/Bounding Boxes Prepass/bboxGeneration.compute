@@ -1,4 +1,5 @@
 #pragma kernel GenerateBboxes
+#pragma kernel BuildDrawArgs
 
 struct BBoxGenerationInput
 {
@@ -16,6 +17,7 @@ struct QuadInstanceData
 
 StructuredBuffer<BBoxGenerationInput> _Inputs;
 RWStructuredBuffer<QuadInstanceData> _Rects;
+RWStructuredBuffer<uint> _IndirectArgs;
 
 int _BBoxCount;
 float4x4 _WorldToCamera;
@@ -36,7 +38,7 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     if (id >= (uint)_BBoxCount)
         return;
 
-    _Rects[id].rect = float4(0,0,0,0);
+    _Rects[id].rect = float4(0, 0, 0, 0);
 
     const float eps = 1e-5;
 
@@ -162,4 +164,14 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
         return;
 
     _Rects[id].rect = float4(minX, minY, width, height);
+}
+
+[numthreads(1,1,1)]
+void BuildDrawArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    // [vertexCountPerInstance, instanceCount, startVertex, startInstance]
+    _IndirectArgs[0] = 6;
+    _IndirectArgs[1] = _BBoxCount;
+    _IndirectArgs[2] = 0;
+    _IndirectArgs[3] = 0;
 }

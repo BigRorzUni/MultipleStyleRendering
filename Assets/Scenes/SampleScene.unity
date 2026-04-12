@@ -119,6 +119,28 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &166967622 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7329352657357545300, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+  m_PrefabInstance: {fileID: 6364625127116661618}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &166967623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 166967622}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdae8ef9d7c9145c790510e3e30e2650, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NprGpuBufferDebugger
+  dumpEveryFrame: 0
+  dumpOnStart: 0
+  maxRectsToPrint: 32
+  maxMasksToPrint: 32
+  maxVisibilityToPrint: 32
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -722,8 +744,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   imageEffects: 2
   testAssignmentMode: 0
-  inspectorTestEffects: 0100000000000000000000000000000000000000000000000000000000000000
-  currentTestEffects: 1
+  inspectorTestEffects: 0100000001010000000000000000000000000000000000000000000000000000
+  currentTestEffects: 49
 --- !u!136 &1041653354
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -813,7 +835,7 @@ Transform:
   m_GameObject: {fileID: 1041653352}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.46, y: 3.66, z: -3.84}
+  m_LocalPosition: {x: 3.669, y: 3.66, z: -3.84}
   m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1078,8 +1100,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   imageEffects: 2
   testAssignmentMode: 0
-  inspectorTestEffects: 0001000000000000000000000000000000000000000000000000000000000000
-  currentTestEffects: 2
+  inspectorTestEffects: 0001000001000000000000000000000000000000000000000000000000000000
+  currentTestEffects: 18
 --- !u!1 &1308817640
 GameObject:
   m_ObjectHideFlags: 0
@@ -1644,7 +1666,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setUseBBoxes
-      value: 1
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setRenderMode
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setUseMerging
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setBboxMerging
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setDebugBBoxes
@@ -1659,16 +1693,40 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setUseOcclusion
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setIdPrepassBBoxes
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
-      propertyPath: setRendererTestmode
+      propertyPath: setBatchedOcclusion
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setOcclusionCulling
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setRendererTestmode
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: useOcclusionCulling
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: useNewPipelineConfig
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setBatchedBboxMerging
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      propertyPath: setBatchedBboxGeneration
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: assignRuntimeTestEffectsInEditor
@@ -1686,10 +1744,14 @@ PrefabInstance:
       propertyPath: thickness
       value: 4
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 9149287039531368099, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7329352657357545300, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 166967623}
   m_SourcePrefab: {fileID: 100100000, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

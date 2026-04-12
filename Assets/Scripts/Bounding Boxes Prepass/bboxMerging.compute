@@ -1,6 +1,7 @@
 #pragma kernel FindMergePairs
 #pragma kernel ResolveMergePairs
 #pragma kernel EmitMergedBoxes
+#pragma kernel BuildDrawArgs
 
 StructuredBuffer<float4> _Rects;
 StructuredBuffer<uint> _Masks;
@@ -16,6 +17,7 @@ RWStructuredBuffer<uint> _OutputMasks;
 RWStructuredBuffer<uint> _OutputVisibility;
 
 RWStructuredBuffer<uint> _OutputCount;
+RWStructuredBuffer<uint> _IndirectArgs;
 
 int _BBoxCount;
 
@@ -34,11 +36,11 @@ int UnionArea(float4 a, float4 b)
     return (int)((maxX - minX) * (maxY - minY));
 }
 
-
-
 [numthreads(64,1,1)]
-void FindMergePairs(uint id : SV_DispatchThreadID)
+void FindMergePairs(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
+    uint id = dispatchThreadID.x;
+
     if (id >= (uint)_BBoxCount)
         return;
 
@@ -76,8 +78,10 @@ void FindMergePairs(uint id : SV_DispatchThreadID)
 }
 
 [numthreads(64,1,1)]
-void ResolveMergePairs(uint id : SV_DispatchThreadID)
+void ResolveMergePairs(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
+    uint id = dispatchThreadID.x;
+
     if (id >= (uint)_BBoxCount)
         return;
 
@@ -108,8 +112,10 @@ float4 UnionRect(float4 a, float4 b)
 }
 
 [numthreads(64,1,1)]
-void EmitMergedBoxes(uint id : SV_DispatchThreadID)
+void EmitMergedBoxes(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
+    uint id = dispatchThreadID.x;
+
     if (id >= (uint)_BBoxCount)
         return;
 
@@ -172,4 +178,14 @@ void EmitMergedBoxes(uint id : SV_DispatchThreadID)
     _OutputRects[outIndex] = _Rects[id];
     _OutputMasks[outIndex] = _Masks[id];
     _OutputVisibility[outIndex] = _Visibility[id];
+}
+
+[numthreads(1,1,1)]
+void BuildDrawArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    // [vertexCountPerInstance, instanceCount, startVertex, startInstance]
+    _IndirectArgs[0] = 6;
+    _IndirectArgs[1] = _OutputCount[0];
+    _IndirectArgs[2] = 0;
+    _IndirectArgs[3] = 0;
 }
