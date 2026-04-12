@@ -40,7 +40,7 @@ public class BBoxPrepass : ScriptableRenderPass
 
     ComputeBuffer _bboxRectBuffer;
     int _bboxRectBufferCapacity = 0;
-    QuadInstanceData[] _bboxRectInitData;
+    Vector4[] _bboxRectInitData;
 
     ComputeBuffer _bboxVisibilityBuffer;
     int _bboxVisibilityBufferCapacity = 0;
@@ -63,10 +63,7 @@ public class BBoxPrepass : ScriptableRenderPass
                 _bboxInputBuffer.Release();
 
             _bboxInputCapacity = required;
-            _bboxInputBuffer = new ComputeBuffer(
-                _bboxInputCapacity,
-                Marshal.SizeOf<BBoxGenerationInput>()
-            );
+            _bboxInputBuffer = new ComputeBuffer(_bboxInputCapacity, Marshal.SizeOf<BBoxGenerationInput>());
         }
     }
 
@@ -80,10 +77,7 @@ public class BBoxPrepass : ScriptableRenderPass
                 _bboxRectBuffer.Release();
 
             _bboxRectBufferCapacity = requiredCapacity;
-            _bboxRectBuffer = new ComputeBuffer(
-                _bboxRectBufferCapacity,
-                Marshal.SizeOf<QuadInstanceData>()
-            );
+            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, Marshal.SizeOf<Vector4>());
         }
 
         if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
@@ -409,15 +403,15 @@ public class BBoxPrepass : ScriptableRenderPass
                 nprFrameData.bboxVisibilityCount = 0;
             }
 
-            NprGpuDebugState.SetBuffers(
-                nprFrameData.bboxRectBuffer,
-                nprFrameData.bboxMaskBuffer,
-                nprFrameData.bboxVisibilityBuffer,
-                nprFrameData.bboxCountBuffer,
-                nprFrameData.bboxIndirectArgsBuffer,
-                nprFrameData.bboxCount,
-                nprFrameData.bboxVisibilityCount
-            );
+            // NprGpuDebugState.SetBuffers(
+            //     nprFrameData.bboxRectBuffer,
+            //     nprFrameData.bboxMaskBuffer,
+            //     nprFrameData.bboxVisibilityBuffer,
+            //     nprFrameData.bboxCountBuffer,
+            //     nprFrameData.bboxIndirectArgsBuffer,
+            //     nprFrameData.bboxCount,
+            //     nprFrameData.bboxVisibilityCount
+            // );
         }
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;

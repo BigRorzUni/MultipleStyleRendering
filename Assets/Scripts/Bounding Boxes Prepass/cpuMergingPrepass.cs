@@ -229,7 +229,7 @@ public class CpuMergingPrepass : ScriptableRenderPass
                 if (nprFrameData.bboxRectBuffer != null)
                     nprFrameData.bboxRectBuffer.Release();
 
-                nprFrameData.bboxRectBuffer = new ComputeBuffer(nprFrameData.bboxCount, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
+                nprFrameData.bboxRectBuffer = new ComputeBuffer(nprFrameData.bboxCount, System.Runtime.InteropServices.Marshal.SizeOf<Vector4>());
             }
 
             if (nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxMaskBuffer.count < nprFrameData.bboxCount)

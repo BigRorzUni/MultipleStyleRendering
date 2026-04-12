@@ -32,7 +32,7 @@ public class BboxDebugPass : ScriptableRenderPass
                 _cpuRectBuffer.Release();
 
             _cpuRectBufferCapacity = requiredCapacity;
-            _cpuRectBuffer = new ComputeBuffer(_cpuRectBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+            _cpuRectBuffer = new ComputeBuffer(_cpuRectBufferCapacity, Marshal.SizeOf<Vector4>());
         }
     }
 
@@ -159,13 +159,13 @@ public class BboxDebugPass : ScriptableRenderPass
             EnsureCpuRectBufferCapacity(count);
             EnsureCpuMaskBufferCapacity(count);
 
-            QuadInstanceData[] rectData = new QuadInstanceData[count];
+            Vector4[] rectData = new Vector4[count];
             uint[] maskData = new uint[count];
 
             for (int i = 0; i < count; i++)
             {
                 BoundingBox bbox = nprFrameData.bboxes[i];
-                rectData[i].rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height);
+                rectData[i] = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height);
 
                 if (NprTestingConfig.TestMode)
                     maskData[i] = bbox.testMask;
