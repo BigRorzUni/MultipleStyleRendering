@@ -23,12 +23,8 @@ Shader "Custom/DitheringBatched"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct InstanceData
-            {
-                float4 rect; 
-            };
 
-            StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<float4> _InstanceData;
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
             StructuredBuffer<uint> _BBoxMasks;
@@ -113,7 +109,7 @@ Shader "Custom/DitheringBatched"
                 }
 
                 float2 uv = GetQuadUV(input.vertexID);
-                float4 rect = _InstanceData[input.instanceID].rect;
+                float4 rect = _InstanceData[input.instanceID];
 
                 // map local quad UV to pixel coords within bbox
                 float2 pixelPos = rect.xy + uv * rect.zw;

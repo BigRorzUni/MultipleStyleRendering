@@ -18,15 +18,6 @@ public static class NprTestingConfig
     public static bool TestMode = false;
     public static bool BoundingBoxes = true;
 
-    // ABLATION
-    public static bool IdBoundingBoxes = true; // whether to use bboxes in id prepass (TEST)
-    public static bool OcclusionCulling = true; // whether to use occlusion culling on bboxes
-
-    public static bool BatchedDraws = true; // whether to batch draws by style or draw each bbox style separately (TEST)
-    public static bool BatchedBBoxGeneration = false;
-    public static bool BatchedOcclusion = false;
-    public static bool BatchedBBoxMerging = false;
-    public static bool BBoxMerging = true;
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
     public static int StylesPerObject = 0; // max styles per object
@@ -78,23 +69,13 @@ public class TestRunner : MonoBehaviour
     NprStylesRendererFeature n;
 
     [Header("pipeline config")]
-    public bool useNewPipelineConfig = false;
     public NprRenderMode setRenderMode = NprRenderMode.CPU;
     public bool setUseMerging = true;
     public bool setUseOcclusion = true;
 
     public bool setRendererTestmode = false;
     public bool setRuntimeTestEffectsInEditor = false;
-    public bool setIdPrepassBBoxes = true;
-    public bool setUseBBoxes = true;
     public bool setDebugBBoxes = false;
-    public bool setOcclusionCulling = true;
-    public bool setBatchedDraws = true;
-    public bool setBatchedBboxGeneration = false;
-    public bool setBatchedOcclusion = false;
-    public bool setBatchedBboxMerging = false;
-    public bool setBboxMerging = true;
-
     private string logDir = null;
 
     private ProfilerRecorder cpuFrameRec;
@@ -320,14 +301,6 @@ public class TestRunner : MonoBehaviour
 
         NprTestingConfig.TestMode = setRendererTestmode;
         NprTestingConfig.DebugBBoxes = setDebugBBoxes;
-        NprTestingConfig.IdBoundingBoxes = setIdPrepassBBoxes;
-        NprTestingConfig.BoundingBoxes = setUseBBoxes;
-        NprTestingConfig.OcclusionCulling = setOcclusionCulling;
-        NprTestingConfig.BatchedDraws = setBatchedDraws;
-        NprTestingConfig.BatchedOcclusion = setBatchedOcclusion;
-        NprTestingConfig.BatchedBBoxGeneration = setBatchedBboxGeneration;
-        NprTestingConfig.BatchedBBoxMerging = setBatchedBboxMerging;
-        NprTestingConfig.BBoxMerging = setBboxMerging;
 
         NprTestingConfig.RenderMode = setRenderMode;
         NprTestingConfig.UseMerging = setUseMerging;

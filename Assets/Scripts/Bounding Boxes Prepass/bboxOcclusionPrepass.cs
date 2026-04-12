@@ -18,7 +18,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int RectID = Shader.PropertyToID("_Rect");
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
 
-    static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
+    static readonly int RectBufferID = Shader.PropertyToID("_Rects");
     static readonly int BBoxCountID = Shader.PropertyToID("_BboxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
@@ -259,7 +259,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                 {
                     ctx.cmd.SetComputeTextureParam(data.compute, data.kernel, VisibilityTexID, data.visibilityTex);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
-                    ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, InstanceBufferID, data.rectBuffer);
+                    ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, RectBufferID, data.rectBuffer);
                     ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
                     ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, BBoxMaskBufferID, data.maskBuffer);
                     ctx.cmd.DispatchCompute(data.compute, data.kernel, data.bboxCount, 1, 1);
