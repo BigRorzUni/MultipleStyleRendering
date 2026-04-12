@@ -207,14 +207,14 @@ public class CpuMergingPrepass : ScriptableRenderPass
 
         if (nprFrameData.bboxCount > 0)
         {
-            QuadInstanceData[] rectData = new QuadInstanceData[nprFrameData.bboxCount];
+            Vector4[] rectData = new Vector4[nprFrameData.bboxCount];
             uint[] maskData = new uint[nprFrameData.bboxCount];
             uint[] visibilityData = new uint[nprFrameData.bboxCount];
 
             for (int i = 0; i < nprFrameData.bboxCount; i++)
             {
                 BoundingBox b = nprFrameData.bboxes[i];
-                rectData[i].rect = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
+                rectData[i] = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
 
                 if (!NprTestingConfig.TestMode)
                     maskData[i] = (uint)b.styles;

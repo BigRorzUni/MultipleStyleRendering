@@ -12,11 +12,6 @@ public enum NprRenderMode
     GPU
 }
 
-[StructLayout(LayoutKind.Sequential)]
-public struct QuadInstanceData
-{
-    public Vector4 rect;  
-}
 
 public class BoundingBox
 {
@@ -50,6 +45,7 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle normalsTexture;
     public TextureHandle sourceTexture;
 
+    // CPU PATH
     public List<BoundingBox> bboxes;
     public List<BoundingBox> occlusionCandidateBoxes; 
 

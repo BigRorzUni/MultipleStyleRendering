@@ -87,7 +87,7 @@ public class BBoxPrepass : ScriptableRenderPass
         }
 
         if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
-            _bboxRectInitData = new QuadInstanceData[_bboxRectBufferCapacity];
+            _bboxRectInitData = new Vector4[_bboxRectBufferCapacity];
     }
 
     void EnsureVisibilityBufferCapacity(int count)

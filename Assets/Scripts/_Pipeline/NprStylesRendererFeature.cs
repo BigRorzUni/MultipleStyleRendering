@@ -236,7 +236,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             {
                 if (testDummyShader == null)
                 {
-                    Debug.LogError("useTestEffects is enabled but dummy shader is not set.");
+                    Debug.LogError("Could not find shader 'Custom/Dummy");                   
                     return;
                 }
 
