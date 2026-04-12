@@ -186,17 +186,11 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (!NprTestingConfig.BoundingBoxes || !NprTestingConfig.BBoxMerging)
+        if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
             return;
 
-        if (!NprTestingConfig.BatchedBBoxMerging)
+        if (!NprTestingConfig.UseMerging)
             return;
-
-        if (!NprTestingConfig.BatchedDraws)
-        {
-            Debug.LogWarning("GPU merging is only valid with batched drawing of effects. No merging will take place");
-            return;
-        }
 
         if (_bboxMerging == null)
             return;
@@ -237,7 +231,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
         using (var builder = renderGraph.AddComputePass("GPU BBox Merging", out ComputePassData passData))
         {
             builder.AllowPassCulling(false);
-            
+
             passData.compute = _bboxMerging;
 
             passData.findPairsKernel = _findPairsKernel;
@@ -263,65 +257,44 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
             builder.SetRenderFunc((ComputePassData data, ComputeGraphContext ctx) =>
             {
-                
                 int threadGroupsX = Mathf.CeilToInt(data.bboxCount / 64.0f);
 
-                // find merge pairs
                 ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, RectBufferID, data.rectBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, MaskBufferID, data.maskBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, VisibilityBufferID, data.visibilityBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, PairBufferID, data.pairBuffer);
-
                 ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
                 ctx.cmd.DispatchCompute(data.compute, data.findPairsKernel, threadGroupsX, 1, 1);
 
-                // resolve pairs to avoid conflicts
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, PairBufferID, data.pairBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, ValidPairBufferID, data.validPairBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, CanMergeBufferID, data.canMergeBuffer);
-
                 ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
                 ctx.cmd.DispatchCompute(data.compute, data.resolvePairsKernel, threadGroupsX, 1, 1);
 
-                // merge bboxes, remove null ones, return the results
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, RectBufferID, data.rectBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, MaskBufferID, data.maskBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, VisibilityBufferID, data.visibilityBuffer);
-
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, PairBufferID, data.pairBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, ValidPairBufferID, data.validPairBuffer);
-
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputRectBufferID, data.outputRectBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputMaskBufferID, data.outputMaskBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputVisibilityBufferID, data.outputVisibilityBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputCountBufferID, data.outputCountBuffer);
-
                 ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
                 ctx.cmd.DispatchCompute(data.compute, data.emitMergedKernel, threadGroupsX, 1, 1);
 
-                // build indirect draw args from merged output count
                 ctx.cmd.SetComputeBufferParam(data.compute, data.buildDrawArgsKernel, OutputCountBufferID, data.outputCountBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.buildDrawArgsKernel, IndirectArgsBufferID, data.indirectArgsBuffer);
                 ctx.cmd.DispatchCompute(data.compute, data.buildDrawArgsKernel, 1, 1, 1);
             });
         }
 
-        // merged output buffers are now the canonical bbox data
         nprFrameData.bboxRectBuffer = _outputRectBuffer;
         nprFrameData.bboxMaskBuffer = _outputMaskBuffer;
         nprFrameData.bboxVisibilityBuffer = _outputVisibilityBuffer;
         nprFrameData.bboxCountBuffer = _outputCountBuffer;
         nprFrameData.bboxIndirectArgsBuffer = _indirectArgsBuffer;
-
-        NprGpuDebugState.SetBuffers(
-            nprFrameData.bboxRectBuffer,
-            nprFrameData.bboxMaskBuffer,
-            nprFrameData.bboxVisibilityBuffer,
-            nprFrameData.bboxCountBuffer,
-            nprFrameData.bboxIndirectArgsBuffer,
-            nprFrameData.bboxCount,
-            nprFrameData.bboxVisibilityCount
-        );
     }
 
     public void Dispose()

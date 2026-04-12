@@ -15,46 +15,14 @@ public class DummyPass : ScriptableRenderPass
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
     static readonly int RequiredBitID = Shader.PropertyToID("_RequiredBit");
 
-    ComputeBuffer _instanceBuffer;
-    int _instanceBufferCapacity = 0;
-
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
     static readonly int VisibilityFlagsID = Shader.PropertyToID("_BboxVisibilityFlags");
-    static readonly int BBoxIndicesID = Shader.PropertyToID("_BboxIndices");
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
-    static readonly int UseBboxIndicesID = Shader.PropertyToID("_UseBboxIndices");
-
-    ComputeBuffer _bboxIndexBuffer;
-    int _bboxIndexBufferCapacity = 0;
 
     readonly List<Material> _tempMaterials = new();
 
-    void EnsureIndexBufferCapacity(int count)
-    {
-        if (_bboxIndexBuffer != null && _bboxIndexBufferCapacity >= count)
-            return;
-
-        if (_bboxIndexBuffer != null)
-            _bboxIndexBuffer.Release();
-
-        _bboxIndexBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _bboxIndexBuffer = new ComputeBuffer(_bboxIndexBufferCapacity, sizeof(uint));
-    }
-
-    // make sure the compute buffer is big enough for the given instance count
-    void EnsureInstanceBufferCapacity(int count)
-    {
-        if (_instanceBuffer != null && _instanceBufferCapacity >= count)
-            return;
-
-        if (_instanceBuffer != null)
-            _instanceBuffer.Release();
-
-        _instanceBufferCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-        _instanceBuffer = new ComputeBuffer(_instanceBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
-    }
 
     private class PassData
     {
@@ -65,18 +33,13 @@ public class DummyPass : ScriptableRenderPass
 
         public ComputeBuffer instanceBuffer;
         public Vector4 screenSize;
-        public int instanceCount;
 
         public ComputeBuffer visibilityBuffer;
-        public ComputeBuffer bboxIndexBuffer;
         public int useOcclusion;
-        public int currentBBoxIndex;
 
         public ComputeBuffer maskBuffer;
-        public int useBboxIndices;
 
         public ComputeBuffer indirectArgsBuffer;
-        public int useIndirect;
     }
 
     private class CopyPassData
@@ -117,6 +80,9 @@ public class DummyPass : ScriptableRenderPass
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
+        // ─────────────────────────────
+        // SOURCE COPY (shared across all modes)
+        // ─────────────────────────────
         using (var builder = renderGraph.AddRasterRenderPass($"{_name} Source Copy", out CopyPassData copyPass))
         {
             builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
@@ -124,286 +90,190 @@ public class DummyPass : ScriptableRenderPass
 
             copyPass.src = frameData.activeColorTexture;
 
-            builder.SetRenderFunc(static (CopyPassData data, RasterGraphContext ctx) =>
+            builder.SetRenderFunc((CopyPassData data, RasterGraphContext ctx) =>
             {
                 Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
             });
         }
 
-        // FULLSCREEN MODE: ignore all bbox usage
-        if (!NprTestingConfig.BoundingBoxes)
+        switch (NprTestingConfig.RenderMode)
         {
-            using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {_name} Pass", out PassData passData))
-            {
-                passData.ids = nprFrameData.idTexture;
-                passData.mat = _mat;
-                passData.requiredBit = _requiredBit;
-
-                builder.UseTexture(passData.ids, AccessFlags.Read);
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-                {
-                    data.mat.SetTexture(IdTexId, data.ids);
-                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
-
-                    CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
-                });
-            }
-
-            return;
-        }
-
-        // GPU MERGED INDIRECT PATH
-        // if GPU merging has run, its output buffers are canonical for drawing
-        if (nprFrameData.bboxIndirectArgsBuffer != null)
-        {
-            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null)
+            case NprRenderMode.Fullscreen:
+                RunFullscreen(renderGraph, frameData, nprFrameData);
                 return;
 
-            using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (INDIRECT)", out PassData passData))
-            {
-                passData.ids = nprFrameData.idTexture;
-                passData.mat = _mat;
-                passData.instanceBuffer = nprFrameData.bboxRectBuffer;
-                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-                passData.instanceCount = 0;
-                passData.requiredBit = _requiredBit;
+            case NprRenderMode.CPU:
+                // maybe a check for cpu with batched drawing next?
+                RunCpu(renderGraph, frameData, nprFrameData);
+                return;
 
-                passData.visibilityBuffer = null;
-                passData.bboxIndexBuffer = null;
-                passData.useOcclusion = 0;
-                passData.currentBBoxIndex = 0;
 
-                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-                passData.useBboxIndices = 0;
 
-                passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
-                passData.useIndirect = 1;
-
-                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
-                {
-                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-                    passData.useOcclusion = 1;
-                }
-
-                builder.UseTexture(passData.ids, AccessFlags.Read);
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-                builder.AllowGlobalStateModification(true);
-
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-                {
-                    data.mat.SetTexture(IdTexId, data.ids);
-                    data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
-                    data.mat.SetVector(ScreenParamsID, data.screenSize);
-                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
-                    data.mat.SetInt(UseOcclusionID, data.useOcclusion);
-
-                    if (data.useOcclusion != 0)
-                        data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
-
-                    data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
-                    data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
-
-                    ctx.cmd.DrawProceduralIndirect(
-                        Matrix4x4.identity,
-                        data.mat,
-                        0,
-                        MeshTopology.Triangles,
-                        data.indirectArgsBuffer,
-                        0
-                    );
-                });
-            }
-
-            return;
+            case NprRenderMode.GPU:
+                RunGpu(renderGraph, frameData, nprFrameData, camDesc);
+                return;
         }
+    }
 
-        // BBOX MODE
+    void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    {
+        using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {_name} Pass", out PassData passData))
+        {
+            passData.ids = nprFrameData.idTexture;
+            passData.mat = _mat;
+            passData.requiredBit = _requiredBit;
+
+            builder.UseTexture(passData.ids, AccessFlags.Read);
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+            {
+                data.mat.SetTexture(IdTexId, data.ids);
+                data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
+
+                CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+            });
+        }
+    }
+
+    void RunCpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    {
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
-        if (!NprTestingConfig.BatchedDraws)
+        // for each bbox in cpu-side list we scissor the texture and apply effect
+        foreach (var bbox in nprFrameData.bboxes)
         {
-            foreach (var bbox in nprFrameData.bboxes)
-            {
-                if (bbox.box.width <= 0 || bbox.box.height <= 0)
-                    continue;
-
-                if ((bbox.testMask & _requiredBit) == 0)
-                    continue;
-
-                // Debug.Log($"[DummyPass] Rendering bbox {bbox.box} | " + $"bboxMask: {Convert.ToString((int)bbox.testMask, 2).PadLeft(32,'0')} | " + $"requiredBit: {Convert.ToString((int)_requiredBit, 2).PadLeft(32,'0')}");
-
-                int index = nprFrameData.bboxes.IndexOf(bbox);
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name} ({index})", out PassData passData))
-                {
-                    builder.AllowGlobalStateModification(true);
-
-                    passData.ids = nprFrameData.idTexture;
-
-                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
-                    {
-                        Material perPassMat = new Material(_mat);
-                        _tempMaterials.Add(perPassMat);
-                        passData.mat = perPassMat;
-                    }
-                    else
-                    {
-                        passData.mat = _mat;
-                    }
-
-                    passData.rect = bbox.box;
-                    passData.requiredBit = _requiredBit;
-
-                    passData.visibilityBuffer = null;
-                    passData.currentBBoxIndex = index;
-                    passData.useOcclusion = 0;
-
-                    if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
-                    {
-                        passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-                        passData.useOcclusion = 1;
-                    }
-
-                    builder.UseTexture(passData.ids, AccessFlags.Read);
-                    builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-                    builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
-                    {
-                        data.mat.SetTexture(IdTexId, data.ids);
-                        data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
-
-                        ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
-                        CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
-                        ctx.cmd.DisableScissorRect();
-                    });
-                }
-            }
-
-            return;
-        }
-
-        if (NprTestingConfig.BatchedBBoxGeneration)
-        {
-            using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (GPU GEN BBOXES)", out PassData passData))
-            {
-                passData.ids = nprFrameData.idTexture;
-                passData.mat = _mat;
-                passData.instanceBuffer = nprFrameData.bboxRectBuffer;
-                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-                passData.instanceCount = nprFrameData.bboxVisibilityCount;
-                passData.requiredBit = _requiredBit;
-
-                passData.visibilityBuffer = null;
-                passData.bboxIndexBuffer = null;
-                passData.useOcclusion = 0;
-                passData.currentBBoxIndex = 0;
-
-                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-                passData.useBboxIndices = 0;
-
-                passData.indirectArgsBuffer = null;
-                passData.useIndirect = 0;
-
-                if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
-                {
-                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-                    passData.useOcclusion = 1;
-                }
-
-                builder.UseTexture(passData.ids, AccessFlags.Read);
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-                builder.AllowGlobalStateModification(true);
-
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
-                {
-                    data.mat.SetTexture(IdTexId, data.ids);
-                    data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
-                    data.mat.SetVector(ScreenParamsID, data.screenSize);
-                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
-                    data.mat.SetInt(UseOcclusionID, data.useOcclusion);
-
-                    if (data.useOcclusion != 0)
-                        data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
-
-                    data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
-                    data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
-
-                    ctx.cmd.DrawProcedural(
-                        Matrix4x4.identity,
-                        data.mat,
-                        0,
-                        MeshTopology.Triangles,
-                        6,
-                        data.instanceCount
-                    );
-                });
-            }
-
-            return;
-        }
-
-        List<uint> bboxIndices = new List<uint>();
-
-        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
-        {
-            var bbox = nprFrameData.bboxes[i];
-
             if ((bbox.testMask & _requiredBit) == 0)
                 continue;
 
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
                 continue;
 
-            bboxIndices.Add((uint)i);
-        }
+            using (var builder = renderGraph.AddRasterRenderPass($"BBox {_name}", out PassData passData))
+            {
+                builder.AllowGlobalStateModification(true);
 
-        if (bboxIndices.Count == 0)
+                passData.ids = nprFrameData.idTexture;
+                passData.mat = _mat;
+                passData.rect = bbox.box;
+                passData.requiredBit = _requiredBit;
+
+                passData.useOcclusion = 0;
+
+                if (NprTestingConfig.UseOcclusion && nprFrameData.bboxVisibilityBuffer != null)
+                {
+                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.useOcclusion = 1;
+                }
+
+                builder.UseTexture(passData.ids, AccessFlags.Read);
+                builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                {
+                    data.mat.SetTexture(IdTexId, data.ids);
+                    data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
+
+                        ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
+                        CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);
+                        ctx.cmd.DisableScissorRect();
+                });
+            }
+        }
+    }
+
+    // TODO: Add CPU batched pass
+    // using (var builder = renderGraph.AddRasterRenderPass($"Batched Test Pass (GPU GEN BBOXES)", out PassData passData))
+    // {
+    //     passData.src = nprFrameData.sourceTexture;
+    //     passData.ids = nprFrameData.idTexture;
+    //     passData.requiredBit = (int)_RequiredBit;
+
+    //     passData.mat = _mat;
+
+
+    //     passData.instanceBuffer = nprFrameData.bboxRectBuffer;
+    //     passData.screenSize = _screenSize;
+    //     passData.instanceCount = nprFrameData.bboxVisibilityCount;
+
+    //     passData.visibilityBuffer = null;
+    //     passData.bboxIndexBuffer = null;
+    //     passData.useOcclusion = 0;
+
+    //     passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+    //     passData.useBboxIndices = 0;
+
+    //     if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+    //     {
+    //         passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+    //         passData.useOcclusion = 1;
+    //     }
+
+    //     builder.UseTexture(passData.src, AccessFlags.Read);
+    //     builder.UseTexture(passData.ids, AccessFlags.Read);
+    //     builder.UseTexture(passData.normals, AccessFlags.Read);
+    //     builder.UseTexture(passData.depth, AccessFlags.Read);
+
+    //     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+    //     builder.AllowGlobalStateModification(true);
+
+    //     builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
+    //     {
+    //         data.mat.SetTexture(SourceTexId, data.src);
+    //         data.mat.SetTexture(IdTexId, data.ids);
+    //         data.mat.SetInt(RequiredBitID, data.requiredBit);
+
+    //         data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
+    //         data.mat.SetVector(ScreenParamsID, data.screenSize);
+
+    //         data.mat.SetInt(UseOcclusionID, data.useOcclusion);
+
+    //         if (data.useOcclusion != 0)
+    //             data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
+
+    //         data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
+    //         data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
+
+    //         ctx.cmd.DrawProcedural(
+    //             Matrix4x4.identity,
+    //             data.mat,
+    //             0,
+    //             MeshTopology.Triangles,
+    //             6,
+    //             data.instanceCount
+    //         );
+    //     });
+    // }
+
+    // Indirect batching
+    void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData, RenderTextureDescriptor camDesc)
+    {
+        // GPU path requires fully prepared buffers
+        if (nprFrameData.bboxRectBuffer == null ||
+            nprFrameData.bboxMaskBuffer == null ||
+            nprFrameData.bboxIndirectArgsBuffer == null)
             return;
 
-        EnsureIndexBufferCapacity(bboxIndices.Count);
-        _bboxIndexBuffer.SetData(bboxIndices);
+        Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
-        using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (CPU GEN BBOXES)", out PassData passData))
+        using (var builder = renderGraph.AddRasterRenderPass($"Batched {_name} Pass (GPU)", out PassData passData))
         {
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;
-            passData.instanceBuffer = null;
-            passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
-            passData.instanceCount = bboxIndices.Count;
+            passData.instanceBuffer = nprFrameData.bboxRectBuffer;
+            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+            passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+
+            passData.screenSize = screenSize;
+
             passData.requiredBit = _requiredBit;
 
-            List<QuadInstanceData> instanceData = new List<QuadInstanceData>();
-
-            foreach (uint bboxIndex in bboxIndices)
-            {
-                BoundingBox bbox = nprFrameData.bboxes[(int)bboxIndex];
-                instanceData.Add(new QuadInstanceData
-                {
-                    rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height)
-                });
-            }
-
-            EnsureInstanceBufferCapacity(instanceData.Count);
-            _instanceBuffer.SetData(instanceData);
-            passData.instanceBuffer = _instanceBuffer;
-
-            passData.visibilityBuffer = null;
-            passData.bboxIndexBuffer = null;
             passData.useOcclusion = 0;
-            passData.currentBBoxIndex = 0;
 
-            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-            passData.useBboxIndices = 1;
-
-            passData.indirectArgsBuffer = null;
-            passData.useIndirect = 0;
-
-            if (NprTestingConfig.OcclusionCulling && nprFrameData.bboxVisibilityBuffer != null)
+            if (NprTestingConfig.UseOcclusion && nprFrameData.bboxVisibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-                passData.bboxIndexBuffer = _bboxIndexBuffer;
                 passData.useOcclusion = 1;
             }
 
@@ -415,26 +285,21 @@ public class DummyPass : ScriptableRenderPass
             {
                 data.mat.SetTexture(IdTexId, data.ids);
                 data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
+                data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
                 data.mat.SetVector(ScreenParamsID, data.screenSize);
                 data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
                 data.mat.SetInt(UseOcclusionID, data.useOcclusion);
 
                 if (data.useOcclusion != 0)
-                {
                     data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
-                    data.mat.SetBuffer(BBoxIndicesID, data.bboxIndexBuffer);
-                }
 
-                data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
-                data.mat.SetInt(UseBboxIndicesID, data.useBboxIndices);
-
-                ctx.cmd.DrawProcedural(
+                ctx.cmd.DrawProceduralIndirect(
                     Matrix4x4.identity,
                     data.mat,
                     0,
                     MeshTopology.Triangles,
-                    6,
-                    data.instanceCount
+                    data.indirectArgsBuffer,
+                    0
                 );
             });
         }
@@ -442,12 +307,6 @@ public class DummyPass : ScriptableRenderPass
 
     public void Dispose()
     {
-        if (_instanceBuffer != null)
-            _instanceBuffer.Release();
-
-        if (_bboxIndexBuffer != null)
-            _bboxIndexBuffer.Release();
-
         for (int i = 0; i < _tempMaterials.Count; i++)
         {
             if (_tempMaterials[i] != null)

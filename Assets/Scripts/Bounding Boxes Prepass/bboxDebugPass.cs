@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 [System.Serializable]
 public class BboxDebugPass : ScriptableRenderPass
@@ -13,6 +15,40 @@ public class BboxDebugPass : ScriptableRenderPass
     static readonly int VisibilityFlagsID = Shader.PropertyToID("_BBoxVisibilityFlags");
     static readonly int ScreenParamsID = Shader.PropertyToID("_NprScreenSize");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
+
+    ComputeBuffer _cpuRectBuffer;
+    int _cpuRectBufferCapacity = 0;
+
+    ComputeBuffer _cpuMaskBuffer;
+    int _cpuMaskBufferCapacity = 0;
+
+    void EnsureCpuRectBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_cpuRectBuffer == null || _cpuRectBufferCapacity < requiredCapacity)
+        {
+            if (_cpuRectBuffer != null)
+                _cpuRectBuffer.Release();
+
+            _cpuRectBufferCapacity = requiredCapacity;
+            _cpuRectBuffer = new ComputeBuffer(_cpuRectBufferCapacity, Marshal.SizeOf<QuadInstanceData>());
+        }
+    }
+
+    void EnsureCpuMaskBufferCapacity(int count)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (_cpuMaskBuffer == null || _cpuMaskBufferCapacity < requiredCapacity)
+        {
+            if (_cpuMaskBuffer != null)
+                _cpuMaskBuffer.Release();
+
+            _cpuMaskBufferCapacity = requiredCapacity;
+            _cpuMaskBuffer = new ComputeBuffer(_cpuMaskBufferCapacity, sizeof(uint));
+        }
+    }
 
     private class BBoxPassData
     {
@@ -56,11 +92,20 @@ public class BboxDebugPass : ScriptableRenderPass
 
         if (_bboxMat != null)
             CoreUtils.Destroy(_bboxMat);
+
+        if (_cpuRectBuffer != null)
+            _cpuRectBuffer.Release();
+
+        if (_cpuMaskBuffer != null)
+            _cpuMaskBuffer.Release();
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (!NprTestingConfig.DebugBBoxes)
+            return;
+
+        if (NprTestingConfig.RenderMode == NprRenderMode.Fullscreen)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -71,36 +116,88 @@ public class BboxDebugPass : ScriptableRenderPass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (nprFrameData.bboxRectBuffer == null)
-            return;
-
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
+        Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
-        bool useIndirect = nprFrameData.bboxIndirectArgsBuffer != null;
+        bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
+        bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
 
-        if (_bboxMat != null && nprFrameData.bboxMaskBuffer != null)
+        ComputeBuffer rectBuffer = null;
+        ComputeBuffer maskBuffer = null;
+        ComputeBuffer visibilityBuffer = null;
+        ComputeBuffer indirectArgsBuffer = null;
+
+        int bboxInstanceCount = 0;
+        int occlusionInstanceCount = 0;
+        bool useIndirect = false;
+
+        if (gpuMode)
         {
-            int bboxInstanceCount = 0;
+            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null)
+                return;
+
+            rectBuffer = nprFrameData.bboxRectBuffer;
+            maskBuffer = nprFrameData.bboxMaskBuffer;
+            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+
+            indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+            useIndirect = indirectArgsBuffer != null;
 
             if (!useIndirect)
             {
-                if (nprFrameData.bboxCount <= 0)
-                    bboxInstanceCount = 0;
+                bboxInstanceCount = nprFrameData.bboxCount;
+                occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
+            }
+        }
+        else if (cpuMode)
+        {
+            if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
+                return;
+
+            int count = nprFrameData.bboxes.Count;
+
+            EnsureCpuRectBufferCapacity(count);
+            EnsureCpuMaskBufferCapacity(count);
+
+            QuadInstanceData[] rectData = new QuadInstanceData[count];
+            uint[] maskData = new uint[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                BoundingBox bbox = nprFrameData.bboxes[i];
+                rectData[i].rect = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height);
+
+                if (NprTestingConfig.TestMode)
+                    maskData[i] = bbox.testMask;
                 else
-                    bboxInstanceCount = nprFrameData.bboxCount;
+                    maskData[i] = (uint)bbox.styles;
             }
 
+            _cpuRectBuffer.SetData(rectData, 0, 0, count);
+            _cpuMaskBuffer.SetData(maskData, 0, 0, count);
+
+            rectBuffer = _cpuRectBuffer;
+            maskBuffer = _cpuMaskBuffer;
+            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+
+            bboxInstanceCount = count;
+            occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
+            useIndirect = false;
+        }
+
+        if (_bboxMat != null && rectBuffer != null && maskBuffer != null)
+        {
             if (useIndirect || bboxInstanceCount > 0)
             {
                 using (var builder = renderGraph.AddRasterRenderPass("BBox Debug Overlay", out BBoxPassData passData))
                 {
                     passData.mat = _bboxMat;
-                    passData.rectBuffer = nprFrameData.bboxRectBuffer;
-                    passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-                    passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+                    passData.rectBuffer = rectBuffer;
+                    passData.maskBuffer = maskBuffer;
+                    passData.screenSize = screenSize;
                     passData.instanceCount = bboxInstanceCount;
 
-                    passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+                    passData.indirectArgsBuffer = indirectArgsBuffer;
                     passData.useIndirect = useIndirect ? 1 : 0;
 
                     builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
@@ -139,36 +236,26 @@ public class BboxDebugPass : ScriptableRenderPass
             }
         }
 
-        if (!NprTestingConfig.OcclusionCulling)
+        if (!NprTestingConfig.UseOcclusion)
             return;
 
         if (_occlusionMat == null)
             return;
 
-        if (nprFrameData.bboxVisibilityBuffer == null)
+        if (rectBuffer == null || visibilityBuffer == null)
             return;
-
-        int occlusionInstanceCount = 0;
-
-        if (!useIndirect)
-        {
-            if (nprFrameData.bboxVisibilityCount <= 0)
-                occlusionInstanceCount = 0;
-            else
-                occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
-        }
 
         if (useIndirect || occlusionInstanceCount > 0)
         {
             using (var builder = renderGraph.AddRasterRenderPass("Occlusion Debug Overlay", out OcclusionPassData passData))
             {
                 passData.mat = _occlusionMat;
-                passData.rectBuffer = nprFrameData.bboxRectBuffer;
-                passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
-                passData.screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
+                passData.rectBuffer = rectBuffer;
+                passData.visibilityBuffer = visibilityBuffer;
+                passData.screenSize = screenSize;
                 passData.instanceCount = occlusionInstanceCount;
 
-                passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+                passData.indirectArgsBuffer = indirectArgsBuffer;
                 passData.useIndirect = useIndirect ? 1 : 0;
 
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);

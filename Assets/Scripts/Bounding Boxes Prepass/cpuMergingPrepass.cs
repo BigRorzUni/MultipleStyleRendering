@@ -22,7 +22,10 @@ public class CpuMergingPrepass : ScriptableRenderPass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (!NprTestingConfig.BoundingBoxes || !NprTestingConfig.BBoxMerging)
+        if (NprTestingConfig.RenderMode != NprRenderMode.CPU)
+            return;
+
+        if (!NprTestingConfig.UseMerging)
             return;
 
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
@@ -32,20 +35,20 @@ public class CpuMergingPrepass : ScriptableRenderPass
         List<BoundingBox> newBoxes = new List<BoundingBox>();
         List<BoundingBox> toRemove = new List<BoundingBox>();
 
-        while(!merged)
+        while (!merged)
         {
             merged = true;
 
-            if(NprTestingConfig.TestMode)
+            if (NprTestingConfig.TestMode)
             {
-                foreach(var bboxA in nprFrameData.bboxes)
+                foreach (var bboxA in nprFrameData.bboxes)
                 {
                     uint testEffectsA = bboxA.testMask;
 
-                    if(testEffectsA == 0)
+                    if (testEffectsA == 0)
                         continue;
 
-                    foreach(var bboxB in nprFrameData.bboxes)
+                    foreach (var bboxB in nprFrameData.bboxes)
                     {
                         if (bboxA == bboxB)
                             continue;
@@ -67,7 +70,7 @@ public class CpuMergingPrepass : ScriptableRenderPass
 
                             int unionArea = (UnionMaxX - UnionMinX) * (UnionMaxY - UnionMinY);
 
-                            if(unionArea < areaA + areaB)
+                            if (unionArea < areaA + areaB)
                             {
                                 merged = false;
 
@@ -119,14 +122,14 @@ public class CpuMergingPrepass : ScriptableRenderPass
                 continue;
             }
 
-            foreach(var bboxA in nprFrameData.bboxes)
+            foreach (var bboxA in nprFrameData.bboxes)
             {
                 StyleBits.ImageSpaceEffect effectsA = bboxA.styles;
 
-                if(effectsA == 0)
+                if (effectsA == 0)
                     continue;
 
-                foreach(var bboxB in nprFrameData.bboxes)
+                foreach (var bboxB in nprFrameData.bboxes)
                 {
                     if (bboxA == bboxB)
                         continue;
@@ -148,7 +151,7 @@ public class CpuMergingPrepass : ScriptableRenderPass
 
                         int unionArea = (UnionMaxX - UnionMinX) * (UnionMaxY - UnionMinY);
 
-                        if(unionArea < areaA + areaB)
+                        if (unionArea < areaA + areaB)
                         {
                             merged = false;
 
@@ -199,10 +202,9 @@ public class CpuMergingPrepass : ScriptableRenderPass
         }
 
         nprFrameData.bboxCount = nprFrameData.bboxes.Count;
+        nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
+        nprFrameData.bboxIndirectArgsBuffer = null;
 
-        // if effects are using gpu buffers, rebuild them from the merged cpu list
-        // if (NprTestingConfig.BatchedDraws)
-        // {
         if (nprFrameData.bboxCount > 0)
         {
             QuadInstanceData[] rectData = new QuadInstanceData[nprFrameData.bboxCount];
@@ -219,8 +221,31 @@ public class CpuMergingPrepass : ScriptableRenderPass
                 else
                     maskData[i] = b.testMask;
 
-                // cpu merge runs before occlusion, so reset all to visible here
                 visibilityData[i] = 1u;
+            }
+
+            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxRectBuffer.count < nprFrameData.bboxCount)
+            {
+                if (nprFrameData.bboxRectBuffer != null)
+                    nprFrameData.bboxRectBuffer.Release();
+
+                nprFrameData.bboxRectBuffer = new ComputeBuffer(nprFrameData.bboxCount, System.Runtime.InteropServices.Marshal.SizeOf<QuadInstanceData>());
+            }
+
+            if (nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxMaskBuffer.count < nprFrameData.bboxCount)
+            {
+                if (nprFrameData.bboxMaskBuffer != null)
+                    nprFrameData.bboxMaskBuffer.Release();
+
+                nprFrameData.bboxMaskBuffer = new ComputeBuffer(nprFrameData.bboxCount, sizeof(uint));
+            }
+
+            if (nprFrameData.bboxVisibilityBuffer == null || nprFrameData.bboxVisibilityBuffer.count < nprFrameData.bboxCount)
+            {
+                if (nprFrameData.bboxVisibilityBuffer != null)
+                    nprFrameData.bboxVisibilityBuffer.Release();
+
+                nprFrameData.bboxVisibilityBuffer = new ComputeBuffer(nprFrameData.bboxCount, sizeof(uint));
             }
 
             nprFrameData.bboxRectBuffer.SetData(rectData, 0, 0, nprFrameData.bboxCount);
@@ -228,7 +253,10 @@ public class CpuMergingPrepass : ScriptableRenderPass
             nprFrameData.bboxVisibilityBuffer.SetData(visibilityData, 0, 0, nprFrameData.bboxCount);
         }
 
-        nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
-        // }
+        if (nprFrameData.bboxCountBuffer != null)
+        {
+            uint[] countData = new uint[1] { (uint)nprFrameData.bboxCount };
+            nprFrameData.bboxCountBuffer.SetData(countData, 0, 0, 1);
+        }
     }
 }

@@ -5,10 +5,11 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 
 
-public static class OcclusionData
+public enum NprRenderMode
 {
-    public static List<BoundingBox> bboxes;
-    public static List<BoundingBox> occlusionCandidateBoxes;
+    Fullscreen,
+    CPU,
+    GPU
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -50,7 +51,7 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle sourceTexture;
 
     public List<BoundingBox> bboxes;
-    public List<BoundingBox> occlusionCandidateBoxes; // bboxes that passed occlusion culling and need to be drawn in id prepass
+    public List<BoundingBox> occlusionCandidateBoxes; 
 
     public int bboxCount;
     public int bboxVisibilityCount;
