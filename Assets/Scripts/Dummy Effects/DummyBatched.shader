@@ -21,12 +21,7 @@ Shader "Custom/DummyBatched"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct InstanceData
-            {
-                float4 rect; 
-            };
-
-            StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<float4> _InstanceData;
             StructuredBuffer<uint> _BboxVisibilityFlags;
             StructuredBuffer<uint> _BboxIndices;
             StructuredBuffer<uint> _BBoxMasks;
@@ -107,7 +102,7 @@ Shader "Custom/DummyBatched"
                 }
 
                 float2 uv = GetQuadUV(v.vertexID);
-                float4 rect = _InstanceData[v.instanceID].rect;
+                float4 rect = _InstanceData[v.instanceID];
 
                 // map local quad UV to pixel coords within bbox
                 float2 pixelPos = rect.xy + uv * rect.zw;

@@ -8,7 +8,7 @@ int4 _Rect;
 int _BboxIndex;
 
 // for batched mode
-StructuredBuffer<float4> _InstanceData;
+StructuredBuffer<float4> _Rects;
 int _BboxCount;
 
 StructuredBuffer<uint> _ExpectedMasks;
@@ -73,7 +73,7 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
     if (bboxIndex >= (uint)_BboxCount)
         return;
 
-    float4 rect = _InstanceData[bboxIndex];
+    float4 rect = _Rects[bboxIndex];
 
     if (groupThreadID.x == 0)
         anyVisible = 0;

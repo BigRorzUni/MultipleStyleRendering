@@ -22,12 +22,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
             #pragma fragment Frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            struct InstanceData
-            {
-                float4 rect; 
-            };
-
-            StructuredBuffer<InstanceData> _InstanceData;
+            StructuredBuffer<float4> _InstanceData;
             float4 _NprScreenSize; 
 
             TEXTURE2D(_NprDepthTexture);
@@ -124,7 +119,7 @@ Shader "Custom/ScreenspaceOutlinesBatched"
                 }
 
                 float2 uv = GetQuadUV(v.vertexID);
-                float4 rect = _InstanceData[v.instanceID].rect;
+                float4 rect = _InstanceData[v.instanceID];
 
                 // map local quad UV to pixel coords within bbox
                 float2 pixelPos = rect.xy + uv * rect.zw;

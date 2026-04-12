@@ -10,13 +10,9 @@ struct BBoxGenerationInput
     uint mask;
 };
 
-struct QuadInstanceData
-{
-    float4 rect;
-};
 
 StructuredBuffer<BBoxGenerationInput> _Inputs;
-RWStructuredBuffer<QuadInstanceData> _Rects;
+RWStructuredBuffer<float4> _Rects;
 RWStructuredBuffer<uint> _IndirectArgs;
 
 int _BBoxCount;
@@ -38,7 +34,7 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     if (id >= (uint)_BBoxCount)
         return;
 
-    _Rects[id].rect = float4(0, 0, 0, 0);
+    _Rects[id] = float4(0, 0, 0, 0);
 
     const float eps = 1e-5;
 
@@ -163,7 +159,7 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     if (width <= 0 || height <= 0)
         return;
 
-    _Rects[id].rect = float4(minX, minY, width, height);
+    _Rects[id] = float4(minX, minY, width, height);
 }
 
 [numthreads(1,1,1)]
