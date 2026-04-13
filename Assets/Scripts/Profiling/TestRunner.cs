@@ -11,7 +11,9 @@ using System.Collections.Generic;
 
 public static class NprTestingConfig
 {
-    public static NprRenderMode RenderMode;
+    public static NprRenderMode RenderMode = NprRenderMode.CPU;
+
+    public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.PairwiseIterative;
 
     public static bool UseMerging;
     public static bool UseOcclusion;
@@ -25,6 +27,12 @@ public static class NprTestingConfig
     public static string SceneName = ""; // scene to test
     public static bool IsBenchmarkRunning = false;
     public static bool DebugBBoxes = false;
+}
+
+public enum GpuMergeMethod
+{
+    PairwiseIterative,
+    BucketedUnion
 }
 
 // what the test will be changing
@@ -71,6 +79,7 @@ public class TestRunner : MonoBehaviour
     [Header("pipeline config")]
     public NprRenderMode setRenderMode = NprRenderMode.CPU;
     public bool setUseMerging = true;
+    public GpuMergeMethod setGpuMergeMethod = GpuMergeMethod.PairwiseIterative;
     public bool setUseOcclusion = true;
 
     public bool setRendererTestmode = false;
@@ -301,6 +310,7 @@ public class TestRunner : MonoBehaviour
 
         NprTestingConfig.TestMode = setRendererTestmode;
         NprTestingConfig.DebugBBoxes = setDebugBBoxes;
+        NprTestingConfig.GPUMergeMethod = setGpuMergeMethod;
 
         NprTestingConfig.RenderMode = setRenderMode;
         NprTestingConfig.UseMerging = setUseMerging;

@@ -24,6 +24,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
     private CpuMergingPrepass _cpuMergingPrepass;
     private GpuMergingPrepass _gpuMergingPrepass;
+    private GpuTileMergingPrepass _gpuTileMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
 
     // IMAGE EFFECTS
@@ -46,6 +47,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader bboxMergingComputeShader;
+    [SerializeField] private ComputeShader TileMergingComputeShader;   
     [SerializeField] private Shader bboxDebugShader;
 
     // TEST EFFECTS
@@ -90,6 +92,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     bool UseBatchedScreenPasses()
     {
         return UseGpuMode();
+    }
+
+    bool UseIterativeGpuMerging()
+    {
+        return NprTestingConfig.GPUMergeMethod == GpuMergeMethod.PairwiseIterative;
     }
 
     public override void Create()
@@ -159,6 +166,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 }
 
                 _gpuMergingPrepass = new GpuMergingPrepass(bboxMergingComputeShader);
+
+                if (TileMergingComputeShader == null)
+                {
+                    Debug.LogError("Tile merging compute shader 'TileMerge' not set");
+                    return;
+                }
+
+                _gpuTileMergingPrepass = new GpuTileMergingPrepass(TileMergingComputeShader);
             }
         }
 
@@ -271,9 +286,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         if (NprTestingConfig.UseOcclusion && UseBoundingBoxes() && _bboxOcclusionPrepass != null)
             renderer.EnqueuePass(_bboxOcclusionPrepass);
 
-        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode() && _gpuMergingPrepass != null)
-            renderer.EnqueuePass(_gpuMergingPrepass);
-
+        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode())
+        {
+            if(UseIterativeGpuMerging() && _gpuMergingPrepass != null)
+                renderer.EnqueuePass(_gpuMergingPrepass);
+            else if(_gpuTileMergingPrepass != null)
+                renderer.EnqueuePass(_gpuTileMergingPrepass);
+        }
         _normalsPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_normalsPrepass);
 
