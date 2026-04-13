@@ -1,0 +1,55 @@
+#pragma kernel RasteriseRectsToTiles
+
+StructuredBuffer<float4> _Rects;
+StructuredBuffer<uint> _Masks;
+StructuredBuffer<uint> _Visibility;
+
+RWStructuredBuffer<uint> _TileMasks;
+
+int _BBoxCount;
+int _TileSize;
+float4 _TileGridSize;
+float4 _ScreenSize;
+
+[numthreads(64,1,1)]
+void RasteriseRectsToTiles(uint id : SV_DispatchThreadID)
+{
+    if (id >= (uint)_BBoxCount)
+        return;
+
+    if (_Visibility[id] == 0u)
+        return;
+
+    uint mask = _Masks[id];
+    if (mask == 0u)
+        return;
+
+    float4 rect = _Rects[id];
+
+    if (rect.z <= 0.0 || rect.w <= 0.0)
+        return;
+
+    uint tilesX = (uint)_TileGridSize.x;
+    uint tilesY = (uint)_TileGridSize.y;
+
+    uint minTileX = (uint)floor(rect.x / (float)_TileSize);
+    uint minTileY = (uint)floor(rect.y / (float)_TileSize);
+    uint maxTileX = (uint)floor((rect.x + rect.z - 1.0) / (float)_TileSize);
+    uint maxTileY = (uint)floor((rect.y + rect.w - 1.0) / (float)_TileSize);
+
+    minTileX = min(minTileX, tilesX - 1u);
+    minTileY = min(minTileY, tilesY - 1u);
+    maxTileX = min(maxTileX, tilesX - 1u);
+    maxTileY = min(maxTileY, tilesY - 1u);
+
+    for (uint ty = minTileY; ty <= maxTileY; ty++)
+    {
+        for (uint tx = minTileX; tx <= maxTileX; tx++)
+        {
+            uint tileIndex = ty * tilesX + tx;
+
+            uint oldValue;
+            InterlockedOr(_TileMasks[tileIndex], mask, oldValue);
+        }
+    }
+}
