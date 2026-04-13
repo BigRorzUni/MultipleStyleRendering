@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine;
-using System.Runtime.InteropServices;
 
 
 public enum NprRenderMode
@@ -52,6 +51,10 @@ public sealed class NprFrameData : ContextItem
     public int bboxCount;
     public int bboxVisibilityCount;
 
+    // public int bboxRectBufferCapacity;
+    // public int bboxMaskBufferCapacity;
+    // public int bboxVisibilityBufferCapacity;
+
     public ComputeBuffer bboxVisibilityBuffer;
     public ComputeBuffer bboxRectBuffer;
     public ComputeBuffer bboxMaskBuffer;
@@ -61,6 +64,26 @@ public sealed class NprFrameData : ContextItem
     public StyleBits.ImageSpaceEffect presentImageBits;
 
     public uint presentTestStyles;  
+
+    public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride,     ComputeBufferType type = ComputeBufferType.Default)
+    {
+        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+
+        if (buffer == null || capacity < requiredCapacity)
+        {
+            if (buffer != null)
+                buffer.Release();
+
+            capacity = requiredCapacity;
+            buffer = new ComputeBuffer(capacity, stride, type);
+        }
+    }
+
+    public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
+    {
+        if (buffer == null)
+            buffer = new ComputeBuffer(count, stride, type);
+    }
 
 
     public override void Reset()

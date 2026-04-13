@@ -40,7 +40,6 @@ public class BBoxPrepass : ScriptableRenderPass
 
     ComputeBuffer _bboxRectBuffer;
     int _bboxRectBufferCapacity = 0;
-    Vector4[] _bboxRectInitData;
 
     ComputeBuffer _bboxVisibilityBuffer;
     int _bboxVisibilityBufferCapacity = 0;
@@ -53,82 +52,6 @@ public class BBoxPrepass : ScriptableRenderPass
     ComputeBuffer _bboxCountBuffer;
     ComputeBuffer _bboxIndirectArgsBuffer;
 
-    void EnsureInputBufferCapacity(int count)
-    {
-        int required = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxInputBuffer == null || _bboxInputCapacity < required)
-        {
-            if (_bboxInputBuffer != null)
-                _bboxInputBuffer.Release();
-
-            _bboxInputCapacity = required;
-            _bboxInputBuffer = new ComputeBuffer(_bboxInputCapacity, Marshal.SizeOf<BBoxGenerationInput>());
-        }
-    }
-
-    void EnsureRectBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxRectBuffer == null || _bboxRectBufferCapacity < requiredCapacity)
-        {
-            if (_bboxRectBuffer != null)
-                _bboxRectBuffer.Release();
-
-            _bboxRectBufferCapacity = requiredCapacity;
-            _bboxRectBuffer = new ComputeBuffer(_bboxRectBufferCapacity, Marshal.SizeOf<Vector4>());
-        }
-
-        if (_bboxRectInitData == null || _bboxRectInitData.Length < _bboxRectBufferCapacity)
-            _bboxRectInitData = new Vector4[_bboxRectBufferCapacity];
-    }
-
-    void EnsureVisibilityBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxVisibilityBuffer == null || _bboxVisibilityBufferCapacity < requiredCapacity)
-        {
-            if (_bboxVisibilityBuffer != null)
-                _bboxVisibilityBuffer.Release();
-
-            _bboxVisibilityBufferCapacity = requiredCapacity;
-            _bboxVisibilityBuffer = new ComputeBuffer(_bboxVisibilityBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
-            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
-    }
-
-    void EnsureMaskBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_bboxMaskBuffer == null || _bboxMaskBufferCapacity < requiredCapacity)
-        {
-            if (_bboxMaskBuffer != null)
-                _bboxMaskBuffer.Release();
-
-            _bboxMaskBufferCapacity = requiredCapacity;
-            _bboxMaskBuffer = new ComputeBuffer(_bboxMaskBufferCapacity, sizeof(uint));
-        }
-
-        if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
-            _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
-    }
-
-    void EnsureCountBuffer()
-    {
-        if (_bboxCountBuffer == null)
-            _bboxCountBuffer = new ComputeBuffer(1, sizeof(uint));
-    }
-
-    void EnsureIndirectArgsBuffer()
-    {
-        if (_bboxIndirectArgsBuffer == null)
-            _bboxIndirectArgsBuffer = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
-    }
 
     public BBoxPrepass(ComputeShader bboxGeneration)
     {
@@ -271,11 +194,14 @@ public class BBoxPrepass : ScriptableRenderPass
 
                 nprFrameData.bboxCount = gpuInputs.Count;
 
-                EnsureInputBufferCapacity(nprFrameData.bboxCount);
-                EnsureRectBufferCapacity(nprFrameData.bboxCount);
-                EnsureMaskBufferCapacity(nprFrameData.bboxCount);
-                EnsureCountBuffer();
-                EnsureIndirectArgsBuffer();
+                NprFrameData.EnsureBufferCapacity(ref _bboxInputBuffer, ref _bboxInputCapacity, nprFrameData.bboxCount, Marshal.SizeOf<BBoxGenerationInput>());
+                NprFrameData.EnsureBufferCapacity(ref _bboxRectBuffer, ref _bboxRectBufferCapacity, nprFrameData.bboxCount, Marshal.SizeOf<Vector4>());
+                NprFrameData.EnsureBufferCapacity(ref _bboxMaskBuffer, ref _bboxMaskBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+                NprFrameData.EnsureFixedBuffer(ref _bboxCountBuffer, 1, sizeof(uint));
+                NprFrameData.EnsureFixedBuffer(ref _bboxIndirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
+
+                if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
+                    _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
 
                 if (nprFrameData.bboxCount > 0)
                 {
@@ -338,7 +264,7 @@ public class BBoxPrepass : ScriptableRenderPass
                 nprFrameData.bboxIndirectArgsBuffer = _bboxIndirectArgsBuffer;
             }
         }
-        else
+        else // fullscreen
         {
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
             foreach (var tag in tags)
@@ -358,7 +284,10 @@ public class BBoxPrepass : ScriptableRenderPass
             {
                 if (NprTestingConfig.UseOcclusion)
                 {
-                    EnsureVisibilityBufferCapacity(nprFrameData.bboxCount);
+                    NprFrameData.EnsureBufferCapacity(ref _bboxVisibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+
+                    if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+                        _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
 
                     for (int i = 0; i < nprFrameData.bboxCount; i++)
                         _bboxVisibilityInitData[i] = 1u;
@@ -386,7 +315,10 @@ public class BBoxPrepass : ScriptableRenderPass
         {
             if (NprTestingConfig.UseOcclusion)
             {
-                EnsureVisibilityBufferCapacity(nprFrameData.bboxCount);
+                NprFrameData.EnsureBufferCapacity(ref _bboxVisibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+
+                if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+                    _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
 
                 for (int i = 0; i < nprFrameData.bboxCount; i++)
                     _bboxVisibilityInitData[i] = 1u;
@@ -403,28 +335,14 @@ public class BBoxPrepass : ScriptableRenderPass
                 nprFrameData.bboxVisibilityCount = 0;
             }
 
-            // NprGpuDebugState.SetBuffers(
+            // GpuDebugState.SetOutputBuffers(
             //     nprFrameData.bboxRectBuffer,
             //     nprFrameData.bboxMaskBuffer,
             //     nprFrameData.bboxVisibilityBuffer,
             //     nprFrameData.bboxCountBuffer,
-            //     nprFrameData.bboxIndirectArgsBuffer,
-            //     nprFrameData.bboxCount,
-            //     nprFrameData.bboxVisibilityCount
+            //     nprFrameData.bboxIndirectArgsBuffer
             // );
         }
-
-        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
-        camDesc.depthBufferBits = 0;
-        camDesc.msaaSamples = 1;
-
-        nprFrameData.sourceTexture = renderGraph.CreateTexture(new TextureDesc(camDesc.width, camDesc.height)
-        {
-            name = "_NprSourceCopy",
-            colorFormat = camDesc.graphicsFormat,
-            clearBuffer = false,
-            filterMode = FilterMode.Point
-        });
     }  
 
     static readonly int[,] BoxEdges = new int[,]

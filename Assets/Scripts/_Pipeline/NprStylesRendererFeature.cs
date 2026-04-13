@@ -275,10 +275,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         if (_idPrepass == null || _bboxPrepass == null)
             return;
 
-        renderer.EnqueuePass(_bboxPrepass);
-
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
+
+        renderer.EnqueuePass(_bboxPrepass);
 
         if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
             renderer.EnqueuePass(_cpuMergingPrepass);
