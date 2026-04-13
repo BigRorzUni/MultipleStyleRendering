@@ -10,7 +10,8 @@ Shader "Custom/bboxDebug"
             Cull Off
             ZWrite Off
             ZTest Always
-            Blend SrcAlpha OneMinusSrcAlpha
+            // Blend SrcAlpha OneMinusSrcAlpha
+            Blend One One
 
             HLSLPROGRAM
             #pragma target 4.5
@@ -111,18 +112,18 @@ Shader "Custom/bboxDebug"
                 uint mask = _BBoxMasks[i.instanceID];
                 float3 colour = HashColour(mask);
 
-                float thickness = 0.03;
+                // float thickness = 0.03;
 
-                bool border =
-                    i.localUV.x < thickness ||
-                    i.localUV.x > 1.0 - thickness ||
-                    i.localUV.y < thickness ||
-                    i.localUV.y > 1.0 - thickness;
+                // bool border =
+                //     i.localUV.x < thickness ||
+                //     i.localUV.x > 1.0 - thickness ||
+                //     i.localUV.y < thickness ||
+                //     i.localUV.y > 1.0 - thickness;
 
-                if (!border)
-                    clip(-1);
+                // if (!border)
+                //     clip(-1);
 
-                return half4(colour, 1.0);
+                return half4(colour / 5, 1.0);
             }
             ENDHLSL
         }

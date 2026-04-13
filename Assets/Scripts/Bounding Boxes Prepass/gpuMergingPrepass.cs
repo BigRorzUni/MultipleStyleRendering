@@ -296,6 +296,8 @@ public class GpuMergingPrepass : ScriptableRenderPass
         nprFrameData.bboxVisibilityBuffer = _outputVisibilityBuffer;
         nprFrameData.bboxCountBuffer = _outputCountBuffer;
         nprFrameData.bboxIndirectArgsBuffer = _indirectArgsBuffer;
+
+        GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);
     }
 
     public void Dispose()

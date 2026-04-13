@@ -1,8 +1,17 @@
 #pragma kernel RasteriseRectsToTiles
+#pragma kernel EmitTilesToRects
+#pragma kernel BuildDrawArgs
+
 
 StructuredBuffer<float4> _Rects;
 StructuredBuffer<uint> _Masks;
 StructuredBuffer<uint> _Visibility;
+
+RWStructuredBuffer<float4> _OutputRects;
+RWStructuredBuffer<uint> _OutputMasks;
+RWStructuredBuffer<uint> _OutputVisibility;
+RWStructuredBuffer<uint> _OutputCount;
+RWStructuredBuffer<uint> _IndirectArgs;
 
 RWStructuredBuffer<uint> _TileMasks;
 
@@ -52,4 +61,53 @@ void RasteriseRectsToTiles(uint id : SV_DispatchThreadID)
             InterlockedOr(_TileMasks[tileIndex], mask, oldValue);
         }
     }
+}
+
+[numthreads(64,1,1)]
+void EmitTilesToRects(uint id : SV_DispatchThreadID)
+{
+    uint tilesX = (uint)_TileGridSize.x;
+    uint tilesY = (uint)_TileGridSize.y;
+    uint tileCount = tilesX * tilesY;
+
+    if (id >= tileCount)
+        return;
+
+    uint mask = _TileMasks[id];
+    if (mask == 0u)
+        return;
+
+    uint tx = id % tilesX;
+    uint ty = id / tilesX;
+
+    float x = (float)(tx * (uint)_TileSize);
+    float y = (float)(ty * (uint)_TileSize);
+
+    float width = (float)_TileSize;
+    float height = (float)_TileSize;
+
+    float maxWidth = _ScreenSize.x - x;
+    float maxHeight = _ScreenSize.y - y;
+
+    width = min(width, maxWidth);
+    height = min(height, maxHeight);
+
+    if (width <= 0.0 || height <= 0.0)
+        return;
+
+    uint outIndex;
+    InterlockedAdd(_OutputCount[0], 1u, outIndex);
+
+    _OutputRects[outIndex] = float4(x, y, width, height);
+    _OutputMasks[outIndex] = mask;
+    _OutputVisibility[outIndex] = 1u;
+}
+
+[numthreads(1,1,1)]
+void BuildDrawArgs(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    _IndirectArgs[0] = 6;
+    _IndirectArgs[1] = _OutputCount[0];
+    _IndirectArgs[2] = 0;
+    _IndirectArgs[3] = 0;
 }
