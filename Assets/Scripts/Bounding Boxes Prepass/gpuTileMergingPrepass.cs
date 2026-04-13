@@ -4,24 +4,25 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class GpuMergingPrepass : ScriptableRenderPass
+public class GpuTileMergingPrepass : ScriptableRenderPass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
-    readonly ComputeShader _bboxMerging;
-    readonly int _findPairsKernel;
-    readonly int _resolvePairsKernel;
-    readonly int _emitMergedKernel;
+    readonly ComputeShader _tileMerging;
+    readonly int _rasteriseTilesKernel;
+    readonly int _emitTilesKernel;
     readonly int _buildDrawArgsKernel;
+
 
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
     static readonly int MaskBufferID = Shader.PropertyToID("_Masks");
     static readonly int VisibilityBufferID = Shader.PropertyToID("_Visibility");
 
-    static readonly int PairBufferID = Shader.PropertyToID("_Pairs");
-    static readonly int ValidPairBufferID = Shader.PropertyToID("_ValidPairs");
-    static readonly int CanMergeBufferID = Shader.PropertyToID("_CanMerge");
+    static readonly int TileMaskBufferID = Shader.PropertyToID("_TileMasks");
+    static readonly int TileGridSizeID = Shader.PropertyToID("_TileGridSize");
+    static readonly int TileSizeID = Shader.PropertyToID("_TileSize");
+    static readonly int ScreenSizeID = Shader.PropertyToID("_ScreenSize");
 
     static readonly int OutputRectBufferID = Shader.PropertyToID("_OutputRects");
     static readonly int OutputMaskBufferID = Shader.PropertyToID("_OutputMasks");
@@ -31,13 +32,10 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
     static readonly int BBoxCountID = Shader.PropertyToID("_BBoxCount");
 
-    ComputeBuffer _pairBuffer;
-    int _pairBufferCapacity = 0;
+    const int _tileSize = 16;
 
-    ComputeBuffer _validPairBuffer;
-    int _validPairBufferCapacity = 0;
-
-    ComputeBuffer _canMergeBuffer;
+    ComputeBuffer _tileMaskBuffer;
+    int _tileMaskBufferCapacity = 0;
 
     ComputeBuffer _outputRectBuffer;
     int _outputRectBufferCapacity = 0;
@@ -51,38 +49,18 @@ public class GpuMergingPrepass : ScriptableRenderPass
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
-    void EnsurePairBufferCapacity(int count)
+    void EnsureTileMaskBufferCapacity(int count)
     {
         int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
 
-        if (_pairBuffer == null || _pairBufferCapacity < requiredCapacity)
+        if (_tileMaskBuffer == null || _tileMaskBufferCapacity < requiredCapacity)
         {
-            if (_pairBuffer != null)
-                _pairBuffer.Release();
+            if (_tileMaskBuffer != null)
+                _tileMaskBuffer.Release();
 
-            _pairBufferCapacity = requiredCapacity;
-            _pairBuffer = new ComputeBuffer(_pairBufferCapacity, sizeof(int));
+            _tileMaskBufferCapacity = requiredCapacity;
+            _tileMaskBuffer = new ComputeBuffer(_tileMaskBufferCapacity, sizeof(uint));
         }
-    }
-
-    void EnsureValidPairBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_validPairBuffer == null || _validPairBufferCapacity < requiredCapacity)
-        {
-            if (_validPairBuffer != null)
-                _validPairBuffer.Release();
-
-            _validPairBufferCapacity = requiredCapacity;
-            _validPairBuffer = new ComputeBuffer(_validPairBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureCanMergeBuffer()
-    {
-        if (_canMergeBuffer == null)
-            _canMergeBuffer = new ComputeBuffer(1, sizeof(uint));
     }
 
     void EnsureOutputRectBufferCapacity(int count)
@@ -139,36 +117,31 @@ public class GpuMergingPrepass : ScriptableRenderPass
             _indirectArgsBuffer = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
     }
 
-    public GpuMergingPrepass(ComputeShader bboxMerging)
+    public GpuTileMergingPrepass(ComputeShader tileMerging)
     {
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
 
-        if (bboxMerging != null)
+        if (tileMerging != null)
         {
-            _bboxMerging = bboxMerging;
-            _findPairsKernel = _bboxMerging.FindKernel("FindMergePairs");
-            _resolvePairsKernel = _bboxMerging.FindKernel("ResolveMergePairs");
-            _emitMergedKernel = _bboxMerging.FindKernel("EmitMergedBoxes");
-            _buildDrawArgsKernel = _bboxMerging.FindKernel("BuildDrawArgs");
+            _tileMerging = tileMerging;
+            _rasteriseTilesKernel = _tileMerging.FindKernel("RasteriseRectsToTiles");
+            _emitTilesKernel = _tileMerging.FindKernel("EmitTilesToRects");
+            _buildDrawArgsKernel = _tileMerging.FindKernel("BuildDrawArgs");
         }
     }
 
     private class ComputePassData
     {
         public ComputeShader compute;
-
-        public int findPairsKernel;
-        public int resolvePairsKernel;
-        public int emitMergedKernel;
+        public int tilesKernel;
+        public int emitTilesKernel;
         public int buildDrawArgsKernel;
 
         public ComputeBuffer rectBuffer;
         public ComputeBuffer maskBuffer;
         public ComputeBuffer visibilityBuffer;
 
-        public ComputeBuffer pairBuffer;
-        public ComputeBuffer validPairBuffer;
-        public ComputeBuffer canMergeBuffer;
+        public ComputeBuffer tileMaskBuffer;
 
         public ComputeBuffer outputRectBuffer;
         public ComputeBuffer outputMaskBuffer;
@@ -177,6 +150,10 @@ public class GpuMergingPrepass : ScriptableRenderPass
         public ComputeBuffer indirectArgsBuffer;
 
         public int bboxCount;
+        public Vector2Int tileGridSize;
+        public int tileSize;
+        public Vector2 screenSize;
+        public int tileCount;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -185,6 +162,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
             return;
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
+        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
         if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
             return;
@@ -192,7 +170,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
         if (!NprTestingConfig.UseMerging)
             return;
 
-        if (_bboxMerging == null)
+        if (_tileMerging == null)
             return;
 
         if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxVisibilityBuffer == null)
@@ -201,26 +179,21 @@ public class GpuMergingPrepass : ScriptableRenderPass
         if (nprFrameData.bboxCount <= 0)
             return;
 
-        EnsurePairBufferCapacity(nprFrameData.bboxCount);
-        EnsureValidPairBufferCapacity(nprFrameData.bboxCount);
-        EnsureCanMergeBuffer();
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
-        EnsureOutputRectBufferCapacity(nprFrameData.bboxCount);
-        EnsureOutputMaskBufferCapacity(nprFrameData.bboxCount);
-        EnsureOutputVisibilityBufferCapacity(nprFrameData.bboxCount);
+        int tilesX = Mathf.CeilToInt(camDesc.width / (float)_tileSize);
+        int tilesY = Mathf.CeilToInt(camDesc.height / (float)_tileSize);
+        int tileCount = tilesX * tilesY;
+
+        EnsureTileMaskBufferCapacity(tileCount);
+        EnsureOutputRectBufferCapacity(tileCount);
+        EnsureOutputMaskBufferCapacity(tileCount);
+        EnsureOutputVisibilityBufferCapacity(tileCount);
         EnsureOutputCountBuffer();
         EnsureIndirectArgsBuffer();
 
-        int[] pairInit = new int[_pairBufferCapacity];
-        for (int i = 0; i < pairInit.Length; i++)
-            pairInit[i] = -1;
-        _pairBuffer.SetData(pairInit);
-
-        uint[] validPairInit = new uint[_validPairBufferCapacity];
-        _validPairBuffer.SetData(validPairInit);
-
-        uint[] canMergeInit = new uint[1] { 0u };
-        _canMergeBuffer.SetData(canMergeInit, 0, 0, 1);
+        uint[] tileMaskInit = new uint[_tileMaskBufferCapacity];
+        _tileMaskBuffer.SetData(tileMaskInit);
 
         uint[] outputCountInit = new uint[1] { 0u };
         _outputCountBuffer.SetData(outputCountInit, 0, 0, 1);
@@ -228,25 +201,20 @@ public class GpuMergingPrepass : ScriptableRenderPass
         uint[] indirectArgsInit = new uint[4] { 6u, 0u, 0u, 0u };
         _indirectArgsBuffer.SetData(indirectArgsInit, 0, 0, 4);
 
-        // THIS NEEDS TO ITERATE
-        using (var builder = renderGraph.AddComputePass("GPU BBox Merging", out ComputePassData passData))
+        using (var builder = renderGraph.AddComputePass("GPU Tile Merging", out ComputePassData passData))
         {
             builder.AllowPassCulling(false);
 
-            passData.compute = _bboxMerging;
-
-            passData.findPairsKernel = _findPairsKernel;
-            passData.resolvePairsKernel = _resolvePairsKernel;
-            passData.emitMergedKernel = _emitMergedKernel;
+            passData.compute = _tileMerging;
+            passData.tilesKernel = _rasteriseTilesKernel;
+            passData.emitTilesKernel = _emitTilesKernel;
             passData.buildDrawArgsKernel = _buildDrawArgsKernel;
 
             passData.rectBuffer = nprFrameData.bboxRectBuffer;
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
             passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
 
-            passData.pairBuffer = _pairBuffer;
-            passData.validPairBuffer = _validPairBuffer;
-            passData.canMergeBuffer = _canMergeBuffer;
+            passData.tileMaskBuffer = _tileMaskBuffer;
 
             passData.outputRectBuffer = _outputRectBuffer;
             passData.outputMaskBuffer = _outputMaskBuffer;
@@ -255,35 +223,41 @@ public class GpuMergingPrepass : ScriptableRenderPass
             passData.indirectArgsBuffer = _indirectArgsBuffer;
 
             passData.bboxCount = nprFrameData.bboxCount;
+            passData.tileGridSize = new Vector2Int(tilesX, tilesY);
+            passData.tileSize = _tileSize;
+            passData.screenSize = new Vector2(camDesc.width, camDesc.height);
+            passData.tileCount = tileCount;
 
             builder.SetRenderFunc((ComputePassData data, ComputeGraphContext ctx) =>
             {
-                int threadGroupsX = Mathf.CeilToInt(data.bboxCount / 64.0f);
+                int bboxThreadGroupsX = Mathf.CeilToInt(data.bboxCount / 64.0f);
+                int tileThreadGroupsX = Mathf.CeilToInt(data.tileCount / 64.0f);
 
-                ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, RectBufferID, data.rectBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, MaskBufferID, data.maskBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, VisibilityBufferID, data.visibilityBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.findPairsKernel, PairBufferID, data.pairBuffer);
-                ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
-                ctx.cmd.DispatchCompute(data.compute, data.findPairsKernel, threadGroupsX, 1, 1);
 
-                ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, PairBufferID, data.pairBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, ValidPairBufferID, data.validPairBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.resolvePairsKernel, CanMergeBufferID, data.canMergeBuffer);
-                ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
-                ctx.cmd.DispatchCompute(data.compute, data.resolvePairsKernel, threadGroupsX, 1, 1);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, RectBufferID, data.rectBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, MaskBufferID, data.maskBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, VisibilityBufferID, data.visibilityBuffer);
 
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, RectBufferID, data.rectBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, MaskBufferID, data.maskBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, VisibilityBufferID, data.visibilityBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, PairBufferID, data.pairBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, ValidPairBufferID, data.validPairBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputRectBufferID, data.outputRectBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputMaskBufferID, data.outputMaskBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputVisibilityBufferID, data.outputVisibilityBuffer);
-                ctx.cmd.SetComputeBufferParam(data.compute, data.emitMergedKernel, OutputCountBufferID, data.outputCountBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, TileMaskBufferID, data.tileMaskBuffer);
+
                 ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
-                ctx.cmd.DispatchCompute(data.compute, data.emitMergedKernel, threadGroupsX, 1, 1);
+                ctx.cmd.SetComputeVectorParam(data.compute, TileGridSizeID, new Vector4(data.tileGridSize.x, data.tileGridSize.y, 0, 0));
+                ctx.cmd.SetComputeIntParam(data.compute, TileSizeID, data.tileSize);
+                ctx.cmd.SetComputeVectorParam(data.compute, ScreenSizeID, new Vector4(data.screenSize.x, data.screenSize.y, 0, 0));
+
+                ctx.cmd.DispatchCompute(data.compute, data.tilesKernel, bboxThreadGroupsX, 1, 1);
+
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitTilesKernel, TileMaskBufferID, data.tileMaskBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitTilesKernel, OutputRectBufferID, data.outputRectBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitTilesKernel, OutputMaskBufferID, data.outputMaskBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitTilesKernel, OutputVisibilityBufferID, data.outputVisibilityBuffer);
+                ctx.cmd.SetComputeBufferParam(data.compute, data.emitTilesKernel, OutputCountBufferID, data.outputCountBuffer);
+
+                ctx.cmd.SetComputeIntParam(data.compute, TileSizeID, data.tileSize);
+                ctx.cmd.SetComputeVectorParam(data.compute, TileGridSizeID, new Vector4(data.tileGridSize.x, data.tileGridSize.y, 0, 0));
+                ctx.cmd.SetComputeVectorParam(data.compute, ScreenSizeID, new Vector4(data.screenSize.x, data.screenSize.y, 0, 0));
+
+                ctx.cmd.DispatchCompute(data.compute, data.emitTilesKernel, tileThreadGroupsX, 1, 1);
 
                 ctx.cmd.SetComputeBufferParam(data.compute, data.buildDrawArgsKernel, OutputCountBufferID, data.outputCountBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.buildDrawArgsKernel, IndirectArgsBufferID, data.indirectArgsBuffer);
@@ -297,19 +271,14 @@ public class GpuMergingPrepass : ScriptableRenderPass
         nprFrameData.bboxCountBuffer = _outputCountBuffer;
         nprFrameData.bboxIndirectArgsBuffer = _indirectArgsBuffer;
 
+        GpuDebugState.SetTileBuffers(_tileMaskBuffer, tilesX, tilesY, _tileSize, nprFrameData.bboxCount);
         GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);
     }
-
+    
     public void Dispose()
     {
-        if (_pairBuffer != null)
-            _pairBuffer.Release();
-
-        if (_validPairBuffer != null)
-            _validPairBuffer.Release();
-
-        if (_canMergeBuffer != null)
-            _canMergeBuffer.Release();
+        if (_tileMaskBuffer != null)
+            _tileMaskBuffer.Release();
 
         if (_outputRectBuffer != null)
             _outputRectBuffer.Release();
