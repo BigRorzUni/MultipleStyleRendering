@@ -36,8 +36,6 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     public Color _outlineColour;
     public float _outlineThickness;
 
-    readonly List<Material> _tempMaterials = new();
-
     class PassData
     {
         public TextureHandle src;
@@ -344,16 +342,5 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 );
             });
         }
-    }
-
-    public void Dispose()
-    {
-        for (int i = 0; i < _tempMaterials.Count; i++)
-        {
-            if (_tempMaterials[i] != null)
-                CoreUtils.Destroy(_tempMaterials[i]);
-        }
-
-        _tempMaterials.Clear();
     }
 }

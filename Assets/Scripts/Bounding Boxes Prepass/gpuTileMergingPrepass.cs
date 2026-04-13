@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Runtime.InteropServices;
 
 [System.Serializable]
 public class GpuTileMergingPrepass : ScriptableRenderPass
@@ -48,74 +49,6 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
 
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
-
-    void EnsureTileMaskBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_tileMaskBuffer == null || _tileMaskBufferCapacity < requiredCapacity)
-        {
-            if (_tileMaskBuffer != null)
-                _tileMaskBuffer.Release();
-
-            _tileMaskBufferCapacity = requiredCapacity;
-            _tileMaskBuffer = new ComputeBuffer(_tileMaskBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureOutputRectBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputRectBuffer == null || _outputRectBufferCapacity < requiredCapacity)
-        {
-            if (_outputRectBuffer != null)
-                _outputRectBuffer.Release();
-
-            _outputRectBufferCapacity = requiredCapacity;
-            _outputRectBuffer = new ComputeBuffer(_outputRectBufferCapacity, sizeof(float) * 4);
-        }
-    }
-
-    void EnsureOutputMaskBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputMaskBuffer == null || _outputMaskBufferCapacity < requiredCapacity)
-        {
-            if (_outputMaskBuffer != null)
-                _outputMaskBuffer.Release();
-
-            _outputMaskBufferCapacity = requiredCapacity;
-            _outputMaskBuffer = new ComputeBuffer(_outputMaskBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureOutputVisibilityBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputVisibilityBuffer == null || _outputVisibilityBufferCapacity < requiredCapacity)
-        {
-            if (_outputVisibilityBuffer != null)
-                _outputVisibilityBuffer.Release();
-
-            _outputVisibilityBufferCapacity = requiredCapacity;
-            _outputVisibilityBuffer = new ComputeBuffer(_outputVisibilityBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureOutputCountBuffer()
-    {
-        if (_outputCountBuffer == null)
-            _outputCountBuffer = new ComputeBuffer(1, sizeof(uint));
-    }
-
-    void EnsureIndirectArgsBuffer()
-    {
-        if (_indirectArgsBuffer == null)
-            _indirectArgsBuffer = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
-    }
 
     public GpuTileMergingPrepass(ComputeShader tileMerging)
     {
@@ -185,12 +118,12 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
         int tilesY = Mathf.CeilToInt(camDesc.height / (float)_tileSize);
         int tileCount = tilesX * tilesY;
 
-        EnsureTileMaskBufferCapacity(tileCount);
-        EnsureOutputRectBufferCapacity(tileCount);
-        EnsureOutputMaskBufferCapacity(tileCount);
-        EnsureOutputVisibilityBufferCapacity(tileCount);
-        EnsureOutputCountBuffer();
-        EnsureIndirectArgsBuffer();
+        NprFrameData.EnsureBufferCapacity(ref _tileMaskBuffer, ref _tileMaskBufferCapacity, tileCount, sizeof(uint));
+        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, tileCount, Marshal.SizeOf<Vector4>()); 
+        NprFrameData.EnsureBufferCapacity(ref _outputMaskBuffer, ref _outputMaskBufferCapacity, tileCount, sizeof(uint));
+        NprFrameData.EnsureBufferCapacity(ref _outputVisibilityBuffer, ref _outputVisibilityBufferCapacity, tileCount, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _outputCountBuffer, 1, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _indirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
         uint[] tileMaskInit = new uint[_tileMaskBufferCapacity];
         _tileMaskBuffer.SetData(tileMaskInit);

@@ -21,8 +21,6 @@ public class DummyPass : ScriptableRenderPass
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
 
-    readonly List<Material> _tempMaterials = new();
-
 
     private class PassData
     {
@@ -80,9 +78,7 @@ public class DummyPass : ScriptableRenderPass
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
-        // ─────────────────────────────
-        // SOURCE COPY (shared across all modes)
-        // ─────────────────────────────
+        // SOURCE COPY 
         using (var builder = renderGraph.AddRasterRenderPass($"{_name} Source Copy", out CopyPassData copyPass))
         {
             builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
@@ -303,16 +299,5 @@ public class DummyPass : ScriptableRenderPass
                 );
             });
         }
-    }
-
-    public void Dispose()
-    {
-        for (int i = 0; i < _tempMaterials.Count; i++)
-        {
-            if (_tempMaterials[i] != null)
-                CoreUtils.Destroy(_tempMaterials[i]);
-        }
-
-        _tempMaterials.Clear();
     }
 }

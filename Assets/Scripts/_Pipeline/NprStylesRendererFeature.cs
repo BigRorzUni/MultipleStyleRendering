@@ -275,10 +275,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         if (_idPrepass == null || _bboxPrepass == null)
             return;
 
-        renderer.EnqueuePass(_bboxPrepass);
-
         _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
+
+        renderer.EnqueuePass(_bboxPrepass);
 
         if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
             renderer.EnqueuePass(_cpuMergingPrepass);
@@ -310,5 +310,17 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if (NprTestingConfig.DebugBBoxes && _bboxDebugPass != null)
             renderer.EnqueuePass(_bboxDebugPass);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _bboxPrepass?.Dispose();
+            _gpuMergingPrepass?.Dispose();
+            _gpuTileMergingPrepass?.Dispose();
+
+            
+        }
     }
 }
