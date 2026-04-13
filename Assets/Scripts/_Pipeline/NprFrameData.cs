@@ -65,7 +65,7 @@ public sealed class NprFrameData : ContextItem
 
     public uint presentTestStyles;  
 
-    public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride,     ComputeBufferType type = ComputeBufferType.Default)
+    public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
     {
         int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
 

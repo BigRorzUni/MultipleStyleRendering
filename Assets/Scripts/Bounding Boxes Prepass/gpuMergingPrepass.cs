@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
+using System.Runtime.InteropServices;
 
 [System.Serializable]
 public class GpuMergingPrepass : ScriptableRenderPass
@@ -50,94 +51,6 @@ public class GpuMergingPrepass : ScriptableRenderPass
 
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
-
-    void EnsurePairBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_pairBuffer == null || _pairBufferCapacity < requiredCapacity)
-        {
-            if (_pairBuffer != null)
-                _pairBuffer.Release();
-
-            _pairBufferCapacity = requiredCapacity;
-            _pairBuffer = new ComputeBuffer(_pairBufferCapacity, sizeof(int));
-        }
-    }
-
-    void EnsureValidPairBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
-
-        if (_validPairBuffer == null || _validPairBufferCapacity < requiredCapacity)
-        {
-            if (_validPairBuffer != null)
-                _validPairBuffer.Release();
-
-            _validPairBufferCapacity = requiredCapacity;
-            _validPairBuffer = new ComputeBuffer(_validPairBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureCanMergeBuffer()
-    {
-        if (_canMergeBuffer == null)
-            _canMergeBuffer = new ComputeBuffer(1, sizeof(uint));
-    }
-
-    void EnsureOutputRectBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputRectBuffer == null || _outputRectBufferCapacity < requiredCapacity)
-        {
-            if (_outputRectBuffer != null)
-                _outputRectBuffer.Release();
-
-            _outputRectBufferCapacity = requiredCapacity;
-            _outputRectBuffer = new ComputeBuffer(_outputRectBufferCapacity, sizeof(float) * 4);
-        }
-    }
-
-    void EnsureOutputMaskBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputMaskBuffer == null || _outputMaskBufferCapacity < requiredCapacity)
-        {
-            if (_outputMaskBuffer != null)
-                _outputMaskBuffer.Release();
-
-            _outputMaskBufferCapacity = requiredCapacity;
-            _outputMaskBuffer = new ComputeBuffer(_outputMaskBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureOutputVisibilityBufferCapacity(int count)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count * 3));
-
-        if (_outputVisibilityBuffer == null || _outputVisibilityBufferCapacity < requiredCapacity)
-        {
-            if (_outputVisibilityBuffer != null)
-                _outputVisibilityBuffer.Release();
-
-            _outputVisibilityBufferCapacity = requiredCapacity;
-            _outputVisibilityBuffer = new ComputeBuffer(_outputVisibilityBufferCapacity, sizeof(uint));
-        }
-    }
-
-    void EnsureOutputCountBuffer()
-    {
-        if (_outputCountBuffer == null)
-            _outputCountBuffer = new ComputeBuffer(1, sizeof(uint));
-    }
-
-    void EnsureIndirectArgsBuffer()
-    {
-        if (_indirectArgsBuffer == null)
-            _indirectArgsBuffer = new ComputeBuffer(4, sizeof(uint), ComputeBufferType.IndirectArguments);
-    }
 
     public GpuMergingPrepass(ComputeShader bboxMerging)
     {
@@ -201,15 +114,16 @@ public class GpuMergingPrepass : ScriptableRenderPass
         if (nprFrameData.bboxCount <= 0)
             return;
 
-        EnsurePairBufferCapacity(nprFrameData.bboxCount);
-        EnsureValidPairBufferCapacity(nprFrameData.bboxCount);
-        EnsureCanMergeBuffer();
+        NprFrameData.EnsureBufferCapacity(ref _pairBuffer, ref _pairBufferCapacity, nprFrameData.bboxCount, sizeof(int));
+        NprFrameData.EnsureBufferCapacity(ref _validPairBuffer, ref _validPairBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _canMergeBuffer, 1, sizeof(uint));
 
-        EnsureOutputRectBufferCapacity(nprFrameData.bboxCount);
-        EnsureOutputMaskBufferCapacity(nprFrameData.bboxCount);
-        EnsureOutputVisibilityBufferCapacity(nprFrameData.bboxCount);
-        EnsureOutputCountBuffer();
-        EnsureIndirectArgsBuffer();
+        // these buffers are larger than bboxCount as merging can produce more bboxes than there were previously
+        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, nprFrameData.bboxCount * 3, Marshal.SizeOf<Vector4>()); 
+        NprFrameData.EnsureBufferCapacity(ref _outputMaskBuffer, ref _outputMaskBufferCapacity, nprFrameData.bboxCount * 3, sizeof(uint));
+        NprFrameData.EnsureBufferCapacity(ref _outputVisibilityBuffer, ref _outputVisibilityBufferCapacity, nprFrameData.bboxCount * 3, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _outputCountBuffer, 1, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _indirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
         int[] pairInit = new int[_pairBufferCapacity];
         for (int i = 0; i < pairInit.Length; i++)

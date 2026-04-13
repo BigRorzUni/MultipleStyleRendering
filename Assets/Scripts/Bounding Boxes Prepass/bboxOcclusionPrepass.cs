@@ -22,18 +22,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int BBoxCountID = Shader.PropertyToID("_BboxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
-    private readonly ComputeBuffer _resultBuffer;
-
-    private RenderTexture _visibilityRT;
-
-    public void Dispose()
-    {
-        if (_resultBuffer != null)
-            _resultBuffer.Release();
-
-        if (_visibilityRT != null)
-            _visibilityRT.Release();
-    }
 
     private class RasterPassData
     {
@@ -65,8 +53,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
             _occlusionKernelSingle = _occlusionCompute.FindKernel("OcclusionCheckSingle");
             _occlusionKernelBatched = _occlusionCompute.FindKernel("OcclusionCheckBatched");
         }
-
-        _resultBuffer = new ComputeBuffer(1, sizeof(uint));
 
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
@@ -141,16 +127,16 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                 if (bbox == null || bbox.renderers == null || bbox.renderers.Count == 0)
                     continue;
 
-                RenderTextureDescriptor desc = cameraData.cameraTargetDescriptor;
-                desc.depthBufferBits = 0;
-                desc.msaaSamples = 1;
-                desc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
-                desc.sRGB = false;
+                RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
+                camDesc.depthBufferBits = 0;
+                camDesc.msaaSamples = 1;
+                camDesc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
+                camDesc.sRGB = false;
 
-                TextureHandle visibilityTex = renderGraph.CreateTexture(new TextureDesc(desc)
+                TextureHandle visibilityTex = renderGraph.CreateTexture(new TextureDesc(camDesc)
                 {
                     name = "_BBoxVisibilityMask",
-                    colorFormat = desc.graphicsFormat,
+                    colorFormat = camDesc.graphicsFormat,
                     clearBuffer = true,
                     clearColor = Color.black,
                     filterMode = FilterMode.Point,
@@ -177,6 +163,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                             data.bbox.box.height
                         ));
 
+
+                        // cant use DrawRenderList so this will have to do
                         List<Renderer> renderers = data.bbox.renderers;
                         for (int i = 0; i < renderers.Count; i++)
                         {
