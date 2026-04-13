@@ -313,27 +313,20 @@ public class BBoxPrepass : ScriptableRenderPass
 
         if (gpuMode)
         {
-            if (NprTestingConfig.UseOcclusion)
-            {
-                NprFrameData.EnsureBufferCapacity(ref _bboxVisibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+            NprFrameData.EnsureBufferCapacity(ref _bboxVisibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
 
-                if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
-                    _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
+            if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+                _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
 
-                for (int i = 0; i < nprFrameData.bboxCount; i++)
-                    _bboxVisibilityInitData[i] = 1u;
+            for (int i = 0; i < nprFrameData.bboxCount; i++)
+                _bboxVisibilityInitData[i] = 1u;
 
-                if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
-                    _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
+            if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
+                _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
-                nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
-                nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
-            }
-            else
-            {
-                nprFrameData.bboxVisibilityBuffer = null;
-                nprFrameData.bboxVisibilityCount = 0;
-            }
+            nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
+            nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
+
 
             // GpuDebugState.SetOutputBuffers(
             //     nprFrameData.bboxRectBuffer,
