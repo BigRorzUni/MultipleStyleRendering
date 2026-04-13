@@ -20,8 +20,6 @@ public class DitheringPass : ScriptableRenderPass
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
 
-    readonly List<Material> _tempMaterials = new();
-
     class PassData
     {
         public TextureHandle src;
@@ -242,16 +240,5 @@ public class DitheringPass : ScriptableRenderPass
                 );
             });
         }
-    }
-
-    public void Dispose()
-    {
-        for (int i = 0; i < _tempMaterials.Count; i++)
-        {
-            if (_tempMaterials[i] != null)
-                CoreUtils.Destroy(_tempMaterials[i]);
-        }
-
-        _tempMaterials.Clear();
     }
 }
