@@ -40,8 +40,9 @@ public class BoundingBox
 
 public sealed class NprFrameData : ContextItem
 {
+    NprRenderMode renderMode = NprRenderMode.Fullscreen;
+    
     public TextureHandle idTexture;
-    public TextureHandle normalsTexture;
     public TextureHandle sourceTexture;
 
     // CPU PATH
@@ -89,7 +90,6 @@ public sealed class NprFrameData : ContextItem
     public override void Reset()
     {
         idTexture = TextureHandle.nullHandle;
-        normalsTexture = TextureHandle.nullHandle;
         sourceTexture = TextureHandle.nullHandle;
 
         if (bboxes != null)

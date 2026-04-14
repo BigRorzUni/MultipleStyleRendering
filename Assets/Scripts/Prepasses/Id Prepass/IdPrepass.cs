@@ -56,21 +56,11 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-        // initialise source copy
+        // match id texture to camera resolution + settings
+        // tweak format to fit what an id texture needs
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         camDesc.depthBufferBits = 0;
         camDesc.msaaSamples = 1;
-
-        nprFrameData.sourceTexture = renderGraph.CreateTexture(new TextureDesc(camDesc.width, camDesc.height)
-        {
-            name = "_NprSourceCopy",
-            colorFormat = camDesc.graphicsFormat,
-            clearBuffer = false,
-            filterMode = FilterMode.Point
-        });
-
-        // match id texture to camera resolution + settings
-        // tweak format to fit what an id texture needs
         camDesc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm;
         camDesc.sRGB = false;
 

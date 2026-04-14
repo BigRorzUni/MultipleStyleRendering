@@ -19,7 +19,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 {
     // prepasses
     private IdPrepass _idPrepass;
-    private NormalsPrepass _normalsPrepass;
     private BBoxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
     private CpuMergingPrepass _cpuMergingPrepass;
@@ -35,7 +34,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     // shaders
     [SerializeField] private Shader idShader;
-    [SerializeField] private Shader normalsShader;
 
     [SerializeField] private Shader ssOutlinesShader;
     [SerializeField] private Shader ssOutlineBatchedShader;
@@ -102,7 +100,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public override void Create()
     {
         _idPrepass = null;
-        _normalsPrepass = null;
         _bboxPrepass = null;
         _bboxOcclusionPrepass = null;
         _cpuMergingPrepass = null;
@@ -115,13 +112,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             return;
         }
         _idPrepass = new IdPrepass(idShader);
-
-        if (normalsShader == null)
-        {
-            Debug.LogError("Could not find shader 'Custom/Normals'");
-            return;
-        }
-        _normalsPrepass = new NormalsPrepass(normalsShader);
 
         if (bboxGenerationComputeShader == null)
         {
@@ -245,7 +235,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 }
 
                 for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyBatchedShader, i));
             }
             else
             {
@@ -256,7 +246,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 }
 
                 for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyImageEffect($"TestEffect_{i}", testDummyShader, i));
+                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyShader, i));
             }
 
             Debug.Log("Queued test pases");
@@ -293,13 +283,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             else if(_gpuTileMergingPrepass != null)
                 renderer.EnqueuePass(_gpuTileMergingPrepass);
         }
-        _normalsPrepass.ApplySettings(settings);
-        renderer.EnqueuePass(_normalsPrepass);
 
         foreach (var effect in imageEffects)
         {
             foreach (var pass in effect.Passes)
             {
+                pass.ConfigureInput(effect.RequiredInputs);
+
                 if (pass is INprPass nprPass)
                     nprPass.ApplySettings(settings);
 
@@ -316,11 +306,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     {
         if (disposing)
         {
+            // loop through prepasses and call dispose
             _bboxPrepass?.Dispose();
             _gpuMergingPrepass?.Dispose();
             _gpuTileMergingPrepass?.Dispose();
 
-            
+            // loop through effects and call dispose
         }
     }
 }

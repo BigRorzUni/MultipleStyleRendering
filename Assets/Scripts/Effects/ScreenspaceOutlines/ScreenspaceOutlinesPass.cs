@@ -96,6 +96,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
+        if (!frameData.activeDepthTexture.IsValid())
+            return;
+
+        if(!frameData.cameraNormalsTexture.IsValid())
+            return;
+
         NprFrameData nprFrameData;
         if (frameContext.Contains<NprFrameData>())
             nprFrameData = frameContext.Get<NprFrameData>();
@@ -106,10 +112,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             return;
         if (!nprFrameData.idTexture.IsValid())
             return;
-        if (!nprFrameData.normalsTexture.IsValid())
-            return;
-        if (!frameData.activeDepthTexture.IsValid())
-            return;
+
         if ((nprFrameData.presentImageBits & _outlinesBit) == 0)
             return;
 
@@ -153,12 +156,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
             builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
             builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.normalsTexture, AccessFlags.Read);
+            builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
             builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
 
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
-            passData.normals = nprFrameData.normalsTexture;
+            passData.normals = frameData.cameraNormalsTexture;
             passData.depth = frameData.activeDepthTexture;
             passData.requiredBit = (int)_outlinesBit;
 
@@ -208,9 +211,14 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             {
                 builder.AllowGlobalStateModification(true);
 
+                builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
+                builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
+                builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
+                builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+
                 passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
-                passData.normals = nprFrameData.normalsTexture;
+                passData.normals = frameData.cameraNormalsTexture;
                 passData.depth = frameData.activeDepthTexture;
                 passData.rect = bbox.box;
                 passData.requiredBit = (int)_outlinesBit;
@@ -273,9 +281,16 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
 
         using (var builder = renderGraph.AddRasterRenderPass("Batched Outline Pass (GPU)", out PassData passData))
         {
+            builder.AllowGlobalStateModification(true);
+
+            builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
+            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
+            builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
+            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
+
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
-            passData.normals = nprFrameData.normalsTexture;
+            passData.normals = frameData.cameraNormalsTexture;
             passData.depth = frameData.activeDepthTexture;
             passData.requiredBit = (int)_outlinesBit;
 
