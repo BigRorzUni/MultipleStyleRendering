@@ -64,7 +64,7 @@ public class ScreenspaceOutlinesPass : EffectPass, INprPass
     {
     }
 
-    public void ApplySettings(Settings settings)
+    public override void ApplySettings(Settings settings)
     {
         _outlineColour = settings.outlines.colour;
         _outlineThickness = settings.outlines.thickness;

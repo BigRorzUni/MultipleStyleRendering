@@ -104,7 +104,6 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
             builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
             builder.UseRendererList(rendererList);
-            builder.AllowGlobalStateModification(true);
 
             passData.rendererList = rendererList;
             passData.debug = debugToScreen;
