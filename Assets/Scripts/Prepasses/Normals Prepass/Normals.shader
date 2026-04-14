@@ -20,13 +20,13 @@ Shader "Custom/Normals"
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;
+                float3 normalOS : NORMAL;
             };
 
             struct Varyings
             {
                 float4 positionHCS : SV_POSITION;
-                float3 normalWS    : TEXCOORD0;
+                float3 normalWS : TEXCOORD0;
             };
 
             Varyings vert(Attributes v)
