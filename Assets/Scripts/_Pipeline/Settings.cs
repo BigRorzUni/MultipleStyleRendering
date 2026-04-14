@@ -3,8 +3,6 @@ using UnityEngine;
 [System.Serializable]
 public class Settings
 {
-    public NprDebugView debugView = NprDebugView.None;
-
     [Header("Outlines")]
     public OutlinesSettings outlines = new OutlinesSettings();
 

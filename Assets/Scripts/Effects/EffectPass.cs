@@ -1,9 +1,10 @@
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
-public abstract class EffectPass : ScriptableRenderPass, INprPass
+public abstract class EffectPass : ScriptableRenderPass, IDisposable
 {
     protected Material _mat;
     protected readonly StyleBits.ImageSpaceEffect _requiredBit;

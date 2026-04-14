@@ -2,19 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
-public enum NprDebugView
-{
-    None,
-    StylisedID,
-    Normals,
-    Edges
-}
-
-public interface INprPass
-{
-    void ApplySettings(Settings settings);
-}
-
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
     // prepasses
@@ -261,7 +248,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         if (_idPrepass == null || _bboxPrepass == null)
             return;
 
-        _idPrepass.ApplySettings(settings);
         renderer.EnqueuePass(_idPrepass);
 
         renderer.EnqueuePass(_bboxPrepass);
@@ -280,26 +266,27 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 renderer.EnqueuePass(_gpuTileMergingPrepass);
         }
 
-        foreach (var effect in imageEffects)
+        foreach (Effect effect in imageEffects)
         {
-            foreach (var pass in effect.Passes)
+            foreach (EffectPass pass in effect.Passes)
             {
                 // update source texture
                 renderer.EnqueuePass(_sourcePrepass);
 
-
                 pass.ConfigureInput(effect.RequiredInputs);
 
-                if (pass is INprPass nprPass)
-                    nprPass.ApplySettings(settings);
+                pass.ApplySettings(settings);
 
-                if (settings.debugView == NprDebugView.None)
-                    renderer.EnqueuePass(pass);
+                renderer.EnqueuePass(pass);
             }
         }
 
         if (NprTestingConfig.DebugBBoxes && _bboxDebugPass != null)
             renderer.EnqueuePass(_bboxDebugPass);
+
+        if(NprTestingConfig.DebugID)
+            // debug id pass
+            Debug.Log("show hashed IDs");
     }
 
     protected override void Dispose(bool disposing)

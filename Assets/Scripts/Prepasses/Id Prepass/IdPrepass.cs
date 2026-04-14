@@ -4,19 +4,13 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class IdPrepass : ScriptableRenderPass, INprPass
+public class IdPrepass : Prepass
 {
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     readonly FilteringSettings _filteringSettings;
     readonly Shader _idShader;
     private readonly Material _idMat;
 
-    public bool debugToScreen;
-
-    public void ApplySettings(Settings settings)
-    {
-        debugToScreen = settings.debugView == NprDebugView.StylisedID;
-    }
 
     class PassData
     {
@@ -26,13 +20,12 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
     const string DebugKeyword = "_DEBUG_ID_COLOUR";
 
-    public IdPrepass(Shader idShader)
+    public IdPrepass(Shader idShader) : base("IdPrepass")
     {
         _idShader = idShader;
         if (_idShader != null)
             _idMat = CoreUtils.CreateEngineMaterial(_idShader);
 
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
         _filteringSettings = new FilteringSettings(RenderQueueRange.opaque)
         {
             renderingLayerMask = StyleBits.ImageSpaceBit
@@ -41,7 +34,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (_idShader == null)
+        if (_idShader == null || _idMat == null)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -67,7 +60,7 @@ public class IdPrepass : ScriptableRenderPass, INprPass
         // allocate id texture
         TextureHandle idTex = renderGraph.CreateTexture(new TextureDesc(camDesc)
         {
-            name = "_StylisedIDTexture",
+            name = "_NPRIdTexture",
             colorFormat = camDesc.graphicsFormat,
             clearBuffer = true,
             clearColor = Color.clear,
@@ -97,16 +90,14 @@ public class IdPrepass : ScriptableRenderPass, INprPass
 
         using (var builder = renderGraph.AddRasterRenderPass("Fullscreen ID Prepass", out PassData passData))
         {
-            if (debugToScreen)
-                builder.SetRenderAttachment(frameData.activeColorTexture, 0);
-            else
-                builder.SetRenderAttachment(nprFrameData.idTexture, 0);
 
-            builder.SetRenderAttachmentDepth(frameData.activeDepthTexture);
+            builder.SetRenderAttachment(nprFrameData.idTexture, 0);
+            builder.SetRenderAttachmentDepth(frameData.activeDepthTexture, AccessFlags.Write);
             builder.UseRendererList(rendererList);
+            builder.AllowGlobalStateModification(true);
 
             passData.rendererList = rendererList;
-            passData.debug = debugToScreen;
+            passData.debug = NprTestingConfig.DebugID;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
@@ -121,5 +112,11 @@ public class IdPrepass : ScriptableRenderPass, INprPass
                     ctx.cmd.DisableShaderKeyword(DebugKeyword);
             });
         }
+    }
+
+    public override void Dispose()
+    {
+        if (_idMat != null)
+            CoreUtils.Destroy(_idMat);
     }
 }

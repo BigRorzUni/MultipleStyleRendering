@@ -4,7 +4,7 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 [System.Serializable]
-public class ScreenspaceOutlinesPass : EffectPass, INprPass
+public class ScreenspaceOutlinesPass : EffectPass
 {
     static readonly int DepthTexId = Shader.PropertyToID("_NprDepthTexture");
     static readonly int NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");

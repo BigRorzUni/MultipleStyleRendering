@@ -27,6 +27,7 @@ public static class NprTestingConfig
     public static string SceneName = ""; // scene to test
     public static bool IsBenchmarkRunning = false;
     public static bool DebugBBoxes = false;
+    public static bool DebugID = false;
 }
 
 public enum GpuMergeMethod
@@ -85,6 +86,7 @@ public class TestRunner : MonoBehaviour
     public bool setRendererTestmode = false;
     public bool setRuntimeTestEffectsInEditor = false;
     public bool setDebugBBoxes = false;
+    public bool setDebugId = false;
     private string logDir = null;
 
     private ProfilerRecorder cpuFrameRec;
@@ -310,6 +312,7 @@ public class TestRunner : MonoBehaviour
 
         NprTestingConfig.TestMode = setRendererTestmode;
         NprTestingConfig.DebugBBoxes = setDebugBBoxes;
+        NprTestingConfig.DebugID = setDebugId;
         NprTestingConfig.GPUMergeMethod = setGpuMergeMethod;
 
         NprTestingConfig.RenderMode = setRenderMode;
