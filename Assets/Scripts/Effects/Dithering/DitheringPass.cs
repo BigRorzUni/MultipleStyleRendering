@@ -75,20 +75,6 @@ public class DitheringPass : ScriptableRenderPass
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
 
-        // SOURCE COPY (shared across all modes)
-        using (var builder = renderGraph.AddRasterRenderPass("NPR Dither Source Copy", out CopyPassData copyPass))
-        {
-            builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
-            builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);
-
-            copyPass.src = frameData.activeColorTexture;
-
-            builder.SetRenderFunc((CopyPassData data, RasterGraphContext ctx) =>
-            {
-                Blitter.BlitTexture(ctx.cmd, data.src, new Vector4(1, 1, 0, 0), 0, false);
-            });
-        }
-
         switch (NprTestingConfig.RenderMode)
         {
             case NprRenderMode.Fullscreen:

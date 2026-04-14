@@ -66,8 +66,7 @@ Shader "Custom/ScreenspaceOutlines"
 
             float3 getNormal(float2 uv)
             {
-                float4 norm = SAMPLE_TEXTURE2D(_NprNormalsTexture, sampler_PointClamp, uv);
-                return norm * 2.0 - 1.0;
+                return SAMPLE_TEXTURE2D(_NprNormalsTexture, sampler_PointClamp, uv);
             }
             // get linear depth from raw depth to perform operations on
             float getDepth(float2 uv)

@@ -18,6 +18,7 @@ public interface INprPass
 public class NprStylesRendererFeature : ScriptableRendererFeature
 {
     // prepasses
+    private SourcePrepass _sourcePrepass;
     private IdPrepass _idPrepass;
     private BBoxPrepass _bboxPrepass;
     private BBoxOcclusionPrepass _bboxOcclusionPrepass;
@@ -99,19 +100,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public override void Create()
     {
-        _idPrepass = null;
-        _bboxPrepass = null;
-        _bboxOcclusionPrepass = null;
-        _cpuMergingPrepass = null;
-        _gpuMergingPrepass = null;
-        _bboxDebugPass = null;
-
         if (idShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ID'");
             return;
         }
         _idPrepass = new IdPrepass(idShader);
+
+        _sourcePrepass = new SourcePrepass();
 
         if (bboxGenerationComputeShader == null)
         {
@@ -288,6 +284,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         {
             foreach (var pass in effect.Passes)
             {
+                // update source texture
+                renderer.EnqueuePass(_sourcePrepass);
+
+
                 pass.ConfigureInput(effect.RequiredInputs);
 
                 if (pass is INprPass nprPass)
