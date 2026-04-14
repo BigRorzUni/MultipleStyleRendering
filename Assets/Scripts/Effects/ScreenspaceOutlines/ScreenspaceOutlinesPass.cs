@@ -2,14 +2,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using System.Collections.Generic;
 
 [System.Serializable]
-public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
+public class ScreenspaceOutlinesPass : EffectPass, INprPass
 {
-    StyleBits.ImageSpaceEffect _outlinesBit;
-    Material _mat;
-
     static readonly int DepthTexId = Shader.PropertyToID("_NprDepthTexture");
     static readonly int NormalsTexId = Shader.PropertyToID("_NprNormalsTexture");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
@@ -36,7 +32,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
     public Color _outlineColour;
     public float _outlineThickness;
 
-    class PassData
+    private class PassData
     {
         public TextureHandle src;
         public TextureHandle ids;
@@ -64,9 +60,8 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         public ComputeBuffer indirectArgsBuffer;
     }
 
-    class CopyPassData
+    public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit) : base(shader, "ScreenspaceOutlinesPass", requiredBit)
     {
-        public TextureHandle src;
     }
 
     public void ApplySettings(Settings settings)
@@ -79,78 +74,32 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         _normalStrength = settings.outlines.normalStrength;
     }
 
-    public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
+    protected override bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (shader != null)
-            _mat = CoreUtils.CreateEngineMaterial(shader);
-
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        _outlinesBit = requiredBit;
-    }
-
-    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
-    {
-        if (_mat == null)
-            return;
-
-        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
-        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
+        if (!base.ShouldRun(frameData, cameraData, nprFrameData))
+            return false;
 
         if (!frameData.activeDepthTexture.IsValid())
-            return;
+            return false;
 
-        if(!frameData.cameraNormalsTexture.IsValid())
-            return;
-
-        NprFrameData nprFrameData;
-        if (frameContext.Contains<NprFrameData>())
-            nprFrameData = frameContext.Get<NprFrameData>();
-        else
-            nprFrameData = frameContext.Create<NprFrameData>();
+        if (!frameData.cameraNormalsTexture.IsValid())
+            return false;
 
         if (!nprFrameData.sourceTexture.IsValid())
-            return;
-        if (!nprFrameData.idTexture.IsValid())
-            return;
+            return false;
 
-        if ((nprFrameData.presentImageBits & _outlinesBit) == 0)
-            return;
-
-        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
-
-        switch (NprTestingConfig.RenderMode)
-        {
-            case NprRenderMode.Fullscreen:
-                RunFullscreen(renderGraph, frameData, nprFrameData);
-                return;
-
-            case NprRenderMode.CPU:
-                RunCpu(renderGraph, frameData, nprFrameData);
-                return;
-
-            case NprRenderMode.GPU:
-                RunGpu(renderGraph, frameData, nprFrameData, camDesc);
-                return;
-        }
+        return true;
     }
 
-    void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    protected override void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
         using (var builder = renderGraph.AddRasterRenderPass("Fullscreen Outline Pass", out PassData passData))
         {
-            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-            builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-            builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
-            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
-
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
             passData.normals = frameData.cameraNormalsTexture;
             passData.depth = frameData.activeDepthTexture;
-            passData.requiredBit = (int)_outlinesBit;
-
+            passData.requiredBit = (int)_requiredBit;
             passData.mat = _mat;
 
             passData.outlineCol = _outlineColour;
@@ -160,7 +109,13 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             passData.normalThreshold = _normalThreshold;
             passData.normalStrength = _normalStrength;
 
-            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+            builder.UseTexture(passData.src, AccessFlags.Read);
+            builder.UseTexture(passData.ids, AccessFlags.Read);
+            builder.UseTexture(passData.normals, AccessFlags.Read);
+            builder.UseTexture(passData.depth, AccessFlags.Read);
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(SourceTexId, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
@@ -180,14 +135,14 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         }
     }
 
-    void RunCpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    protected override void RunCpu(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
         foreach (var bbox in nprFrameData.bboxes)
         {
-            if ((bbox.styles & _outlinesBit) == 0)
+            if ((bbox.styles & _requiredBit) == 0)
                 continue;
 
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -197,18 +152,12 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             {
                 builder.AllowGlobalStateModification(true);
 
-                builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
-                builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-                builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
-                builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
-
                 passData.src = nprFrameData.sourceTexture;
                 passData.ids = nprFrameData.idTexture;
                 passData.normals = frameData.cameraNormalsTexture;
                 passData.depth = frameData.activeDepthTexture;
                 passData.rect = bbox.box;
-                passData.requiredBit = (int)_outlinesBit;
-
+                passData.requiredBit = (int)_requiredBit;
                 passData.mat = _mat;
 
                 passData.outlineCol = _outlineColour;
@@ -230,10 +179,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 builder.UseTexture(passData.ids, AccessFlags.Read);
                 builder.UseTexture(passData.normals, AccessFlags.Read);
                 builder.UseTexture(passData.depth, AccessFlags.Read);
-
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
                     data.mat.SetTexture(SourceTexId, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
@@ -256,30 +204,23 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
         }
     }
 
-    void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData, RenderTextureDescriptor camDesc)
+    protected override void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (nprFrameData.bboxRectBuffer == null ||
-            nprFrameData.bboxMaskBuffer == null ||
-            nprFrameData.bboxIndirectArgsBuffer == null)
+        if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxIndirectArgsBuffer == null)
             return;
 
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
         using (var builder = renderGraph.AddRasterRenderPass("Batched Outline Pass (GPU)", out PassData passData))
         {
             builder.AllowGlobalStateModification(true);
 
-            builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-            builder.UseTexture(frameData.cameraNormalsTexture, AccessFlags.Read);
-            builder.UseTexture(frameData.activeDepthTexture, AccessFlags.Read);
-
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
             passData.normals = frameData.cameraNormalsTexture;
             passData.depth = frameData.activeDepthTexture;
-            passData.requiredBit = (int)_outlinesBit;
-
+            passData.requiredBit = (int)_requiredBit;
             passData.mat = _mat;
 
             passData.outlineCol = _outlineColour;
@@ -306,11 +247,9 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
             builder.UseTexture(passData.ids, AccessFlags.Read);
             builder.UseTexture(passData.normals, AccessFlags.Read);
             builder.UseTexture(passData.depth, AccessFlags.Read);
-
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-            builder.AllowGlobalStateModification(true);
 
-            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(SourceTexId, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
@@ -333,14 +272,7 @@ public class ScreenspaceOutlinesPass : ScriptableRenderPass, INprPass
                 if (data.useOcclusion != 0)
                     data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
 
-                ctx.cmd.DrawProceduralIndirect(
-                    Matrix4x4.identity,
-                    data.mat,
-                    0,
-                    MeshTopology.Triangles,
-                    data.indirectArgsBuffer,
-                    0
-                );
+                ctx.cmd.DrawProceduralIndirect(Matrix4x4.identity, data.mat, 0, MeshTopology.Triangles, data.indirectArgsBuffer, 0);
             });
         }
     }

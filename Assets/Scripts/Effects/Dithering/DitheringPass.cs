@@ -2,14 +2,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using System.Collections.Generic;
 
 [System.Serializable]
-public class DitheringPass : ScriptableRenderPass
+public class DitheringPass : EffectPass
 {
-    Material _mat;
-    StyleBits.ImageSpaceEffect _ditheringBit;
-
     static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
     static readonly int DitheringBitID = Shader.PropertyToID("_DitheringBit");
@@ -20,7 +16,7 @@ public class DitheringPass : ScriptableRenderPass
     static readonly int UseOcclusionID = Shader.PropertyToID("_UseOcclusion");
     static readonly int MaskBufferID = Shader.PropertyToID("_BBoxMasks");
 
-    class PassData
+    private class PassData
     {
         public TextureHandle src;
         public TextureHandle ids;
@@ -38,74 +34,35 @@ public class DitheringPass : ScriptableRenderPass
         public ComputeBuffer indirectArgsBuffer;
     }
 
-    class CopyPassData
+    public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit) : base(shader, "DitheringPass", requiredBit)
     {
-        public TextureHandle src;
     }
 
-    public DitheringPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit)
+    protected override bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (shader != null)
-            _mat = CoreUtils.CreateEngineMaterial(shader);
+        if (!base.ShouldRun(frameData, cameraData, nprFrameData))
+            return false;
 
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        _ditheringBit = requiredBit;
-    }
-
-    public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
-    {
-        if (_mat == null)
-            return;
-
-        UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
-        UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
-
-        NprFrameData nprFrameData;
-        if (frameContext.Contains<NprFrameData>())
-            nprFrameData = frameContext.Get<NprFrameData>();
-        else
-            nprFrameData = frameContext.Create<NprFrameData>();
-
-        if (!nprFrameData.idTexture.IsValid())
-            return;
         if (!nprFrameData.sourceTexture.IsValid())
-            return;
-        if ((nprFrameData.presentImageBits & _ditheringBit) == 0)
-            return;
+            return false;
 
-        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
-
-        switch (NprTestingConfig.RenderMode)
-        {
-            case NprRenderMode.Fullscreen:
-                RunFullscreen(renderGraph, frameData, nprFrameData);
-                return;
-
-            case NprRenderMode.CPU:
-                RunCpu(renderGraph, frameData, nprFrameData);
-                return;
-
-            case NprRenderMode.GPU:
-                RunGpu(renderGraph, frameData, nprFrameData, camDesc);
-                return;
-        }
+        return true;
     }
 
-    void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    protected override void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
         using (var builder = renderGraph.AddRasterRenderPass("Fullscreen Dithering Pass", out PassData passData))
         {
-            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
-
-            builder.UseTexture(nprFrameData.sourceTexture, AccessFlags.Read);
-            builder.UseTexture(nprFrameData.idTexture, AccessFlags.Read);
-
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;
-            passData.requiredBit = (int)_ditheringBit;
+            passData.requiredBit = (int)_requiredBit;
 
-            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+            builder.UseTexture(passData.src, AccessFlags.Read);
+            builder.UseTexture(passData.ids, AccessFlags.Read);
+            builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
+
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(SourceTexID, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
@@ -116,15 +73,14 @@ public class DitheringPass : ScriptableRenderPass
         }
     }
 
-    void RunCpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData)
+    protected override void RunCpu(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
-        // for each bbox in cpu-side list we scissor the texture and apply effect
         foreach (var bbox in nprFrameData.bboxes)
         {
-            if ((bbox.styles & _ditheringBit) == 0)
+            if ((bbox.styles & _requiredBit) == 0)
                 continue;
 
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
@@ -138,7 +94,7 @@ public class DitheringPass : ScriptableRenderPass
                 passData.ids = nprFrameData.idTexture;
                 passData.mat = _mat;
                 passData.rect = bbox.box;
-                passData.requiredBit = (int)_ditheringBit;
+                passData.requiredBit = (int)_requiredBit;
 
                 passData.useOcclusion = 0;
 
@@ -150,10 +106,9 @@ public class DitheringPass : ScriptableRenderPass
 
                 builder.UseTexture(passData.src, AccessFlags.Read);
                 builder.UseTexture(passData.ids, AccessFlags.Read);
-
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
-                builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+                builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
                     data.mat.SetTexture(SourceTexID, data.src);
                     data.mat.SetTexture(IdTexId, data.ids);
@@ -167,13 +122,12 @@ public class DitheringPass : ScriptableRenderPass
         }
     }
 
-    void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, NprFrameData nprFrameData, RenderTextureDescriptor camDesc)
+    protected override void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (nprFrameData.bboxRectBuffer == null ||
-            nprFrameData.bboxMaskBuffer == null ||
-            nprFrameData.bboxIndirectArgsBuffer == null)
+        if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxIndirectArgsBuffer == null)
             return;
 
+        RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
         using (var builder = renderGraph.AddRasterRenderPass("Batched Dithering Pass (GPU)", out PassData passData))
@@ -181,7 +135,7 @@ public class DitheringPass : ScriptableRenderPass
             passData.src = nprFrameData.sourceTexture;
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;
-            passData.requiredBit = (int)_ditheringBit;
+            passData.requiredBit = (int)_requiredBit;
 
             passData.instanceBuffer = nprFrameData.bboxRectBuffer;
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
@@ -196,13 +150,12 @@ public class DitheringPass : ScriptableRenderPass
                 passData.useOcclusion = 1;
             }
 
+            builder.UseTexture(passData.src, AccessFlags.Read);
+            builder.UseTexture(passData.ids, AccessFlags.Read);
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
             builder.AllowGlobalStateModification(true);
 
-            builder.UseTexture(passData.src, AccessFlags.Read);
-            builder.UseTexture(passData.ids, AccessFlags.Read);
-
-            builder.SetRenderFunc((PassData data, RasterGraphContext ctx) =>
+            builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(SourceTexID, data.src);
                 data.mat.SetTexture(IdTexId, data.ids);
@@ -216,14 +169,7 @@ public class DitheringPass : ScriptableRenderPass
                 if (data.useOcclusion != 0)
                     data.mat.SetBuffer(VisibilityFlagsID, data.visibilityBuffer);
 
-                ctx.cmd.DrawProceduralIndirect(
-                    Matrix4x4.identity,
-                    data.mat,
-                    0,
-                    MeshTopology.Triangles,
-                    data.indirectArgsBuffer,
-                    0
-                );
+                ctx.cmd.DrawProceduralIndirect(Matrix4x4.identity, data.mat, 0, MeshTopology.Triangles, data.indirectArgsBuffer, 0);
             });
         }
     }
