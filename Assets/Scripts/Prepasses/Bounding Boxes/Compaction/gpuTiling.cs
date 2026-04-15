@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 using System.Runtime.InteropServices;
 
 [System.Serializable]
-public class GpuTileMergingPrepass : ScriptableRenderPass
+public class GpuTiling : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -14,7 +14,6 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
     readonly int _rasteriseTilesKernel;
     readonly int _emitTilesKernel;
     readonly int _buildDrawArgsKernel;
-
 
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
     static readonly int MaskBufferID = Shader.PropertyToID("_Masks");
@@ -50,10 +49,8 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
-    public GpuTileMergingPrepass(ComputeShader tileMerging)
+    public GpuTiling(ComputeShader tileMerging) : base("GpuTilingPrepass")
     {
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-
         if (tileMerging != null)
         {
             _tileMerging = tileMerging;
@@ -119,7 +116,7 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
         int tileCount = tilesX * tilesY;
 
         NprFrameData.EnsureBufferCapacity(ref _tileMaskBuffer, ref _tileMaskBufferCapacity, tileCount, sizeof(uint));
-        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, tileCount, Marshal.SizeOf<Vector4>()); 
+        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, tileCount, Marshal.SizeOf<Vector4>());
         NprFrameData.EnsureBufferCapacity(ref _outputMaskBuffer, ref _outputMaskBufferCapacity, tileCount, sizeof(uint));
         NprFrameData.EnsureBufferCapacity(ref _outputVisibilityBuffer, ref _outputVisibilityBufferCapacity, tileCount, sizeof(uint));
         NprFrameData.EnsureFixedBuffer(ref _outputCountBuffer, 1, sizeof(uint));
@@ -166,7 +163,6 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
                 int bboxThreadGroupsX = Mathf.CeilToInt(data.bboxCount / 64.0f);
                 int tileThreadGroupsX = Mathf.CeilToInt(data.tileCount / 64.0f);
 
-
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, RectBufferID, data.rectBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, MaskBufferID, data.maskBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tilesKernel, VisibilityBufferID, data.visibilityBuffer);
@@ -207,25 +203,43 @@ public class GpuTileMergingPrepass : ScriptableRenderPass
         GpuDebugState.SetTileBuffers(_tileMaskBuffer, tilesX, tilesY, _tileSize, nprFrameData.bboxCount);
         GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);
     }
-    
-    public void Dispose()
+
+    public override void Dispose()
     {
         if (_tileMaskBuffer != null)
+        {
             _tileMaskBuffer.Release();
+            _tileMaskBuffer = null;
+        }
 
         if (_outputRectBuffer != null)
+        {
             _outputRectBuffer.Release();
+            _outputRectBuffer = null;
+        }
 
         if (_outputMaskBuffer != null)
+        {
             _outputMaskBuffer.Release();
+            _outputMaskBuffer = null;
+        }
 
         if (_outputVisibilityBuffer != null)
+        {
             _outputVisibilityBuffer.Release();
+            _outputVisibilityBuffer = null;
+        }
 
         if (_outputCountBuffer != null)
+        {
             _outputCountBuffer.Release();
+            _outputCountBuffer = null;
+        }
 
         if (_indirectArgsBuffer != null)
+        {
             _indirectArgsBuffer.Release();
+            _indirectArgsBuffer = null;
+        }
     }
 }

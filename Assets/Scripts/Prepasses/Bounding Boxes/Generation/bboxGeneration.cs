@@ -10,13 +10,13 @@ using System.Runtime.InteropServices;
 public struct BBoxGenerationInput // 32 bytes total for GPU
 {
     public Vector3 center; // 12 bytes
-    public float padding1; // 4 bytes
+    public float padding; // 4 bytes
 
     public Vector3 extents; // 12 bytes
     public uint mask; // 4 bytes
 }
 
-public class BBoxPrepass : ScriptableRenderPass
+public class BBoxGeneration : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -52,11 +52,8 @@ public class BBoxPrepass : ScriptableRenderPass
     ComputeBuffer _bboxCountBuffer;
     ComputeBuffer _bboxIndirectArgsBuffer;
 
-
-    public BBoxPrepass(ComputeShader bboxGeneration)
+    public BBoxGeneration(ComputeShader bboxGeneration) : base("BBoxGeneration")
     {
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-
         if (bboxGeneration != null)
         {
             _bboxGeneration = bboxGeneration;
@@ -65,9 +62,8 @@ public class BBoxPrepass : ScriptableRenderPass
         }
     }
 
-    public BBoxPrepass(ComputeShader bboxGeneration, int testCount, bool testModeEnabled)
+    public BBoxGeneration(ComputeShader bboxGeneration, int testCount, bool testModeEnabled) : base("BBoxGeneration")
     {
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
         testStyleCount = testCount;
         _testModeEnabled = testModeEnabled;
 
@@ -241,9 +237,7 @@ public class BBoxPrepass : ScriptableRenderPass
                     int threadGroupsX = Mathf.CeilToInt(nprFrameData.bboxCount / 64.0f);
                     cmd.DispatchCompute(_bboxGeneration, _bboxGenerationKernel, threadGroupsX, 1, 1);
 
-
                     cmd.SetComputeBufferParam(_bboxGeneration, _buildDrawArgsKernel, IndirectArgsBufferID, _bboxIndirectArgsBuffer);
-
                     cmd.DispatchCompute(_bboxGeneration, _buildDrawArgsKernel, 1, 1, 1);
 
                     Graphics.ExecuteCommandBuffer(cmd);
@@ -327,7 +321,6 @@ public class BBoxPrepass : ScriptableRenderPass
             nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
             nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
 
-
             // GpuDebugState.SetOutputBuffers(
             //     nprFrameData.bboxRectBuffer,
             //     nprFrameData.bboxMaskBuffer,
@@ -336,7 +329,7 @@ public class BBoxPrepass : ScriptableRenderPass
             //     nprFrameData.bboxIndirectArgsBuffer
             // );
         }
-    }  
+    }
 
     static readonly int[,] BoxEdges = new int[,]
     {
@@ -353,13 +346,13 @@ public class BBoxPrepass : ScriptableRenderPass
         return new Vector3[8]
         {
             c + new Vector3(-e.x, -e.y, -e.z),
-            c + new Vector3( e.x, -e.y, -e.z),
-            c + new Vector3(-e.x,  e.y, -e.z),
-            c + new Vector3( e.x,  e.y, -e.z),
-            c + new Vector3(-e.x, -e.y,  e.z),
-            c + new Vector3( e.x, -e.y,  e.z),
-            c + new Vector3(-e.x,  e.y,  e.z),
-            c + new Vector3( e.x,  e.y,  e.z),
+            c + new Vector3(e.x, -e.y, -e.z),
+            c + new Vector3(-e.x, e.y, -e.z),
+            c + new Vector3(e.x, e.y, -e.z),
+            c + new Vector3(-e.x, -e.y, e.z),
+            c + new Vector3(e.x, -e.y, e.z),
+            c + new Vector3(-e.x, e.y, e.z),
+            c + new Vector3(e.x, e.y, e.z),
         };
     }
 
@@ -371,9 +364,9 @@ public class BBoxPrepass : ScriptableRenderPass
             return false;
 
         // world-space corners bounding box
-       Vector3[] worldCorners = GetBoxCorners(renderer.bounds);
+        Vector3[] worldCorners = GetBoxCorners(renderer.bounds);
 
-        // transform corners from world -> camera space 
+        // transform corners from world -> camera space
         Matrix4x4 worldToCamera = camera.worldToCameraMatrix;
         Vector3[] camCorners = new Vector3[8];
         for (int i = 0; i < 8; i++)
@@ -427,7 +420,7 @@ public class BBoxPrepass : ScriptableRenderPass
         {
             // camera -> clip space
             Vector4 p = new Vector4(clippedCamPoints[i].x, clippedCamPoints[i].y, clippedCamPoints[i].z, 1.0f);
-            Vector4 clip = proj * p; 
+            Vector4 clip = proj * p;
 
             // reject invalid projections
             if (Mathf.Abs(clip.w) < eps)
@@ -473,18 +466,42 @@ public class BBoxPrepass : ScriptableRenderPass
         return true;
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         if (_bboxInputBuffer != null)
+        {
             _bboxInputBuffer.Release();
+            _bboxInputBuffer = null;
+        }
 
         if (_bboxRectBuffer != null)
+        {
             _bboxRectBuffer.Release();
+            _bboxRectBuffer = null;
+        }
 
         if (_bboxVisibilityBuffer != null)
+        {
             _bboxVisibilityBuffer.Release();
+            _bboxVisibilityBuffer = null;
+        }
 
         if (_bboxMaskBuffer != null)
+        {
             _bboxMaskBuffer.Release();
+            _bboxMaskBuffer = null;
+        }
+
+        if (_bboxCountBuffer != null)
+        {
+            _bboxCountBuffer.Release();
+            _bboxCountBuffer = null;
+        }
+
+        if (_bboxIndirectArgsBuffer != null)
+        {
+            _bboxIndirectArgsBuffer.Release();
+            _bboxIndirectArgsBuffer = null;
+        }
     }
 }

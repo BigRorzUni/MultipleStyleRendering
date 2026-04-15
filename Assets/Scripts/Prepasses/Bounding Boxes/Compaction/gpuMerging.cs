@@ -1,11 +1,10 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
-using UnityEngine.Rendering.Universal;
 using System.Runtime.InteropServices;
 
 [System.Serializable]
-public class GpuMergingPrepass : ScriptableRenderPass
+public class GpuMerging : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -52,10 +51,8 @@ public class GpuMergingPrepass : ScriptableRenderPass
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
-    public GpuMergingPrepass(ComputeShader bboxMerging)
+    public GpuMerging(ComputeShader bboxMerging) : base("GpuMergingPrepass")
     {
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-
         if (bboxMerging != null)
         {
             _bboxMerging = bboxMerging;
@@ -119,7 +116,7 @@ public class GpuMergingPrepass : ScriptableRenderPass
         NprFrameData.EnsureFixedBuffer(ref _canMergeBuffer, 1, sizeof(uint));
 
         // these buffers are larger than bboxCount as merging can produce more bboxes than there were previously
-        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, nprFrameData.bboxCount * 3, Marshal.SizeOf<Vector4>()); 
+        NprFrameData.EnsureBufferCapacity(ref _outputRectBuffer, ref _outputRectBufferCapacity, nprFrameData.bboxCount * 3, Marshal.SizeOf<Vector4>());
         NprFrameData.EnsureBufferCapacity(ref _outputMaskBuffer, ref _outputMaskBufferCapacity, nprFrameData.bboxCount * 3, sizeof(uint));
         NprFrameData.EnsureBufferCapacity(ref _outputVisibilityBuffer, ref _outputVisibilityBufferCapacity, nprFrameData.bboxCount * 3, sizeof(uint));
         NprFrameData.EnsureFixedBuffer(ref _outputCountBuffer, 1, sizeof(uint));
@@ -214,30 +211,54 @@ public class GpuMergingPrepass : ScriptableRenderPass
         GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         if (_pairBuffer != null)
+        {
             _pairBuffer.Release();
+            _pairBuffer = null;
+        }
 
         if (_validPairBuffer != null)
+        {
             _validPairBuffer.Release();
+            _validPairBuffer = null;
+        }
 
         if (_canMergeBuffer != null)
+        {
             _canMergeBuffer.Release();
+            _canMergeBuffer = null;
+        }
 
         if (_outputRectBuffer != null)
+        {
             _outputRectBuffer.Release();
+            _outputRectBuffer = null;
+        }
 
         if (_outputMaskBuffer != null)
+        {
             _outputMaskBuffer.Release();
+            _outputMaskBuffer = null;
+        }
 
         if (_outputVisibilityBuffer != null)
+        {
             _outputVisibilityBuffer.Release();
+            _outputVisibilityBuffer = null;
+        }
 
         if (_outputCountBuffer != null)
+        {
             _outputCountBuffer.Release();
+            _outputCountBuffer = null;
+        }
 
         if (_indirectArgsBuffer != null)
+        {
             _indirectArgsBuffer.Release();
+            _indirectArgsBuffer = null;
+        }
     }
 }

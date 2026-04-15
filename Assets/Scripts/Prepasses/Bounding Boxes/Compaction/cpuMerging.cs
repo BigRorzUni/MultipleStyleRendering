@@ -1,19 +1,15 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
-using UnityEngine.Rendering.Universal;
 using System.Collections.Generic;
 
 [System.Serializable]
-public class CpuMergingPrepass : ScriptableRenderPass
+public class CpuMerging : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
-    public CpuMergingPrepass()
-    {
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-    }
+    public CpuMerging() : base("CpuMergingPrepass") { }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
@@ -200,63 +196,9 @@ public class CpuMergingPrepass : ScriptableRenderPass
             toRemove.Clear();
             newBoxes.Clear();
         }
+    }
 
-        nprFrameData.bboxCount = nprFrameData.bboxes.Count;
-        nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
-        nprFrameData.bboxIndirectArgsBuffer = null;
-
-        if (nprFrameData.bboxCount > 0)
-        {
-            Vector4[] rectData = new Vector4[nprFrameData.bboxCount];
-            uint[] maskData = new uint[nprFrameData.bboxCount];
-            uint[] visibilityData = new uint[nprFrameData.bboxCount];
-
-            for (int i = 0; i < nprFrameData.bboxCount; i++)
-            {
-                BoundingBox b = nprFrameData.bboxes[i];
-                rectData[i] = new Vector4(b.box.x, b.box.y, b.box.width, b.box.height);
-
-                if (!NprTestingConfig.TestMode)
-                    maskData[i] = (uint)b.styles;
-                else
-                    maskData[i] = b.testMask;
-
-                visibilityData[i] = 1u;
-            }
-
-            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxRectBuffer.count < nprFrameData.bboxCount)
-            {
-                if (nprFrameData.bboxRectBuffer != null)
-                    nprFrameData.bboxRectBuffer.Release();
-
-                nprFrameData.bboxRectBuffer = new ComputeBuffer(nprFrameData.bboxCount, System.Runtime.InteropServices.Marshal.SizeOf<Vector4>());
-            }
-
-            if (nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxMaskBuffer.count < nprFrameData.bboxCount)
-            {
-                if (nprFrameData.bboxMaskBuffer != null)
-                    nprFrameData.bboxMaskBuffer.Release();
-
-                nprFrameData.bboxMaskBuffer = new ComputeBuffer(nprFrameData.bboxCount, sizeof(uint));
-            }
-
-            if (nprFrameData.bboxVisibilityBuffer == null || nprFrameData.bboxVisibilityBuffer.count < nprFrameData.bboxCount)
-            {
-                if (nprFrameData.bboxVisibilityBuffer != null)
-                    nprFrameData.bboxVisibilityBuffer.Release();
-
-                nprFrameData.bboxVisibilityBuffer = new ComputeBuffer(nprFrameData.bboxCount, sizeof(uint));
-            }
-
-            nprFrameData.bboxRectBuffer.SetData(rectData, 0, 0, nprFrameData.bboxCount);
-            nprFrameData.bboxMaskBuffer.SetData(maskData, 0, 0, nprFrameData.bboxCount);
-            nprFrameData.bboxVisibilityBuffer.SetData(visibilityData, 0, 0, nprFrameData.bboxCount);
-        }
-
-        if (nprFrameData.bboxCountBuffer != null)
-        {
-            uint[] countData = new uint[1] { (uint)nprFrameData.bboxCount };
-            nprFrameData.bboxCountBuffer.SetData(countData, 0, 0, 1);
-        }
+    public override void Dispose()
+    {
     }
 }

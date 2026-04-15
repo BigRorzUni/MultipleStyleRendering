@@ -7,11 +7,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // prepasses
     private SourcePrepass _sourcePrepass;
     private IdPrepass _idPrepass;
-    private BBoxPrepass _bboxPrepass;
-    private BBoxOcclusionPrepass _bboxOcclusionPrepass;
-    private CpuMergingPrepass _cpuMergingPrepass;
-    private GpuMergingPrepass _gpuMergingPrepass;
-    private GpuTileMergingPrepass _gpuTileMergingPrepass;
+    private BBoxGeneration _bboxPrepass;
+    private BBoxOcclusion _bboxOcclusionPrepass;
+    private CpuMerging _cpuMergingPrepass;
+    private GpuMerging _gpuMergingPrepass;
+    private GpuTiling _gpuTileMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
 
     // IMAGE EFFECTS
@@ -103,9 +103,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
 
         if (NprTestingConfig.TestMode)
-            _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader, testEffectCount, true);
+            _bboxPrepass = new BBoxGeneration(bboxGenerationComputeShader, testEffectCount, true);
         else
-            _bboxPrepass = new BBoxPrepass(bboxGenerationComputeShader);
+            _bboxPrepass = new BBoxGeneration(bboxGenerationComputeShader);
 
         if (NprTestingConfig.UseOcclusion && UseBoundingBoxes())
         {
@@ -121,14 +121,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            _bboxOcclusionPrepass = new BBoxOcclusionPrepass(occlusionShader, occlusionComputeShader);
+            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionShader, occlusionComputeShader);
         }
 
         if (NprTestingConfig.UseMerging && UseBoundingBoxes())
         {
             if (UseCpuMode())
             {
-                _cpuMergingPrepass = new CpuMergingPrepass();
+                _cpuMergingPrepass = new CpuMerging();
             }
             else if (UseGpuMode())
             {
@@ -138,7 +138,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     return;
                 }
 
-                _gpuMergingPrepass = new GpuMergingPrepass(bboxMergingComputeShader);
+                _gpuMergingPrepass = new GpuMerging(bboxMergingComputeShader);
 
                 if (TileMergingComputeShader == null)
                 {
@@ -146,7 +146,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     return;
                 }
 
-                _gpuTileMergingPrepass = new GpuTileMergingPrepass(TileMergingComputeShader);
+                _gpuTileMergingPrepass = new GpuTiling(TileMergingComputeShader);
             }
         }
 

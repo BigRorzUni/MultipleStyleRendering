@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 using System.Collections.Generic;
 
 [System.Serializable]
-public class BBoxOcclusionPrepass : ScriptableRenderPass
+public class BBoxOcclusion : Prepass
 {
     private readonly Material _visibilityMat;
 
@@ -19,9 +19,8 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
 
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
-    static readonly int BBoxCountID = Shader.PropertyToID("_BboxCount");
+    static readonly int BBoxCountID = Shader.PropertyToID("_BBoxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
-
 
     private class RasterPassData
     {
@@ -42,7 +41,7 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
         public int bboxCount;
     }
 
-    public BBoxOcclusionPrepass(Shader visibilityShader, ComputeShader occlusionComputeShader)
+    public BBoxOcclusion(Shader visibilityShader, ComputeShader occlusionComputeShader) : base("BBoxOcclusion")
     {
         if (visibilityShader != null)
             _visibilityMat = CoreUtils.CreateEngineMaterial(visibilityShader);
@@ -53,8 +52,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
             _occlusionKernelSingle = _occlusionCompute.FindKernel("OcclusionCheckSingle");
             _occlusionKernelBatched = _occlusionCompute.FindKernel("OcclusionCheckBatched");
         }
-
-        renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -163,7 +160,6 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
                             data.bbox.box.height
                         ));
 
-
                         // cant use DrawRenderList so this will have to do
                         List<Renderer> renderers = data.bbox.renderers;
                         for (int i = 0; i < renderers.Count; i++)
@@ -261,5 +257,11 @@ public class BBoxOcclusionPrepass : ScriptableRenderPass
     bool ContainsRect(RectInt outer, RectInt inner)
     {
         return outer.xMin <= inner.xMin && outer.xMax >= inner.xMax && outer.yMin <= inner.yMin && outer.yMax >= inner.yMax;
+    }
+
+    public override void Dispose()
+    {
+        if (_visibilityMat != null)
+            CoreUtils.Destroy(_visibilityMat);
     }
 }
