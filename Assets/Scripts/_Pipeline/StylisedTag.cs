@@ -95,15 +95,6 @@ public class StylisedTag : MonoBehaviour
         {
             if (!r) continue;
 
-            uint mask = r.renderingLayerMask;
-
-            if (imageEffects != StyleBits.ImageSpaceEffect.None)
-                mask |= StyleBits.ImageSpaceBit;
-            else
-                mask &= ~StyleBits.ImageSpaceBit;
-
-            r.renderingLayerMask = mask;
-
             MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
             
@@ -132,8 +123,6 @@ public class StylisedTag : MonoBehaviour
         foreach (var r in _renderers)
         {
             if (!r) continue;
-
-            r.renderingLayerMask = StyleBits.DefaultBit | StyleBits.ImageSpaceBit;
 
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);

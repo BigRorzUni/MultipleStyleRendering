@@ -26,10 +26,7 @@ public class IdPrepass : Prepass
         if (_idShader != null)
             _idMat = CoreUtils.CreateEngineMaterial(_idShader);
 
-        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque)
-        {
-            renderingLayerMask = StyleBits.ImageSpaceBit
-        };
+        _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)

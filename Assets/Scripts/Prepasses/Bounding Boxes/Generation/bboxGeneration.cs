@@ -122,9 +122,15 @@ public class BBoxGeneration : Prepass
                     GameObject obj = tag.gameObject;
                     Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
 
+                    if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+                        continue;
+
+                    if (NprTestingConfig.TestMode && tag.currentTestEffects == 0)
+                        continue;
+
                     foreach (Renderer renderer in renderers)
                     {
-                        if (renderer == null || (renderer.renderingLayerMask & StyleBits.ImageSpaceBit) == 0)
+                        if (renderer == null)
                             continue;
 
                         if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
@@ -159,10 +165,17 @@ public class BBoxGeneration : Prepass
                     GameObject obj = tag.gameObject;
                     Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
 
+                    if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+                        continue;
+
+                    if (NprTestingConfig.TestMode && tag.currentTestEffects == 0)
+                        continue;
+
                     foreach (Renderer renderer in renderers)
                     {
-                        if (renderer == null || (renderer.renderingLayerMask & StyleBits.ImageSpaceBit) == 0)
+                        if (renderer == null)
                             continue;
+
 
                         uint mask;
                         if (NprTestingConfig.TestMode)

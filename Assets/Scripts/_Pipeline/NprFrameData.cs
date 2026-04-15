@@ -39,31 +39,27 @@ public class BoundingBox
 }
 
 public sealed class NprFrameData : ContextItem
-{
-    NprRenderMode renderMode = NprRenderMode.Fullscreen;
-    
+{   
+    // textures needed for effects
     public TextureHandle idTexture;
     public TextureHandle sourceTexture;
 
-    // CPU PATH
+    // CPU lists
     public List<BoundingBox> bboxes;
     public List<BoundingBox> occlusionCandidateBoxes; 
 
     public int bboxCount;
     public int bboxVisibilityCount;
 
-    // public int bboxRectBufferCapacity;
-    // public int bboxMaskBufferCapacity;
-    // public int bboxVisibilityBufferCapacity;
-
-    public ComputeBuffer bboxVisibilityBuffer;
+    // GPU buffers
     public ComputeBuffer bboxRectBuffer;
     public ComputeBuffer bboxMaskBuffer;
+    public ComputeBuffer bboxVisibilityBuffer;
     public ComputeBuffer bboxCountBuffer;
     public ComputeBuffer bboxIndirectArgsBuffer;
 
+    // detected styles in the scene
     public StyleBits.ImageSpaceEffect presentImageBits;
-
     public uint presentTestStyles;  
 
     public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
