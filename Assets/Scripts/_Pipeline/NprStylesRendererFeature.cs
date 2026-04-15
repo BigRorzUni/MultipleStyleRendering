@@ -268,10 +268,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         foreach (Effect effect in imageEffects)
         {
+            // update source texture
+            renderer.EnqueuePass(_sourcePrepass);
+
             foreach (EffectPass pass in effect.Passes)
             {
-                // update source texture
-                renderer.EnqueuePass(_sourcePrepass);
+                // make sure multipass effects ping pong textures properly when i implement them
 
                 pass.ConfigureInput(effect.RequiredInputs);
 
