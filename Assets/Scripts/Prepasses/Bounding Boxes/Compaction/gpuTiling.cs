@@ -131,7 +131,7 @@ public class GpuTiling : Prepass
         uint[] indirectArgsInit = new uint[4] { 6u, 0u, 0u, 0u };
         _indirectArgsBuffer.SetData(indirectArgsInit, 0, 0, 4);
 
-        using (var builder = renderGraph.AddComputePass("GPU Tile Merging", out ComputePassData passData))
+        using (var builder = renderGraph.AddComputePass("GPU Tile Merging", out ComputePassData passData, profilingSampler))
         {
             builder.AllowPassCulling(false);
 

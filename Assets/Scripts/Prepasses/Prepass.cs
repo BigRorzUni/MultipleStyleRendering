@@ -5,6 +5,7 @@ using UnityEngine.Rendering.Universal;
 public abstract class Prepass : ScriptableRenderPass, IDisposable
 {
     public readonly string PassName;
+    public ProfilingSampler Sampler => profilingSampler;
 
     protected Prepass(string passName)
     {

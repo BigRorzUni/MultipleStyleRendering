@@ -9,6 +9,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
     protected Material _mat;
     protected readonly StyleBits.ImageSpaceEffect _requiredBit;
     public readonly string PassName;
+    public ProfilingSampler Sampler => profilingSampler;
 
     protected EffectPass(Shader shader, string passName, StyleBits.ImageSpaceEffect requiredBit)
     {

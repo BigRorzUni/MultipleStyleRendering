@@ -85,7 +85,7 @@ public class IdPrepass : Prepass
 
         RendererListHandle rendererList = renderGraph.CreateRendererList(rlp);
 
-        using (var builder = renderGraph.AddRasterRenderPass("Fullscreen ID Prepass", out PassData passData))
+        using (var builder = renderGraph.AddRasterRenderPass("Fullscreen ID Prepass", out PassData passData, profilingSampler))
         {
 
             builder.SetRenderAttachment(nprFrameData.idTexture, 0);

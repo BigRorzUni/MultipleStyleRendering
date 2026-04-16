@@ -6,6 +6,7 @@ using UnityEngine;
 using Unity.Profiling;
 using System.IO;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Rendering;
 using System.Reflection;
 using System.Collections.Generic;
 
@@ -69,6 +70,21 @@ public class NprTestCase
     public TestEffectAssignmentMode effectMode = TestEffectAssignmentMode.Runtime;
 }
 
+[Serializable]
+public class PassTimingCapture
+{
+    public string passName;
+    public double[] cpuMs;
+    public double[] gpuMs;
+
+    public PassTimingCapture(string passName, int frameCount)
+    {
+        this.passName = passName;
+        cpuMs = new double[frameCount];
+        gpuMs = new double[frameCount];
+    }
+}
+
 public class TestRunner : MonoBehaviour
 {
     [SerializeField] private int startupFrames = 500;
@@ -92,39 +108,9 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
-        // new NprTestCase
-        // {
-        //     name = "TotalStylesScaling",
-        //     scene = "TestScene1",
-        //     variable = TestVariable.N,
-        //     values = new [] {0,1,2,4,8,16,32},
-        //     K = 0,
-        //     stylesPerObject = 0,
-        //     effectMode = TestEffectAssignmentMode.Runtime,
-        // },
-        // new NprTestCase
-        // {
-        //     name = "StackedStylesScaling",
-        //     scene = "TestScene2",
-        //     variable = TestVariable.StylesPerObject,
-        //     values = new [] {0,1,2,4,8,16,32},
-        //     K = 32,
-        //     effectMode = TestEffectAssignmentMode.Runtime,
-        // },
         new NprTestCase
         {
-            name="AreaScaling1Style",
-            scene = "TestScene3",
-            variable = TestVariable.Coverage,
-            values = new [] {0,5,10,20,40,60,80,100},
-            N=1,
-            K = 1,
-            stylesPerObject = 1,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
-        new NprTestCase
-        {
-            name="AreaScaling32Style",
+            name="AreaScaling",
             scene = "TestScene3",
             variable = TestVariable.Coverage,
             values = new [] {0,5,10,20,40,60,80,100},
@@ -285,6 +271,31 @@ public class TestRunner : MonoBehaviour
         coverageController.UpdateCoverage(coveragePercent);
     }
 
+    private List<ProfilingSampler> EnablePassSamplerRecording()
+    {
+        List<ProfilingSampler> samplers = n.GetBenchmarkSamplers();
+
+        foreach (var sampler in samplers)
+        {
+            if (sampler != null)
+                sampler.enableRecording = true;
+        }
+
+        return samplers;
+    }
+
+    private void DisablePassSamplerRecording(List<ProfilingSampler> samplers)
+    {
+        if (samplers == null)
+            return;
+
+        foreach (var sampler in samplers)
+        {
+            if (sampler != null)
+                sampler.enableRecording = false;
+        }
+    }
+
     public void OnValidate()
     {
         if (n == null)
@@ -439,6 +450,17 @@ public class TestRunner : MonoBehaviour
 
                     Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode}");
 
+                    List<ProfilingSampler> passSamplers = EnablePassSamplerRecording();
+
+                    Dictionary<string, PassTimingCapture> passCaptures = new();
+                    foreach (var sampler in passSamplers)
+                    {
+                        if (sampler == null)
+                            continue;
+
+                        passCaptures[sampler.name] = new PassTimingCapture(sampler.name, framesToCapture);
+                    }
+
                     Debug.Log($"{startupFrames} warmup frames...");
                     for (int i = 0; i < startupFrames; i++)
                         yield return null;
@@ -452,7 +474,21 @@ public class TestRunner : MonoBehaviour
                         yield return null;
                         cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
                         gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
+
+                        foreach (var sampler in passSamplers)
+                        {
+                            if (sampler == null)
+                                continue;
+
+                            if (!passCaptures.TryGetValue(sampler.name, out var capture))
+                                continue;
+
+                            capture.cpuMs[i] = sampler.cpuElapsedTime;
+                            capture.gpuMs[i] = sampler.gpuElapsedTime;
+                        }
                     }
+
+                    DisablePassSamplerRecording(passSamplers);
 
                     CsvWriter.EnsureDirectoryExists(logDir);
 
@@ -474,6 +510,18 @@ public class TestRunner : MonoBehaviour
                         curS,
                         cpuTimings,
                         gpuTimings);
+
+                    string passSummaryPath = CsvWriter.CombinePath(logDir, "pass_summary.csv");
+
+                    CsvWriter.AppendPassSummaryRows(
+                        passSummaryPath,
+                        test,
+                        v,
+                        renderMode,
+                        curN,
+                        curK,
+                        curS,
+                        passCaptures);
 
                     Debug.Log($"Timings saved at {framesPath}");
                 }

@@ -58,7 +58,7 @@ public class DummyPass : EffectPass
 
     protected override void RunFullscreen(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {PassName} Pass", out PassData passData))
+        using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {PassName} Pass", out PassData passData, profilingSampler))
         {
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;
@@ -90,7 +90,7 @@ public class DummyPass : EffectPass
             if (bbox.box.width <= 0 || bbox.box.height <= 0)
                 continue;
 
-            using (var builder = renderGraph.AddRasterRenderPass($"BBox {PassName}", out PassData passData))
+            using (var builder = renderGraph.AddRasterRenderPass($"BBox {PassName}", out PassData passData, profilingSampler))
             {
                 builder.AllowGlobalStateModification(true);
 
@@ -131,7 +131,7 @@ public class DummyPass : EffectPass
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
-        using (var builder = renderGraph.AddRasterRenderPass($"Batched {PassName} Pass (GPU)", out PassData passData))
+        using (var builder = renderGraph.AddRasterRenderPass($"Batched {PassName} Pass (GPU)", out PassData passData, profilingSampler))
         {
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;

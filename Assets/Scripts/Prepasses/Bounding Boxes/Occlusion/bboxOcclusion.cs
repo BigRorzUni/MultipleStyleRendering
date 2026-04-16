@@ -140,7 +140,7 @@ public class BBoxOcclusion : Prepass
                     useMipMap = false
                 });
 
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox Occlusion Test {nprFrameData.bboxes.IndexOf(bbox)}", out RasterPassData passData))
+                using (var builder = renderGraph.AddRasterRenderPass($"BBox Occlusion Test {nprFrameData.bboxes.IndexOf(bbox)}", out RasterPassData passData, profilingSampler))
                 {
                     builder.AllowPassCulling(false);
 
@@ -182,7 +182,7 @@ public class BBoxOcclusion : Prepass
                     });
                 }
 
-                using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse", out ComputePassData passData))
+                using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse", out ComputePassData passData, profilingSampler))
                 {
                     builder.AllowPassCulling(false);
 
@@ -225,7 +225,7 @@ public class BBoxOcclusion : Prepass
             if (nprFrameData.bboxMaskBuffer == null)
                 return;
 
-            using (var builder = renderGraph.AddComputePass("BBox Occlusion Analysis (ID Tex)", out ComputePassData passData))
+            using (var builder = renderGraph.AddComputePass("BBox Occlusion Analysis (ID Tex)", out ComputePassData passData, profilingSampler))
             {
                 builder.AllowPassCulling(false);
 

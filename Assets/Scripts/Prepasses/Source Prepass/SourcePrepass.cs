@@ -44,7 +44,7 @@ public class SourcePrepass : Prepass
         }
 
         // SOURCE COPY
-        using (var builder = renderGraph.AddRasterRenderPass("Source Copy", out CopyPassData copyPass))
+        using (var builder = renderGraph.AddRasterRenderPass("Source Copy", out CopyPassData copyPass, profilingSampler))
         {
             builder.SetRenderAttachment(nprFrameData.sourceTexture, 0, AccessFlags.Write);
             builder.UseTexture(frameData.activeColorTexture, AccessFlags.Read);

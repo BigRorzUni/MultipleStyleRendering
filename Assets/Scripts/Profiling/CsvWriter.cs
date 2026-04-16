@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class CsvWriter
@@ -156,6 +157,85 @@ public static class CsvWriter
         };
 
         sw.WriteLine(string.Join(",", fields));
+    }
+
+    public static void AppendPassSummaryRows(
+        string path,
+        NprTestCase test,
+        int value,
+        NprRenderMode renderMode,
+        int curN,
+        int curK,
+        int curS,
+        Dictionary<string, PassTimingCapture> passCaptures)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            Debug.LogError("CsvWriter.AppendPassSummaryRows: path was null or empty.");
+            return;
+        }
+
+        if (test == null)
+        {
+            Debug.LogError("CsvWriter.AppendPassSummaryRows: test was null.");
+            return;
+        }
+
+        if (passCaptures == null || passCaptures.Count == 0)
+        {
+            Debug.LogWarning("CsvWriter.AppendPassSummaryRows: no pass captures to write.");
+            return;
+        }
+
+        string dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+
+        bool fileExists = File.Exists(path);
+
+        using StreamWriter sw = new StreamWriter(path, append: true, Encoding.UTF8);
+
+        if (!fileExists)
+        {
+            sw.WriteLine(
+                "test_name,scene,variable,value,render_mode,N,K,styles_per_object,pass_name," +
+                "mean_cpu_ms,median_cpu_ms,p95_cpu_ms,p99_cpu_ms,max_cpu_ms,std_cpu_ms," +
+                "mean_gpu_ms,median_gpu_ms,p95_gpu_ms,p99_gpu_ms,max_gpu_ms,std_gpu_ms");
+        }
+
+        foreach (var kvp in passCaptures)
+        {
+            PassTimingCapture capture = kvp.Value;
+
+            string[] fields =
+            {
+                Escape(test.name),
+                Escape(test.scene),
+                Escape(test.variable.ToString()),
+                value.ToString(CsvCulture),
+                Escape(renderMode.ToString()),
+                curN.ToString(CsvCulture),
+                curK.ToString(CsvCulture),
+                curS.ToString(CsvCulture),
+                Escape(capture.passName),
+
+                BenchmarkStats.Mean(capture.cpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.Median(capture.cpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.Percentile(capture.cpuMs, 95).ToString("F6", CsvCulture),
+                BenchmarkStats.Percentile(capture.cpuMs, 99).ToString("F6", CsvCulture),
+                BenchmarkStats.Max(capture.cpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.StdDev(capture.cpuMs).ToString("F6", CsvCulture),
+
+                BenchmarkStats.Mean(capture.gpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.Median(capture.gpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.Percentile(capture.gpuMs, 95).ToString("F6", CsvCulture),
+                BenchmarkStats.Percentile(capture.gpuMs, 99).ToString("F6", CsvCulture),
+                BenchmarkStats.Max(capture.gpuMs).ToString("F6", CsvCulture),
+                BenchmarkStats.StdDev(capture.gpuMs).ToString("F6", CsvCulture)
+            };
+
+            sw.WriteLine(string.Join(",", fields));
+        }
     }
 
     public static string Escape(string value)

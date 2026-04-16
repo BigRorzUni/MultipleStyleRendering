@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public class NprStylesRendererFeature : ScriptableRendererFeature
@@ -335,6 +337,40 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         ditheringEffect = null;
         outlinesEffect = null;
+    }
+
+
+    public List<ProfilingSampler> GetBenchmarkSamplers()
+    {
+        List<ProfilingSampler> samplers = new();
+
+        void AddSampler(Prepass pass)
+        {
+            if (pass != null && pass.Sampler != null)
+                samplers.Add(pass.Sampler);
+        }
+
+        AddSampler(_sourcePrepass);
+        AddSampler(_idPrepass);
+        AddSampler(_bboxPrepass);
+        AddSampler(_bboxOcclusionPrepass);
+        AddSampler(_cpuMergingPrepass);
+        AddSampler(_gpuMergingPrepass);
+        AddSampler(_gpuTileMergingPrepass);
+
+        foreach (Effect effect in imageEffects)
+        {
+            if (effect == null || effect.Passes == null)
+                continue;
+
+            foreach (EffectPass pass in effect.Passes)
+            {
+                if (pass != null && pass.Sampler != null)
+                    samplers.Add(pass.Sampler);
+            }
+        }
+
+        return samplers;
     }
 
     protected override void Dispose(bool disposing)

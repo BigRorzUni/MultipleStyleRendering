@@ -140,7 +140,7 @@ public class GpuMerging : Prepass
         _indirectArgsBuffer.SetData(indirectArgsInit, 0, 0, 4);
 
         // THIS NEEDS TO ITERATE
-        using (var builder = renderGraph.AddComputePass("GPU BBox Merging", out ComputePassData passData))
+        using (var builder = renderGraph.AddComputePass("GPU BBox Merging", out ComputePassData passData, profilingSampler))
         {
             builder.AllowPassCulling(false);
 

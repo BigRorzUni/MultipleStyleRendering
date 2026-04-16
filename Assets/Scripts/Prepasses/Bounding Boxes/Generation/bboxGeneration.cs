@@ -52,6 +52,23 @@ public class BBoxGeneration : Prepass
     ComputeBuffer _bboxCountBuffer;
     ComputeBuffer _bboxIndirectArgsBuffer;
 
+    private class ComputePassData
+    {
+        public ComputeShader compute;
+        public int bboxGenerationKernel;
+        public int buildDrawArgsKernel;
+
+        public ComputeBuffer bboxInputBuffer;
+        public ComputeBuffer bboxRectBuffer;
+        public ComputeBuffer bboxIndirectArgsBuffer;
+
+        public int bboxCount;
+        public Matrix4x4 worldToCamera;
+        public Matrix4x4 projection;
+        public Vector2 screenSize;
+        public float nearZ;
+    }
+
     public BBoxGeneration(ComputeShader bboxGeneration) : base("BBoxGeneration")
     {
         if (bboxGeneration != null)
@@ -176,7 +193,6 @@ public class BBoxGeneration : Prepass
                         if (renderer == null)
                             continue;
 
-
                         uint mask;
                         if (NprTestingConfig.TestMode)
                         {
@@ -237,24 +253,42 @@ public class BBoxGeneration : Prepass
                     uint[] argsInit = new uint[4] { 0u, 0u, 0u, 0u };
                     _bboxIndirectArgsBuffer.SetData(argsInit, 0, 0, 4);
 
-                    CommandBuffer cmd = CommandBufferPool.Get("GPU BBox Generation");
+                    // execute bbox generation through a compute pass
+                    using (var builder = renderGraph.AddComputePass("GPU BBox Generation", out ComputePassData passData, profilingSampler))
+                    {
+                        builder.AllowPassCulling(false);
 
-                    cmd.SetComputeBufferParam(_bboxGeneration, _bboxGenerationKernel, BBoxInputBufferID, _bboxInputBuffer);
-                    cmd.SetComputeBufferParam(_bboxGeneration, _bboxGenerationKernel, BBoxRectBufferID, _bboxRectBuffer);
-                    cmd.SetComputeIntParam(_bboxGeneration, BBoxCountID, nprFrameData.bboxCount);
-                    cmd.SetComputeMatrixParam(_bboxGeneration, WorldToCameraID, worldToCamera);
-                    cmd.SetComputeMatrixParam(_bboxGeneration, ProjectionID, projection);
-                    cmd.SetComputeVectorParam(_bboxGeneration, ScreenSizeID, new Vector2(camera.pixelWidth, camera.pixelHeight));
-                    cmd.SetComputeFloatParam(_bboxGeneration, NearZID, nearZ);
+                        passData.compute = _bboxGeneration;
+                        passData.bboxGenerationKernel = _bboxGenerationKernel;
+                        passData.buildDrawArgsKernel = _buildDrawArgsKernel;
 
-                    int threadGroupsX = Mathf.CeilToInt(nprFrameData.bboxCount / 64.0f);
-                    cmd.DispatchCompute(_bboxGeneration, _bboxGenerationKernel, threadGroupsX, 1, 1);
+                        passData.bboxInputBuffer = _bboxInputBuffer;
+                        passData.bboxRectBuffer = _bboxRectBuffer;
+                        passData.bboxIndirectArgsBuffer = _bboxIndirectArgsBuffer;
 
-                    cmd.SetComputeBufferParam(_bboxGeneration, _buildDrawArgsKernel, IndirectArgsBufferID, _bboxIndirectArgsBuffer);
-                    cmd.DispatchCompute(_bboxGeneration, _buildDrawArgsKernel, 1, 1, 1);
+                        passData.bboxCount = nprFrameData.bboxCount;
+                        passData.worldToCamera = worldToCamera;
+                        passData.projection = projection;
+                        passData.screenSize = new Vector2(camera.pixelWidth, camera.pixelHeight);
+                        passData.nearZ = nearZ;
 
-                    Graphics.ExecuteCommandBuffer(cmd);
-                    CommandBufferPool.Release(cmd);
+                        builder.SetRenderFunc((ComputePassData data, ComputeGraphContext ctx) =>
+                        {
+                            int threadGroupsX = Mathf.CeilToInt(data.bboxCount / 64.0f);
+
+                            ctx.cmd.SetComputeBufferParam(data.compute, data.bboxGenerationKernel, BBoxInputBufferID, data.bboxInputBuffer);
+                            ctx.cmd.SetComputeBufferParam(data.compute, data.bboxGenerationKernel, BBoxRectBufferID, data.bboxRectBuffer);
+                            ctx.cmd.SetComputeIntParam(data.compute, BBoxCountID, data.bboxCount);
+                            ctx.cmd.SetComputeMatrixParam(data.compute, WorldToCameraID, data.worldToCamera);
+                            ctx.cmd.SetComputeMatrixParam(data.compute, ProjectionID, data.projection);
+                            ctx.cmd.SetComputeVectorParam(data.compute, ScreenSizeID, data.screenSize);
+                            ctx.cmd.SetComputeFloatParam(data.compute, NearZID, data.nearZ);
+                            ctx.cmd.DispatchCompute(data.compute, data.bboxGenerationKernel, threadGroupsX, 1, 1);
+
+                            ctx.cmd.SetComputeBufferParam(data.compute, data.buildDrawArgsKernel, IndirectArgsBufferID, data.bboxIndirectArgsBuffer);
+                            ctx.cmd.DispatchCompute(data.compute, data.buildDrawArgsKernel, 1, 1, 1);
+                        });
+                    }
                 }
                 else
                 {
