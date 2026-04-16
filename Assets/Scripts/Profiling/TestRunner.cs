@@ -43,7 +43,8 @@ public enum TestVariable
     K,
     StylesPerObject,
     ObjectCount,
-    Coverage
+    Coverage,
+    SpawnAreaScale
 }
 
 [Serializable]
@@ -66,6 +67,9 @@ public class NprTestCase
     public int N = 32;
     public int K = 1;
     public int stylesPerObject = 1;
+
+    public int objectCount = 0;
+    public bool useMerging = false;
 
     public StylePattern stylePattern = StylePattern.SameStyle;
     public float spawnAreaScale = 1.0f;
@@ -112,47 +116,137 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
-        // new NprTestCase
-        // {
-        //     name = "BBoxCountScaling_SameStyle",
-        //     scene = "TestScene_Spawner",
-        //     variable = TestVariable.ObjectCount,
-        //     values = new[] { 10, 25, 50, 100, 200, 400, 1000, 2500, 5000 },
-        //     N = 1,
-        //     K = 1,
-        //     stylesPerObject = 1,
-        //     stylePattern = StylePattern.SameStyle,
-        //     spawnAreaScale = 1.0f,
-        //     sameStyleIndex = 0,
-        //     effectMode = TestEffectAssignmentMode.Runtime,
-        // },
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_SameStyle_NoMerge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 10, 25, 50, 100, 200, 400, 800, 1200 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = false,
+            stylePattern = StylePattern.SameStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
 
         new NprTestCase
         {
-            name = "BBoxCountScaling_RandomMultiStyle",
+            name = "BBoxCountScaling_SameStyle_Merge",
             scene = "TestScene_Spawner",
             variable = TestVariable.ObjectCount,
-            values = new[] { 10, 25, 50, 100, 200, 400, 1000, 5000 },
-            N = 16,
-            K = 16,
+            values = new[] { 10, 25, 50, 100, 200, 400, 800, 1200 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = true,
+            stylePattern = StylePattern.SameStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_RandomMultiStyle_NoMerge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 10, 25, 50, 100, 200, 400 },
+            N = 4,
+            K = 4,
             stylesPerObject = 4,
+            useMerging = false,
             stylePattern = StylePattern.RandomMultiStyle,
             spawnAreaScale = 1.0f,
             sameStyleIndex = 0,
             effectMode = TestEffectAssignmentMode.Runtime,
         },
 
-        // new NprTestCase
-        // {
-        //     name = "AreaScaling",
-        //     scene = "TestScene3",
-        //     variable = TestVariable.Coverage,
-        //     values = new [] {0,5,10,20,40,60,80,100},
-        //     N = 32,
-        //     K = 32,
-        //     stylesPerObject = 32,
-        //     effectMode = TestEffectAssignmentMode.Runtime,
-        // },
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_RandomMultiStyle_Merge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 10, 25, 50, 100, 200, 400 },
+            N = 4,
+            K = 4,
+            stylesPerObject = 4,
+            useMerging = true,
+            stylePattern = StylePattern.RandomMultiStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCondenseScaling_SameStyle_NoMerge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.SpawnAreaScale,
+            values = new[] { 100, 75, 50, 35, 20 },
+            objectCount = 50,
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = false,
+            stylePattern = StylePattern.SameStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCondenseScaling_SameStyle_Merge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.SpawnAreaScale,
+            values = new[] { 100, 75, 50, 35, 20 },
+            objectCount = 50,
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = true,
+            stylePattern = StylePattern.SameStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCondenseScaling_RandomMultiStyle_NoMerge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.SpawnAreaScale,
+            values = new[] { 100, 75, 50, 35, 20 },
+            objectCount = 50,
+            N = 4,
+            K = 4,
+            stylesPerObject = 4,
+            useMerging = false,
+            stylePattern = StylePattern.RandomMultiStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCondenseScaling_RandomMultiStyle_Merge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.SpawnAreaScale,
+            values = new[] { 100, 75, 50, 35, 20 },
+            objectCount = 50,
+            N = 4,
+            K = 4,
+            stylesPerObject = 4,
+            useMerging = true,
+            stylePattern = StylePattern.RandomMultiStyle,
+            spawnAreaScale = 1.0f,
+            sameStyleIndex = 0,
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
     };
 
     private void Awake()
@@ -480,7 +574,7 @@ public class TestRunner : MonoBehaviour
 
                 Debug.Log($"Loaded scene: {test.scene}");
 
-                NprRenderMode[] renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU };
+                NprRenderMode[] renderModes = new[] { NprRenderMode.Fullscreen, /*NprRenderMode.CPU,*/ NprRenderMode.GPU };
                 foreach (var renderMode in renderModes)
                 {
                     int curN = test.N;
@@ -516,6 +610,18 @@ public class TestRunner : MonoBehaviour
                                 sameStyleIndex: test.sameStyleIndex
                             );
                             break;
+
+                        case TestVariable.SpawnAreaScale:
+                            RegenerateSpawnedScene(
+                                objectCount: test.objectCount,
+                                pattern: test.stylePattern,
+                                totalStyles: curN,
+                                stylesPerObject: curS,
+                                seed: 12345,
+                                areaScale: v / 100.0f,
+                                sameStyleIndex: test.sameStyleIndex
+                            );
+                            break;
                     }
 
                     NprTestingConfig.SceneName = test.scene;
@@ -525,13 +631,12 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.K = curK;
                     NprTestingConfig.StylesPerObject = curS;
 
-                    // for now: broad comparison should not include mitigation
-                    NprTestingConfig.UseMerging = false;
+                    NprTestingConfig.UseMerging = test.useMerging;
                     NprTestingConfig.UseOcclusion = false;
 
                     n.EnableTestMode(curN);
 
-                    if (test.variable != TestVariable.ObjectCount)
+                    if (test.variable != TestVariable.ObjectCount && test.variable != TestVariable.SpawnAreaScale)
                     {
                         ConfigureTagsForTestMode(test.effectMode);
 
