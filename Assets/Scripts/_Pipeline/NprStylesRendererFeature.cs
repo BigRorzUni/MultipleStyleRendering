@@ -87,6 +87,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public override void Create()
     {
+        DisposePasses();
+        
         if (idShader == null)
         {
             Debug.LogError("Could not find shader 'Custom/ID'");
@@ -291,16 +293,55 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             Debug.Log("show hashed IDs");
     }
 
+    private void DisposePasses()
+    {
+        _sourcePrepass?.Dispose();
+        _sourcePrepass = null;
+
+        _idPrepass?.Dispose();
+        _idPrepass = null;
+
+        _bboxPrepass?.Dispose();
+        _bboxPrepass = null;
+
+        _bboxOcclusionPrepass?.Dispose();
+        _bboxOcclusionPrepass = null;
+
+        _cpuMergingPrepass?.Dispose();
+        _cpuMergingPrepass = null;
+
+        _gpuMergingPrepass?.Dispose();
+        _gpuMergingPrepass = null;
+
+        _gpuTileMergingPrepass?.Dispose();
+        _gpuTileMergingPrepass = null;
+
+        _bboxDebugPass?.Dispose();
+        _bboxDebugPass = null;
+
+        if (imageEffects != null)
+        {
+            foreach (Effect effect in imageEffects)
+            {
+                if (effect == null || effect.Passes == null)
+                    continue;
+
+                foreach (EffectPass pass in effect.Passes)
+                    pass?.Dispose();
+            }
+
+            imageEffects.Clear();
+        }
+
+        ditheringEffect = null;
+        outlinesEffect = null;
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            // loop through prepasses and call dispose
-            _bboxPrepass?.Dispose();
-            _gpuMergingPrepass?.Dispose();
-            _gpuTileMergingPrepass?.Dispose();
-
-            // loop through effects and call dispose
+            DisposePasses();
         }
     }
 }

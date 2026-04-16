@@ -62,25 +62,34 @@ public sealed class NprFrameData : ContextItem
     public StyleBits.ImageSpaceEffect presentImageBits;
     public uint presentTestStyles;  
 
-    public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
+{
+    int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
 
-        if (buffer == null || capacity < requiredCapacity)
+    if (buffer == null || capacity < requiredCapacity)
+    {
+        if (buffer != null)
         {
-            if (buffer != null)
-                buffer.Release();
-
-            capacity = requiredCapacity;
-            buffer = new ComputeBuffer(capacity, stride, type);
+            buffer.Release();
         }
+
+        capacity = requiredCapacity;
+        buffer = new ComputeBuffer(capacity, stride, type);
+    }
+}
+
+public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
+{
+    if (buffer != null)
+    {
+        if (buffer.count == count && buffer.stride == stride)
+            return;
+
+        buffer.Release();
     }
 
-    public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
-    {
-        if (buffer == null)
-            buffer = new ComputeBuffer(count, stride, type);
-    }
+    buffer = new ComputeBuffer(count, stride, type);
+}
 
 
     public override void Reset()
