@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimpleOutlineRendererFeature
   m_Active: 1
   idShader: {fileID: 4800000, guid: 2a86b63b867924207b8993bd13664d22, type: 3}
-  normalsShader: {fileID: 4800000, guid: 7531a20cc0aaf43fd9dc742d5f1cad1b, type: 3}
   ssOutlinesShader: {fileID: 4800000, guid: fc32685630a9b421dbddd0213a3fc17e, type: 3}
   ssOutlineBatchedShader: {fileID: 4800000, guid: e28d37ee60b0a4133991a3676324291a, type: 3}
   ditheringShader: {fileID: 4800000, guid: 36849cc1d9e8a4040860295c35a4bdd7, type: 3}
@@ -24,15 +23,15 @@ MonoBehaviour:
   occlusionComputeShader: {fileID: 7200000, guid: 94ffc1c0ee4df42c4837ccb1cf94cc7b, type: 3}
   occlusionDebugShader: {fileID: 4800000, guid: 2deea525d2fb74b6a8136fd646983fb3, type: 3}
   bboxMergingComputeShader: {fileID: 7200000, guid: 7d4f086dc373041f8a68b2aaa3f825a4, type: 3}
+  TileMergingComputeShader: {fileID: 7200000, guid: 8b8168d2533c049b486f4f62511f6066, type: 3}
   bboxDebugShader: {fileID: 4800000, guid: 2cfe7300d5ceb4b4387a81089f4d12ec, type: 3}
   testEffectCount: 32
   testDummyShader: {fileID: 4800000, guid: e6d085fd5c0e7467ba68af773a42ddf6, type: 3}
   testDummyBatchedShader: {fileID: 4800000, guid: 26508e531b3444d60b2aa309b56eb0d5, type: 3}
   settings:
-    debugView: 0
     outlines:
       colour: {r: 0.2979523, g: 1, b: 0.0047169924, a: 1}
-      thickness: 1
+      thickness: 2
       depthThreshold: 0.2
       depthStrength: 1
       normalThreshold: 0.2

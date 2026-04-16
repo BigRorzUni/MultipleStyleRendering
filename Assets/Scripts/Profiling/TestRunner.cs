@@ -18,7 +18,6 @@ public static class NprTestingConfig
     public static bool UseMerging;
     public static bool UseOcclusion;
     public static bool TestMode = false;
-    public static bool BoundingBoxes = true;
 
     public static int N = 0; // total styles
     public static int K = 0; // actice styles in scene
@@ -72,7 +71,6 @@ public class NprTestCase
 
 public class TestRunner : MonoBehaviour
 {
-
     [SerializeField] private int startupFrames = 500;
     [SerializeField] private int framesToCapture = 1000;
     NprStylesRendererFeature n;
@@ -122,7 +120,7 @@ public class TestRunner : MonoBehaviour
             N=1,
             K = 1,
             stylesPerObject = 1,
-             effectMode = TestEffectAssignmentMode.Runtime,
+            effectMode = TestEffectAssignmentMode.Runtime,
         },
         new NprTestCase
         {
@@ -133,7 +131,7 @@ public class TestRunner : MonoBehaviour
             N = 32,
             K = 32,
             stylesPerObject = 32,
-             effectMode = TestEffectAssignmentMode.Runtime,
+            effectMode = TestEffectAssignmentMode.Runtime,
         },
     };
 
@@ -153,7 +151,7 @@ public class TestRunner : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         // find the renderer feature
-        if(n == null)
+        if (n == null)
         {
             ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
 
@@ -166,7 +164,7 @@ public class TestRunner : MonoBehaviour
                     n = (NprStylesRendererFeature)f;
             }
 
-            if(n == null)
+            if (n == null)
             {
                 Debug.Log("No renderer feature found");
                 return;
@@ -176,15 +174,15 @@ public class TestRunner : MonoBehaviour
         string[] args = Environment.GetCommandLineArgs();
 
         // is testing enabled?
-        if(!args.Contains("-runTests"))
+        if (!args.Contains("-runTests"))
             return;
 
-        for(int i = 0; i < args.Length-1; i++)
+        for (int i = 0; i < args.Length - 1; i++)
         {
-            switch(args[i])
+            switch (args[i])
             {
                 case "-frames":
-                    if(int.TryParse(args[i+1], out int frames))
+                    if (int.TryParse(args[i + 1], out int frames))
                         framesToCapture = frames;
                     break;
                 case "-warmup":
@@ -195,7 +193,6 @@ public class TestRunner : MonoBehaviour
                     break;
             }
         }
-            
 
         NprTestingConfig.IsBenchmarkRunning = true;
 
@@ -215,7 +212,7 @@ public class TestRunner : MonoBehaviour
     private void ConfigureTagsForTestMode(TestEffectAssignmentMode mode, bool includeInactive = false)
     {
         StylisedTag[] tags;
-        if(includeInactive)
+        if (includeInactive)
             tags = FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
         else
             tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -279,7 +276,7 @@ public class TestRunner : MonoBehaviour
     public void UpdateCoverage(float coveragePercent)
     {
         CoverageController coverageController = FindFirstObjectByType<CoverageController>();
-        if(coverageController == null)
+        if (coverageController == null)
         {
             Debug.LogError("No CoverageController found in scene");
             return;
@@ -290,7 +287,7 @@ public class TestRunner : MonoBehaviour
 
     public void OnValidate()
     {
-        if(n == null)
+        if (n == null)
         {
             ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
 
@@ -303,7 +300,7 @@ public class TestRunner : MonoBehaviour
                     n = feature;
             }
 
-            if(n == null)
+            if (n == null)
             {
                 Debug.Log("No renderer feature found");
                 return;
@@ -319,7 +316,6 @@ public class TestRunner : MonoBehaviour
         NprTestingConfig.UseMerging = setUseMerging;
         NprTestingConfig.UseOcclusion = setUseOcclusion;
 
-
         if (NprTestingConfig.TestMode)
         {
             n.EnableTestMode(32);
@@ -334,7 +330,9 @@ public class TestRunner : MonoBehaviour
                 }
             }
             else
+            {
                 ConfigureTagsForTestMode(TestEffectAssignmentMode.Inspector, includeInactive: true);
+            }
         }
         else
         {
@@ -347,7 +345,7 @@ public class TestRunner : MonoBehaviour
 
     private IEnumerator RunAllTests()
     {
-        foreach(var test in tests)
+        foreach (var test in tests)
         {
             if (test == null || string.IsNullOrEmpty(test.scene))
             {
@@ -389,54 +387,45 @@ public class TestRunner : MonoBehaviour
 
                 Debug.Log($"Loaded scene: {test.scene}");
 
-                // test with bboxes on and bboxes off
-                bool[] bboxModes = { true, false }; // extend this for more modes
-                foreach (bool bboxMode in bboxModes)
+                NprRenderMode[] renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU };
+                foreach (var renderMode in renderModes)
                 {
-                    // get the current run from test config
                     int curN = test.N;
                     int curK = test.K;
                     int curS = test.stylesPerObject;
-                    bool curUseBBoxes = bboxMode;
 
                     switch (test.variable)
                     {
                         case TestVariable.N:
                             curN = Mathf.Clamp(v, 0, 32);
                             break;
-
                         case TestVariable.K:
                             curK = Mathf.Clamp(v, 0, 32);
                             break;
-
                         case TestVariable.StylesPerObject:
                             curS = Mathf.Clamp(v, 0, 32);
                             break;
-
                         case TestVariable.Coverage:
-                            Debug.Log("Updating coverage to " + v + "%");
                             UpdateCoverage(v);
-                            break;
-
-                        default:
                             break;
                     }
 
-                    // store into global current config
                     NprTestingConfig.SceneName = test.scene;
                     NprTestingConfig.TestMode = true;
-                    NprTestingConfig.BoundingBoxes = curUseBBoxes;
+                    NprTestingConfig.RenderMode = renderMode;
                     NprTestingConfig.N = curN;
                     NprTestingConfig.K = curK;
                     NprTestingConfig.StylesPerObject = curS;
 
-                    n.EnableTestMode(curN);
+                    // for now: broad comparison should not include mitigation
+                    NprTestingConfig.UseMerging = false;
+                    NprTestingConfig.UseOcclusion = false;
 
+                    n.EnableTestMode(curN);
                     ConfigureTagsForTestMode(test.effectMode);
 
                     if (test.effectMode == TestEffectAssignmentMode.Runtime)
                     {
-                        Debug.Log($"Clearing runtime styles before testing (BB={curUseBBoxes})");
                         var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
                         foreach (var tag in tags)
                         {
@@ -445,13 +434,11 @@ public class TestRunner : MonoBehaviour
                         }
 
                         if (curK > 0 && curS > 0)
-                        {
-                            Debug.Log("Applying test styles");
                             ApplyTestStylesToScene(curK, curS);
-                        }
                     }
 
-                    Debug.Log($"Running {test.name} | {test.variable}={v} | BB={curUseBBoxes}");
+                    Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode}");
+
                     Debug.Log($"{startupFrames} warmup frames...");
                     for (int i = 0; i < startupFrames; i++)
                         yield return null;
@@ -467,25 +454,28 @@ public class TestRunner : MonoBehaviour
                         gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
                     }
 
-                    Directory.CreateDirectory(logDir);
-                    string bboxLabel = curUseBBoxes ? "bboxes" : "fullscreen";
-                    string path = Path.Combine(logDir, $"{test.name}_{test.variable}_{v}_{bboxLabel}.csv");
+                    CsvWriter.EnsureDirectoryExists(logDir);
 
-                    using (StreamWriter sw = new StreamWriter(path, false))
-                    {
-                        sw.WriteLine("frame,cpu_ms,gpu_ms");
-                        for (int i = 0; i < framesToCapture; i++)
-                        {
-                            sw.Write(i);
-                            sw.Write(",");
-                            sw.Write(cpuTimings[i]);
-                            sw.Write(",");
-                            sw.Write(gpuTimings[i]);
-                            sw.WriteLine();
-                        }
-                    }
+                    string framesPath = CsvWriter.CombinePath(
+                        logDir,
+                        $"{test.name}_{test.variable}_{v}_{renderMode}_frames.csv");
 
-                    Debug.Log($"Timings saved at {path}");
+                    CsvWriter.WriteFrameTimings(framesPath, cpuTimings, gpuTimings);
+
+                    string summaryPath = CsvWriter.CombinePath(logDir, "summary.csv");
+
+                    CsvWriter.AppendSummaryRow(
+                        summaryPath,
+                        test,
+                        v,
+                        renderMode,
+                        curN,
+                        curK,
+                        curS,
+                        cpuTimings,
+                        gpuTimings);
+
+                    Debug.Log($"Timings saved at {framesPath}");
                 }
             }
         }
@@ -500,22 +490,22 @@ public class TestRunner : MonoBehaviour
         // TEMPORARY FOR TESTING
         //ApplyTestStylesToScene(32, 1);
 
-        if(!NprTestingConfig.IsBenchmarkRunning)
+        if (!NprTestingConfig.IsBenchmarkRunning)
             return;
-        
-        Directory.CreateDirectory(logDir);
+
+        CsvWriter.EnsureDirectoryExists(logDir);
         Debug.Log($"Starting tests. logDir = {logDir}, startupFrames = {startupFrames}, frames = {framesToCapture}");
 
         cpuFrameRec = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "CPU Total Frame Time");
         gpuFrameRec = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "GPU Frame Time");
 
-        if(!cpuFrameRec.Valid)
+        if (!cpuFrameRec.Valid)
         {
             Debug.LogError("CPU recorder is not valid");
             return;
         }
 
-        if(!gpuFrameRec.Valid)
+        if (!gpuFrameRec.Valid)
         {
             Debug.LogError("GPU recorder is not valid?");
             return;
