@@ -282,18 +282,6 @@ public class TestRunner : MonoBehaviour
         coverageController.UpdateCoverage(coveragePercent);
     }
 
-    private List<ProfilingSampler> EnablePassSamplerRecording()
-    {
-        List<ProfilingSampler> samplers = n.GetBenchmarkSamplers();
-
-        foreach (var sampler in samplers)
-        {
-            if (sampler != null)
-                sampler.enableRecording = true;
-        }
-
-        return samplers;
-    }
 
     private void DisablePassSamplerRecording(List<ProfilingSampler> samplers)
     {
@@ -461,17 +449,6 @@ public class TestRunner : MonoBehaviour
 
                     Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode}");
 
-                    List<ProfilingSampler> passSamplers = EnablePassSamplerRecording();
-
-                    Dictionary<string, PassTimingCapture> passCaptures = new();
-                    foreach (var sampler in passSamplers)
-                    {
-                        if (sampler == null)
-                            continue;
-
-                        passCaptures[sampler.name] = new PassTimingCapture(sampler.name, framesToCapture);
-                    }
-
                     Debug.Log($"{startupFrames} warmup frames...");
                     for (int i = 0; i < startupFrames; i++)
                         yield return null;
@@ -486,21 +463,7 @@ public class TestRunner : MonoBehaviour
                         cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
                         gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
 
-                        foreach (var sampler in passSamplers)
-                        {
-                            if (sampler == null)
-                                continue;
-
-                            if (!passCaptures.TryGetValue(sampler.name, out var capture))
-                                continue;
-
-                            capture.cpuMs[i] = sampler.cpuElapsedTime;
-                            capture.gpuMs[i] = sampler.gpuElapsedTime;
-                        }
                     }
-
-                    DisablePassSamplerRecording(passSamplers);
-
                     CsvWriter.EnsureDirectoryExists(logDir);
 
                     string framesPath = CsvWriter.CombinePath(
@@ -521,18 +484,6 @@ public class TestRunner : MonoBehaviour
                         curS,
                         cpuTimings,
                         gpuTimings);
-
-                    string passSummaryPath = CsvWriter.CombinePath(logDir, "pass_summary.csv");
-
-                    CsvWriter.AppendPassSummaryRows(
-                        passSummaryPath,
-                        test,
-                        v,
-                        renderMode,
-                        curN,
-                        curK,
-                        curS,
-                        passCaptures);
 
                     Debug.Log($"Timings saved at {framesPath}");
                 }
