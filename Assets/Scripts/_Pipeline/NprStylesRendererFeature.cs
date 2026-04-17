@@ -45,6 +45,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
     [SerializeField] private Shader testDummyBatchedShader;
+    [SerializeField] private Shader dummyKuwaharaShader;
+    [SerializeField] private Shader dummyKuwaharaBatchedShader;
 
     // settings
     public Settings settings = new();
@@ -85,6 +87,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     bool UseIterativeGpuMerging()
     {
         return NprTestingConfig.GPUMergeMethod == GpuMergeMethod.PairwiseIterative;
+    }
+
+    bool UseKuwaharaDummy()
+    {
+        return NprTestingConfig.DummyMode == DummyMode.Kuwahara;
     }
 
     public override void Create()
@@ -215,25 +222,53 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         {
             if (UseBatchedScreenPasses())
             {
-                if (testDummyBatchedShader == null)
+                if (UseKuwaharaDummy())
                 {
-                    Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy batched shader is not set.");
-                    return;
-                }
+                    if (dummyKuwaharaBatchedShader == null)
+                    {
+                        Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy kuwahara batched shader is not set.");
+                        return;
+                    }
 
-                for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+                    for (int i = 0; i < testEffectCount; i++)
+                        imageEffects.Add(new DummyEffect($"TestEffect_{i}", dummyKuwaharaBatchedShader, i));
+                }
+                else
+                {
+                    if (testDummyBatchedShader == null)
+                    {
+                        Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy batched shader is not set.");
+                        return;
+                    }
+
+                    for (int i = 0; i < testEffectCount; i++)
+                        imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+                }
             }
             else
             {
-                if (testDummyShader == null)
+                if (UseKuwaharaDummy())
                 {
-                    Debug.LogError("Could not find shader 'Custom/Dummy");                   
-                    return;
-                }
+                    if (dummyKuwaharaShader == null)
+                    {
+                        Debug.LogError("Could not find shader 'Custom/DummyKuwahara'");
+                        return;
+                    }
 
-                for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyShader, i));
+                    for (int i = 0; i < testEffectCount; i++)
+                        imageEffects.Add(new DummyEffect($"TestEffect_{i}", dummyKuwaharaShader, i));
+                }
+                else
+                {
+                    if (testDummyShader == null)
+                    {
+                        Debug.LogError("Could not find shader 'Custom/Dummy");                   
+                        return;
+                    }
+
+                    for (int i = 0; i < testEffectCount; i++)
+                        imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyShader, i));
+                }
             }
 
             Debug.Log("Queued test pases");
@@ -338,40 +373,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         ditheringEffect = null;
         outlinesEffect = null;
     }
-
-
-    // public List<ProfilingSampler> GetBenchmarkSamplers()
-    // {
-    //     List<ProfilingSampler> samplers = new();
-
-    //     void AddSampler(Prepass pass)
-    //     {
-    //         if (pass != null && pass.Sampler != null)
-    //             samplers.Add(pass.Sampler);
-    //     }
-
-    //     AddSampler(_sourcePrepass);
-    //     AddSampler(_idPrepass);
-    //     AddSampler(_bboxPrepass);
-    //     AddSampler(_bboxOcclusionPrepass);
-    //     AddSampler(_cpuMergingPrepass);
-    //     AddSampler(_gpuMergingPrepass);
-    //     AddSampler(_gpuTileMergingPrepass);
-
-    //     foreach (Effect effect in imageEffects)
-    //     {
-    //         if (effect == null || effect.Passes == null)
-    //             continue;
-
-    //         foreach (EffectPass pass in effect.Passes)
-    //         {
-    //             if (pass != null && pass.Sampler != null)
-    //                 samplers.Add(pass.Sampler);
-    //         }
-    //     }
-
-    //     return samplers;
-    // }
 
     protected override void Dispose(bool disposing)
     {
