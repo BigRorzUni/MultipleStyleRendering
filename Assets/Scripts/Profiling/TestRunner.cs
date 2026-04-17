@@ -119,15 +119,28 @@ public class TestRunner : MonoBehaviour
         //     stylesPerObject = 32,
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
+
+        // new NprTestCase
+        // {
+        //     name = "StackedStylesScaling",
+        //     scene = "TestScene2",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 0, 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
         new NprTestCase
         {
-            name = "StackedStylesScaling",
-            scene = "TestScene2",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 0, 1, 2, 4, 8, 16, 32 },
-            N = 32,
-            K = 32,
-            stylesPerObject = 32,
+            name = "BBoxCountScaling_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1,  10, 50, 100, 500, 1000 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
             effectMode = TestEffectAssignmentMode.Runtime,
         },
     };
@@ -234,6 +247,20 @@ public class TestRunner : MonoBehaviour
         }
     }
 
+    private void ClearRuntimeTestStylesInScene()
+    {
+        var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (var tag in tags)
+        {
+            if (!tag)
+                continue;
+
+            tag.ClearRuntimeTestEffects();
+            tag.Apply();
+        }
+    }
+
     private void ApplyTestStylesToScene(int k, int stylesPerObject)
     {
         StylisedTag[] tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -282,19 +309,25 @@ public class TestRunner : MonoBehaviour
         coverageController.UpdateCoverage(coveragePercent);
     }
 
-
-    private void DisablePassSamplerRecording(List<ProfilingSampler> samplers)
+    private void RegenerateSpawnedScene(int objectCount, int totalStyles, int stylesPerObject)
     {
-        if (samplers == null)
-            return;
-
-        foreach (var sampler in samplers)
+        Spawner spawner = FindFirstObjectByType<Spawner>();
+        if (spawner == null)
         {
-            if (sampler != null)
-                sampler.enableRecording = false;
+            Debug.LogError("No Spawner found in scene");
+            return;
         }
-    }
 
+        spawner.Regenerate(
+            objectCount,
+            StylePattern.SameStyle,
+            totalStyles,
+            stylesPerObject,
+            12345,
+            1.0f,
+            0
+        );
+    }
     public void OnValidate()
     {
         if (n == null)
@@ -415,6 +448,9 @@ public class TestRunner : MonoBehaviour
                         case TestVariable.StylesPerObject:
                             curS = Mathf.Clamp(v, 0, 32);
                             break;
+                        case TestVariable.ObjectCount:
+                            RegenerateSpawnedScene(v, curN, curS);
+                            break;
                         case TestVariable.Coverage:
                             UpdateCoverage(v);
                             break;
@@ -432,19 +468,19 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.UseOcclusion = false;
 
                     n.EnableTestMode(curN);
-                    ConfigureTagsForTestMode(test.effectMode);
+
+                    if (test.variable != TestVariable.ObjectCount)
+                        ConfigureTagsForTestMode(test.effectMode);
 
                     if (test.effectMode == TestEffectAssignmentMode.Runtime)
                     {
-                        var tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-                        foreach (var tag in tags)
+                        if (test.variable != TestVariable.ObjectCount)
                         {
-                            tag.ClearRuntimeTestEffects();
-                            tag.Apply();
-                        }
+                            ClearRuntimeTestStylesInScene();
 
-                        if (curK > 0 && curS > 0)
-                            ApplyTestStylesToScene(curK, curS);
+                            if (curK > 0 && curS > 0)
+                                ApplyTestStylesToScene(curK, curS);
+                        }
                     }
 
                     Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode}");
@@ -462,8 +498,8 @@ public class TestRunner : MonoBehaviour
                         yield return null;
                         cpuTimings[i] = cpuFrameRec.LastValue / 1_000_000.0;
                         gpuTimings[i] = gpuFrameRec.LastValue / 1_000_000.0;
-
                     }
+
                     CsvWriter.EnsureDirectoryExists(logDir);
 
                     string framesPath = CsvWriter.CombinePath(
