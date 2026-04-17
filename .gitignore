@@ -102,3 +102,5 @@ InitTestScene*.unity*
 *.py
 *.ipynb
 *.csv
+
+/FinalGraphs

@@ -108,12 +108,23 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
+        // new NprTestCase
+        // {
+        //     name="AreaScaling",
+        //     scene = "TestScene3",
+        //     variable = TestVariable.Coverage,
+        //     values = new [] {0,5,10,20,40,60,80,100},
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
         new NprTestCase
         {
-            name="AreaScaling",
-            scene = "TestScene3",
-            variable = TestVariable.Coverage,
-            values = new [] {0,5,10,20,40,60,80,100},
+            name = "StackedStylesScaling",
+            scene = "TestScene2",
+            variable = TestVariable.StylesPerObject,
+            values = new[] { 0, 1, 2, 4, 8, 16, 32 },
             N = 32,
             K = 32,
             stylesPerObject = 32,
