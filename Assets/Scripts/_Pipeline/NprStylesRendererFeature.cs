@@ -42,9 +42,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField, Min(1)] private int testEffectCount = 32;
     public int TestEffectCount => testEffectCount;
 
+
     // The shader all dummy effects use
     [SerializeField] private Shader testDummyShader;
     [SerializeField] private Shader testDummyBatchedShader;
+    [SerializeField] private Shader dummyHeavyShader;
+    [SerializeField] private Shader dummyHeavyBatchedShader;
 
     // settings
     public Settings settings = new();
@@ -85,6 +88,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     bool UseIterativeGpuMerging()
     {
         return NprTestingConfig.GPUMergeMethod == GpuMergeMethod.PairwiseIterative;
+    }
+
+    bool UseHeavyDummy()
+    {
+        return NprTestingConfig.CurrentTestEffect == TestEffect.Heavy;
     }
 
     public override void Create()
@@ -213,28 +221,57 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if (NprTestingConfig.TestMode)
         {
+            Shader chosenShader = null;
+
             if (UseBatchedScreenPasses())
             {
-                if (testDummyBatchedShader == null)
+                if (UseHeavyDummy())
                 {
-                    Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy batched shader is not set.");
-                    return;
-                }
+                    chosenShader = dummyHeavyBatchedShader;
 
-                for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyBatchedShader, i));
+                    if (dummyHeavyBatchedShader == null)
+                    {
+                        Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy Heavy batched shader is not set.");
+                        return;
+                    }
+                }
+                else
+                {
+                    chosenShader = testDummyBatchedShader;
+
+                    if (chosenShader == null)
+                    {
+                        Debug.LogError("useTestEffects is enabled and gpu mode is on but dummy batched shader is not set.");
+                        return;
+                    }
+                }
             }
             else
             {
-                if (testDummyShader == null)
+                if (UseHeavyDummy())
                 {
-                    Debug.LogError("Could not find shader 'Custom/Dummy");                   
-                    return;
-                }
+                    chosenShader = dummyHeavyShader;
 
-                for (int i = 0; i < testEffectCount; i++)
-                    imageEffects.Add(new DummyEffect($"TestEffect_{i}", testDummyShader, i));
+                    if (chosenShader == null)
+                    {
+                        Debug.LogError("Could not find shader 'Custom/DummyHeavy'");
+                        return;
+                    }
+                }
+                else
+                {
+                    chosenShader = testDummyShader;
+
+                    if (chosenShader == null)
+                    {
+                        Debug.LogError("Could not find shader 'Custom/Dummy'");
+                        return;
+                    }
+                }
             }
+
+            for (int i = 0; i < testEffectCount; i++)
+                imageEffects.Add(new DummyEffect($"TestEffect_{i}", chosenShader, i));
 
             Debug.Log("Queued test pases");
         }

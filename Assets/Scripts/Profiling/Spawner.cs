@@ -140,10 +140,10 @@ public class Spawner : MonoBehaviour
             SetupStylisedTag(obj, rng, i);
         }
 
-        Debug.Log(
-            $"Spawner: reassigned styles | " +
-            $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
-            $"sameStyleIndex={sameStyleIndex} | totalStyles={totalAvailableStyles} | seed={seed}");
+        // Debug.Log(
+        //     $"Spawner: reassigned styles | " +
+        //     $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
+        //     $"sameStyleIndex={sameStyleIndex} | totalStyles={totalAvailableStyles} | seed={seed}");
     }
 
     private void SpawnObjects(int objectCount)
@@ -166,10 +166,10 @@ public class Spawner : MonoBehaviour
             SetupStylisedTag(obj, rng, i);
         }
 
-        Debug.Log(
-            $"Spawner: spawned {objectCount} objects | " +
-            $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
-            $"sameStyleIndex={sameStyleIndex} | areaScale={spawnAreaScale} | seed={seed}");
+        // Debug.Log(
+        //     $"Spawner: spawned {objectCount} objects | " +
+        //     $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
+        //     $"sameStyleIndex={sameStyleIndex} | areaScale={spawnAreaScale} | seed={seed}");
     }
 
     private List<GameObject> GetSpawnedObjects()
@@ -245,7 +245,7 @@ public class Spawner : MonoBehaviour
         tag.SetRuntimeTestEffects(styles);
         tag.Apply();
 
-        Debug.Log($"{obj.name}: assigned styles [{string.Join(", ", styles)}]");
+        // Debug.Log($"{obj.name}: assigned styles [{string.Join(", ", styles)}]");
     }
 
     private List<int> GenerateStyles(System.Random rng, int objectIndex)

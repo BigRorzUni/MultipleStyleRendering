@@ -9,7 +9,6 @@ public class DummyPass : EffectPass
     private readonly uint _testRequiredBit;
 
     static readonly int IdTexId = Shader.PropertyToID("_NprIdTexture");
-    static readonly int SourceTexID = Shader.PropertyToID("_SourceTex");
     static readonly int RequiredBitID = Shader.PropertyToID("_RequiredBit");
 
     static readonly int InstanceBufferID = Shader.PropertyToID("_InstanceData");
@@ -21,7 +20,6 @@ public class DummyPass : EffectPass
     private class PassData
     {
         public TextureHandle ids;
-        public TextureHandle source;
         public Material mat;
         public RectInt rect;
         public uint requiredBit;
@@ -41,11 +39,6 @@ public class DummyPass : EffectPass
         _testRequiredBit = 1u << requiredIndex;
     }
 
-    bool UseSourceTex()
-    {
-        return NprTestingConfig.CurrentTestEffect == TestEffect.DummyKuwahara;
-    }
-
     protected override bool ShouldRun(
         UniversalResourceData frameData,
         UniversalCameraData cameraData,
@@ -55,9 +48,6 @@ public class DummyPass : EffectPass
             return false;
 
         if (!nprFrameData.idTexture.IsValid())
-            return false;
-
-        if (UseSourceTex() && !nprFrameData.sourceTexture.IsValid())
             return false;
 
         if ((nprFrameData.presentTestStyles & _testRequiredBit) == 0)
@@ -71,23 +61,16 @@ public class DummyPass : EffectPass
         using (var builder = renderGraph.AddRasterRenderPass($"Fullscreen {PassName} Pass", out PassData passData, profilingSampler))
         {
             passData.ids = nprFrameData.idTexture;
-            passData.source = nprFrameData.sourceTexture;
             passData.mat = _mat;
             passData.requiredBit = _testRequiredBit;
 
             builder.UseTexture(passData.ids, AccessFlags.Read);
-
-            if (UseSourceTex())
-                builder.UseTexture(passData.source, AccessFlags.Read);
 
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(IdTexId, data.ids);
-
-                if (NprTestingConfig.CurrentTestEffect == TestEffect.DummyKuwahara && data.source.IsValid())
-                    data.mat.SetTexture(SourceTexID, data.source);
 
                 data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
 
@@ -114,7 +97,6 @@ public class DummyPass : EffectPass
                 builder.AllowGlobalStateModification(true);
 
                 passData.ids = nprFrameData.idTexture;
-                passData.source = nprFrameData.sourceTexture;
                 passData.mat = _mat;
                 passData.rect = bbox.box;
                 passData.requiredBit = _testRequiredBit;
@@ -129,17 +111,11 @@ public class DummyPass : EffectPass
 
                 builder.UseTexture(passData.ids, AccessFlags.Read);
 
-                if (UseSourceTex())
-                    builder.UseTexture(passData.source, AccessFlags.Read);
-
                 builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
 
                 builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
                 {
                     data.mat.SetTexture(IdTexId, data.ids);
-
-                    if (NprTestingConfig.CurrentTestEffect == TestEffect.DummyKuwahara && data.source.IsValid())
-                        data.mat.SetTexture(SourceTexID, data.source);
 
                     data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
 
@@ -162,7 +138,6 @@ public class DummyPass : EffectPass
         using (var builder = renderGraph.AddRasterRenderPass($"Batched {PassName} Pass (GPU)", out PassData passData, profilingSampler))
         {
             passData.ids = nprFrameData.idTexture;
-            passData.source = nprFrameData.sourceTexture;
             passData.mat = _mat;
             passData.instanceBuffer = nprFrameData.bboxRectBuffer;
             passData.maskBuffer = nprFrameData.bboxMaskBuffer;
@@ -180,18 +155,12 @@ public class DummyPass : EffectPass
 
             builder.UseTexture(passData.ids, AccessFlags.Read);
 
-            if (UseSourceTex())
-                builder.UseTexture(passData.source, AccessFlags.Read);
-
             builder.SetRenderAttachment(frameData.activeColorTexture, 0, AccessFlags.Write);
             builder.AllowGlobalStateModification(true);
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
                 data.mat.SetTexture(IdTexId, data.ids);
-
-                if (NprTestingConfig.CurrentTestEffect == TestEffect.DummyKuwahara && data.source.IsValid())
-                    data.mat.SetTexture(SourceTexID, data.source);
 
                 data.mat.SetBuffer(InstanceBufferID, data.instanceBuffer);
                 data.mat.SetBuffer(MaskBufferID, data.maskBuffer);
