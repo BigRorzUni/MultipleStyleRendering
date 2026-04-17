@@ -6,7 +6,6 @@ using UnityEngine;
 using Unity.Profiling;
 using System.IO;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.Rendering;
 using System.Reflection;
 using System.Collections.Generic;
 
@@ -14,7 +13,7 @@ public static class NprTestingConfig
 {
     public static NprRenderMode RenderMode = NprRenderMode.CPU;
 
-    public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.PairwiseIterative;
+    public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;
 
     public static bool UseMerging;
     public static bool UseOcclusion;
@@ -67,6 +66,11 @@ public class NprTestCase
     public int K = 1;
     public int stylesPerObject = 1;
 
+    public bool useMerging = false;
+    public bool useOcclusion = false;
+    public GpuMergeMethod gpuMergeMethod = GpuMergeMethod.BucketedUnion;
+    public NprRenderMode[] renderModes;
+
     public TestEffectAssignmentMode effectMode = TestEffectAssignmentMode.Runtime;
 }
 
@@ -94,7 +98,7 @@ public class TestRunner : MonoBehaviour
     [Header("pipeline config")]
     public NprRenderMode setRenderMode = NprRenderMode.CPU;
     public bool setUseMerging = true;
-    public GpuMergeMethod setGpuMergeMethod = GpuMergeMethod.PairwiseIterative;
+    public GpuMergeMethod setGpuMergeMethod = GpuMergeMethod.BucketedUnion;
     public bool setUseOcclusion = true;
 
     public bool setRendererTestmode = false;
@@ -132,15 +136,77 @@ public class TestRunner : MonoBehaviour
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
 
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1,  10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
         new NprTestCase
         {
-            name = "BBoxCountScaling_SameStyle",
+            name = "BBoxCountScaling_SameStyle_CPU_NoMerge",
             scene = "TestScene_Spawner",
             variable = TestVariable.ObjectCount,
-            values = new[] { 1,  10, 50, 100, 500, 1000 },
+            values = new[] { 1, 10, 50, 100, 500, 1000 },
             N = 1,
             K = 1,
             stylesPerObject = 1,
+            useMerging = false,
+            useOcclusion = false,
+            renderModes = new[] { NprRenderMode.CPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_SameStyle_CPU_Merge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1, 10, 50, 100, 500, 1000 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = true,
+            useOcclusion = false,
+            renderModes = new[] { NprRenderMode.CPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_SameStyle_GPU_NoMerge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1, 10, 50, 100, 500, 1000 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = false,
+            useOcclusion = false,
+            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "BBoxCountScaling_SameStyle_GPU_Merge",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1, 10, 50, 100, 500, 1000 },
+            N = 1,
+            K = 1,
+            stylesPerObject = 1,
+            useMerging = true,
+            useOcclusion = false,
+            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+            renderModes = new[] { NprRenderMode.GPU },
             effectMode = TestEffectAssignmentMode.Runtime,
         },
     };
@@ -328,6 +394,7 @@ public class TestRunner : MonoBehaviour
             0
         );
     }
+
     public void OnValidate()
     {
         if (n == null)
@@ -430,7 +497,10 @@ public class TestRunner : MonoBehaviour
 
                 Debug.Log($"Loaded scene: {test.scene}");
 
-                NprRenderMode[] renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU };
+                NprRenderMode[] renderModes = test.renderModes != null && test.renderModes.Length > 0
+                    ? test.renderModes
+                    : new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU };
+
                 foreach (var renderMode in renderModes)
                 {
                     int curN = test.N;
@@ -463,9 +533,11 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.K = curK;
                     NprTestingConfig.StylesPerObject = curS;
 
-                    // for now: broad comparison should not include mitigation
-                    NprTestingConfig.UseMerging = false;
-                    NprTestingConfig.UseOcclusion = false;
+                    NprTestingConfig.UseMerging = test.useMerging;
+                    NprTestingConfig.UseOcclusion = test.useOcclusion;
+
+                    if (renderMode == NprRenderMode.GPU && test.useMerging)
+                        NprTestingConfig.GPUMergeMethod = test.gpuMergeMethod;
 
                     n.EnableTestMode(curN);
 
@@ -483,7 +555,7 @@ public class TestRunner : MonoBehaviour
                         }
                     }
 
-                    Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode}");
+                    Debug.Log($"Running {test.name} | {test.variable}={v} | mode={renderMode} | merging={test.useMerging}");
 
                     Debug.Log($"{startupFrames} warmup frames...");
                     for (int i = 0; i < startupFrames; i++)
