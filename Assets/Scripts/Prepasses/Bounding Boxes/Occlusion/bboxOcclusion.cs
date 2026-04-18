@@ -121,6 +121,7 @@ public class BBoxOcclusion : Prepass
         }
         else
         {
+            
             // occlusion using gpu bbox buffers and id tex
             if (nprFrameData.rectBuffer == null)
                 return;

@@ -89,7 +89,7 @@ Shader "Custom/ID"
                 #else
                     if (style == 0u)
                         return half4(0,0,0,1);
-                    float3 c = HashColour(style); // hash gets unstable at higher indices
+                    float3 c = HashColour(style); 
                     return half4(c, 1);
                 #endif
             }

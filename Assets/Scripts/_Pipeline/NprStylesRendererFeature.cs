@@ -68,7 +68,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     bool UseBoundingBoxes()
     {
-        return NprTestingConfig.RenderMode != NprRenderMode.Fullscreen;
+        return UseCpuMode() || UseGpuMode();
     }
 
     bool UseGpuMode()
@@ -88,7 +88,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     bool UseBatchedScreenPasses()
     {
-        return UseGpuMode();
+        return UseGpuMode() || UseTiling();
     }
 
     bool UseIterativeGpuMerging()
@@ -302,9 +302,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         renderer.EnqueuePass(_idPrepass);
 
+
+        renderer.EnqueuePass(_bboxPrepass);
+        
         if(!UseTiling())
         {
-            renderer.EnqueuePass(_bboxPrepass);
 
             if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);

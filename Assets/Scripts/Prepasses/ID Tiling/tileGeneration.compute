@@ -48,6 +48,7 @@ void GenerateTiles(uint3 id : SV_DispatchThreadID)
         }
     }
 
+    mask = 1u; // DEBUG
     if (mask == 0u)
         return;
 

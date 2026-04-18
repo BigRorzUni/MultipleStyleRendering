@@ -32,6 +32,10 @@ public class IdTiling : Prepass
     ComputeBuffer _tileCountBuffer;
     ComputeBuffer _tileIndirectArgsBuffer;
 
+    ComputeBuffer _tileVisibilityBuffer;
+    int _tileVisibilityCapacity = 0;
+    uint[] _tileVisibilityInitData;
+
     private class ComputePassData
     {
         public ComputeShader compute;
@@ -181,12 +185,28 @@ public class IdTiling : Prepass
         nprFrameData.countBuffer = _tileCountBuffer;
         nprFrameData.indirectArgsBuffer = _tileIndirectArgsBuffer;
 
-        nprFrameData.visibilityBuffer = null;
-        nprFrameData.bboxVisibilityCount = 0;
+        NprFrameData.EnsureBufferCapacity(ref _tileVisibilityBuffer, ref _tileVisibilityCapacity, maxTileCount, sizeof(uint));
+
+        if (_tileVisibilityInitData == null || _tileVisibilityInitData.Length < _tileVisibilityCapacity)
+            _tileVisibilityInitData = new uint[_tileVisibilityCapacity];
+
+        for (int i = 0; i < maxTileCount; i++)
+            _tileVisibilityInitData[i] = 1u;
+
+        _tileVisibilityBuffer.SetData(_tileVisibilityInitData, 0, 0, maxTileCount);
+
+        nprFrameData.visibilityBuffer = _tileVisibilityBuffer;
+        nprFrameData.bboxVisibilityCount = maxTileCount;
 
         nprFrameData.bboxCount = maxTileCount;
 
-        GpuDebugState.SetTileBuffers(_tileMaskBuffer, tileCountX, tileCountY, _tileSize, maxTileCount);
+        GpuDebugState.SetOutputBuffers(
+            nprFrameData.rectBuffer,
+            nprFrameData.maskBuffer,
+            nprFrameData.visibilityBuffer,
+            nprFrameData.countBuffer,
+            nprFrameData.indirectArgsBuffer
+        );
     }
 
     public override void Dispose()

@@ -360,13 +360,13 @@ public class BBoxGeneration : Prepass
             nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
             nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
 
-            GpuDebugState.SetOutputBuffers(
-                nprFrameData.rectBuffer,
-                nprFrameData.maskBuffer,
-                nprFrameData.visibilityBuffer,
-                nprFrameData.countBuffer,
-                nprFrameData.indirectArgsBuffer
-            );
+            // GpuDebugState.SetOutputBuffers(
+            //     nprFrameData.rectBuffer,
+            //     nprFrameData.maskBuffer,
+            //     nprFrameData.visibilityBuffer,
+            //     nprFrameData.countBuffer,
+            //     nprFrameData.indirectArgsBuffer
+            // );
         }
     }
 
