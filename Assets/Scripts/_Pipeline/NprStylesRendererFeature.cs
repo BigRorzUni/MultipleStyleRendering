@@ -31,7 +31,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
 
     [SerializeField] private ComputeShader bboxGenerationComputeShader;
-    [SerializeField] private Shader occlusionShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader bboxMergingComputeShader;
@@ -121,19 +120,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if (NprTestingConfig.UseOcclusion && UseBoundingBoxes())
         {
-            if (occlusionShader == null)
-            {
-                Debug.LogError("Could not find shader 'Custom/bboxOcclusion'");
-                return;
-            }
-
             if (occlusionComputeShader == null)
             {
                 Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
                 return;
             }
 
-            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionShader, occlusionComputeShader);
+            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionComputeShader);
         }
 
         if (NprTestingConfig.UseMerging && UseBoundingBoxes())

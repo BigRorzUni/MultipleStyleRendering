@@ -7,13 +7,12 @@ using System.Collections.Generic;
 [System.Serializable]
 public class BBoxOcclusion : Prepass
 {
-    private readonly Material _visibilityMat;
-
     private readonly ComputeShader _occlusionCompute;
     private readonly int _occlusionKernelSingle;
     private readonly int _occlusionKernelBatched;
 
     static readonly int VisibilityTexID = Shader.PropertyToID("_VisibilityTex");
+    static readonly int ExpectedMaskID = Shader.PropertyToID("_ExpectedMask");
     static readonly int ResultBufferID = Shader.PropertyToID("_Result");
     static readonly int RectID = Shader.PropertyToID("_Rect");
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
@@ -22,11 +21,6 @@ public class BBoxOcclusion : Prepass
     static readonly int BBoxCountID = Shader.PropertyToID("_BBoxCount");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
-    private class RasterPassData
-    {
-        public BoundingBox bbox;
-        public Material mat;
-    }
 
     private class ComputePassData
     {
@@ -39,13 +33,11 @@ public class BBoxOcclusion : Prepass
         public int kernel;
         public uint bboxIndex;
         public int bboxCount;
+        public uint expectedMask;
     }
 
-    public BBoxOcclusion(Shader visibilityShader, ComputeShader occlusionComputeShader) : base("BBoxOcclusion")
+    public BBoxOcclusion(ComputeShader occlusionComputeShader) : base("BBoxOcclusion")
     {
-        if (visibilityShader != null)
-            _visibilityMat = CoreUtils.CreateEngineMaterial(visibilityShader);
-
         _occlusionCompute = occlusionComputeShader;
         if (_occlusionCompute != null)
         {
@@ -82,124 +74,34 @@ public class BBoxOcclusion : Prepass
 
         if (NprTestingConfig.RenderMode == NprRenderMode.CPU)
         {
-            // occlusion using CPU bbox list
-            if (_visibilityMat == null)
-                return;
-
+            // occlusion using CPU bbox list but reading from id tex
             if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
                 return;
 
-            if (nprFrameData.occlusionCandidateBoxes == null)
-                nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
-            else
-                nprFrameData.occlusionCandidateBoxes.Clear();
+            if (!nprFrameData.idTexture.IsValid())
+                return;
 
             for (int i = 0; i < nprFrameData.bboxes.Count; i++)
             {
-                BoundingBox inner = nprFrameData.bboxes[i];
+                BoundingBox bbox = nprFrameData.bboxes[i];
 
-                for (int j = 0; j < nprFrameData.bboxes.Count; j++)
-                {
-                    if (i == j)
-                        continue;
-
-                    BoundingBox outer = nprFrameData.bboxes[j];
-
-                    if (ContainsRect(outer.box, inner.box))
-                    {
-                        nprFrameData.occlusionCandidateBoxes.Add(inner);
-                        break;
-                    }
-                }
-            }
-
-            if (nprFrameData.occlusionCandidateBoxes.Count == 0)
-            {
-                nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
-                return;
-            }
-
-            foreach (var bbox in nprFrameData.occlusionCandidateBoxes)
-            {
-                if (bbox == null || bbox.renderers == null || bbox.renderers.Count == 0)
+                if (bbox == null)
                     continue;
 
-                RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
-                camDesc.depthBufferBits = 0;
-                camDesc.msaaSamples = 1;
-                camDesc.graphicsFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm;
-                camDesc.sRGB = false;
+                if (bbox.box.width <= 0 || bbox.box.height <= 0)
+                    continue;
 
-                TextureHandle visibilityTex = renderGraph.CreateTexture(new TextureDesc(camDesc)
-                {
-                    name = "_BBoxVisibilityMask",
-                    colorFormat = camDesc.graphicsFormat,
-                    clearBuffer = true,
-                    clearColor = Color.black,
-                    filterMode = FilterMode.Point,
-                    useMipMap = false
-                });
-
-                using (var builder = renderGraph.AddRasterRenderPass($"BBox Occlusion Test {nprFrameData.bboxes.IndexOf(bbox)}", out RasterPassData passData, profilingSampler))
+                using (var builder = renderGraph.AddComputePass($"BBox Occlusion Analyse {i}", out ComputePassData passData, profilingSampler))
                 {
                     builder.AllowPassCulling(false);
 
-                    builder.SetRenderAttachment(visibilityTex, 0, AccessFlags.Write);
-                    builder.SetRenderAttachmentDepth(frameData.activeDepthTexture, AccessFlags.Read);
-                    builder.AllowGlobalStateModification(true);
-
-                    passData.mat = _visibilityMat;
-                    passData.bbox = bbox;
-
-                    builder.SetRenderFunc(static (RasterPassData data, RasterGraphContext ctx) =>
-                    {
-                        ctx.cmd.EnableScissorRect(new Rect(
-                            data.bbox.box.x,
-                            data.bbox.box.y,
-                            data.bbox.box.width,
-                            data.bbox.box.height
-                        ));
-
-                        // cant use DrawRenderList so this will have to do
-                        List<Renderer> renderers = data.bbox.renderers;
-                        for (int i = 0; i < renderers.Count; i++)
-                        {
-                            Renderer renderer = renderers[i];
-                            if (renderer == null)
-                                continue;
-
-                            int submeshCount;
-                            if (renderer.sharedMaterials != null)
-                                submeshCount = renderer.sharedMaterials.Length;
-                            else
-                                submeshCount = 1;
-
-                            for (int sub = 0; sub < submeshCount; sub++)
-                                ctx.cmd.DrawRenderer(renderer, data.mat, sub, 0);
-                        }
-
-                        ctx.cmd.DisableScissorRect();
-                    });
-                }
-
-                using (var builder = renderGraph.AddComputePass("BBox Occlusion Analyse", out ComputePassData passData, profilingSampler))
-                {
-                    builder.AllowPassCulling(false);
-
-                    passData.visibilityTex = visibilityTex;
+                    passData.visibilityTex = nprFrameData.idTexture;
                     passData.resultBuffer = nprFrameData.bboxVisibilityBuffer;
                     passData.rect = bbox.box;
                     passData.compute = _occlusionCompute;
                     passData.kernel = _occlusionKernelSingle;
-
-                    int bboxIndex = nprFrameData.bboxes.IndexOf(bbox);
-                    if (bboxIndex < 0)
-                    {
-                        Debug.LogError($"Occlusion candidate bbox not found in bboxes list: {bbox.box}");
-                        continue;
-                    }
-
-                    passData.bboxIndex = (uint)bboxIndex;
+                    passData.bboxIndex = (uint)i;
+                    passData.expectedMask = bbox.testMask;
 
                     builder.UseTexture(passData.visibilityTex, AccessFlags.Read);
 
@@ -209,6 +111,7 @@ public class BBoxOcclusion : Prepass
                         ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, ResultBufferID, data.resultBuffer);
                         ctx.cmd.SetComputeVectorParam(data.compute, RectID, new Vector4(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                         ctx.cmd.SetComputeIntParam(data.compute, BBoxIndexID, (int)data.bboxIndex);
+                        ctx.cmd.SetComputeIntParam(data.compute, ExpectedMaskID, (int)data.expectedMask);
                         ctx.cmd.DispatchCompute(data.compute, data.kernel, 1, 1, 1);
                     });
                 }
@@ -254,14 +157,8 @@ public class BBoxOcclusion : Prepass
         }
     }
 
-    bool ContainsRect(RectInt outer, RectInt inner)
-    {
-        return outer.xMin <= inner.xMin && outer.xMax >= inner.xMax && outer.yMin <= inner.yMin && outer.yMax >= inner.yMax;
-    }
 
     public override void Dispose()
     {
-        if (_visibilityMat != null)
-            CoreUtils.Destroy(_visibilityMat);
     }
 }

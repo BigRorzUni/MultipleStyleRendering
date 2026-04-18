@@ -4,6 +4,7 @@ public class CoverageController : MonoBehaviour
 {
     [SerializeField] private Material coverageMaterial;
 
+    [SerializeField] public bool useAsOccluder = false;
     GameObject quad;
     Camera cam;
 
@@ -33,7 +34,8 @@ public class CoverageController : MonoBehaviour
             // instantiate a quad with stylised tag
             quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             quad.name = "CoverageQuad";
-            quad.AddComponent<StylisedTag>();
+            if(!useAsOccluder)
+                quad.AddComponent<StylisedTag>();
         }
 
         Renderer r = quad.GetComponent<Renderer>();

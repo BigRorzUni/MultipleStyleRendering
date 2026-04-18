@@ -76,6 +76,7 @@ public class NprTestCase
 
     public int objectCount = 0;
     public float spawnAreaScale = 1.0f;
+    public StylePattern stylePattern = StylePattern.SameStyle;
 
     public bool useMerging = false;
     public bool useOcclusion = false;
@@ -124,6 +125,8 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
+        // INCREASING AREA COVERAGE
+
         // new NprTestCase
         // {
         //     name="AreaScaling",
@@ -136,6 +139,8 @@ public class TestRunner : MonoBehaviour
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
 
+        // STACKED STYLES
+
         // new NprTestCase
         // {
         //     name = "StackedStylesScaling",
@@ -147,6 +152,102 @@ public class TestRunner : MonoBehaviour
         //     stylesPerObject = 32,
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
+
+        // OCCLUSION LEVEL TESTS
+
+        new NprTestCase
+        {
+            name = "OcclusionScaling_RandomSingleStyle",
+            scene = "TestScene_Occlusion",
+            variable = TestVariable.Coverage,
+            values = new[] { 0, 20, 40, 60, 80, 100 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 1,
+            objectCount = 500,
+            spawnAreaScale = 1.0f,
+            stylePattern = StylePattern.RandomSingleStyle,
+            useMerging = false,
+            useOcclusion = false,
+            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "OcclusionScaling_RandomSingleStyle_CPU_NoOcclusion",
+            scene = "TestScene_Occlusion",
+            variable = TestVariable.Coverage,
+            values = new[] { 0, 20, 40, 60, 80, 100 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 1,
+            objectCount = 500,
+            spawnAreaScale = 1.0f,
+            stylePattern = StylePattern.RandomSingleStyle,
+            useMerging = false,
+            useOcclusion = false,
+            renderModes = new[] { NprRenderMode.CPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "OcclusionScaling_RandomSingleStyle_CPU_Occlusion",
+            scene = "TestScene_Occlusion",
+            variable = TestVariable.Coverage,
+            values = new[] { 0, 20, 40, 60, 80, 100 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 1,
+            objectCount = 500,
+            spawnAreaScale = 1.0f,
+            stylePattern = StylePattern.RandomSingleStyle,
+            useMerging = false,
+            useOcclusion = true,
+            renderModes = new[] { NprRenderMode.CPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "OcclusionScaling_RandomSingleStyle_GPU_NoOcclusion",
+            scene = "TestScene_Occlusion",
+            variable = TestVariable.Coverage,
+            values = new[] { 0, 20, 40, 60, 80, 100 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 1,
+            objectCount = 500,
+            spawnAreaScale = 1.0f,
+            stylePattern = StylePattern.RandomSingleStyle,
+            useMerging = false,
+            useOcclusion = false,
+            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        new NprTestCase
+        {
+            name = "OcclusionScaling_RandomSingleStyle_GPU_Occlusion",
+            scene = "TestScene_Occlusion",
+            variable = TestVariable.Coverage,
+            values = new[] { 0, 20, 40, 60, 80, 100 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 1,
+            objectCount = 500,
+            spawnAreaScale = 1.0f,
+            stylePattern = StylePattern.RandomSingleStyle,
+            useMerging = false,
+            useOcclusion = true,
+            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+
+        // INCREASING BBOXES, SINGLE STYLE (BEST CASE FOR MERGING)
 
         // new NprTestCase
         // {
@@ -221,6 +322,8 @@ public class TestRunner : MonoBehaviour
         //     renderModes = new[] { NprRenderMode.GPU },
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
+
+        // INCREASING BBOXES WITH AREA SCALING, SINGLE STYLE (BEST CASE FOR MERGING)
         
         // new NprTestCase
         // {
@@ -309,189 +412,366 @@ public class TestRunner : MonoBehaviour
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
 
-        new NprTestCase
-        {
-            name = "BBoxCountScaling_SameStyle_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100, 500, 1000 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 0,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // INCREASING OBJECT COUNT WITH MANY STYLE VARIATIONS (WORST CASE FOR MERGING)
 
-        new NprTestCase
-        {
-            name = "BBoxCountScaling_SameStyle_CPU_NoMerge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100, 500, 1000 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 0,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.CPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_RandomSingleStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxCountScaling_SameStyle_CPU_Merge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100, 500, 1000 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 0,
-            spawnAreaScale = 1.0f,
-            useMerging = true,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.CPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_RandomSingleStyle_CPU_NoMerge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxCountScaling_SameStyle_GPU_NoMerge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100, 500, 1000 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 0,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
-            renderModes = new[] { NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_RandomSingleStyle_CPU_Merge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxCountScaling_SameStyle_GPU_Merge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100, 500, 1000 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 0,
-            spawnAreaScale = 1.0f,
-            useMerging = true,
-            useOcclusion = false,
-            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
-            renderModes = new[] { NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_RandomSingleStyle_GPU_NoMerge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxAreaScaling_SameStyle_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.SpawnAreaScale,
-            values = new[] { 100, 80, 60, 40, 20, 10 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 500,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_RandomSingleStyle_GPU_Merge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxAreaScaling_SameStyle_CPU_NoMerge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.SpawnAreaScale,
-            values = new[] { 100, 80, 60, 40, 20, 10 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 500,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.CPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // // INCREASING AREA COVERAGE WITH MANY STYLE VARIATIONS (WORST CASE FOR MERGING)
 
-        new NprTestCase
-        {
-            name = "BBoxAreaScaling_SameStyle_CPU_Merge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.SpawnAreaScale,
-            values = new[] { 100, 80, 60, 40, 20, 10 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 500,
-            spawnAreaScale = 1.0f,
-            useMerging = true,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.CPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_RandomSingleStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxAreaScaling_SameStyle_GPU_NoMerge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.SpawnAreaScale,
-            values = new[] { 100, 80, 60, 40, 20, 10 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 500,
-            spawnAreaScale = 1.0f,
-            useMerging = false,
-            useOcclusion = false,
-            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
-            renderModes = new[] { NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_RandomSingleStyle_CPU_NoMerge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        new NprTestCase
-        {
-            name = "BBoxAreaScaling_SameStyle_GPU_Merge_Heavy",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.SpawnAreaScale,
-            values = new[] { 100, 80, 60, 40, 20, 10 },
-            N = 1,
-            K = 1,
-            stylesPerObject = 1,
-            objectCount = 500,
-            spawnAreaScale = 1.0f,
-            useMerging = true,
-            useOcclusion = false,
-            gpuMergeMethod = GpuMergeMethod.BucketedUnion,
-            renderModes = new[] { NprRenderMode.GPU },
-            testEffect = TestEffect.Heavy,
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_RandomSingleStyle_CPU_Merge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_RandomSingleStyle_GPU_NoMerge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_RandomSingleStyle_GPU_Merge",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     stylePattern = StylePattern.RandomSingleStyle,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // HEAVY VARIATIONS
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 0,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle_CPU_NoMerge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 0,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle_CPU_Merge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 0,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle_GPU_NoMerge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 0,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle_GPU_Merge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1, 10, 50, 100, 500, 1000 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 0,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_SameStyle_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_SameStyle_CPU_NoMerge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_SameStyle_CPU_Merge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_SameStyle_GPU_NoMerge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // new NprTestCase
+        // {
+        //     name = "BBoxAreaScaling_SameStyle_GPU_Merge_Heavy",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.SpawnAreaScale,
+        //     values = new[] { 100, 80, 60, 40, 20, 10 },
+        //     N = 1,
+        //     K = 1,
+        //     stylesPerObject = 1,
+        //     objectCount = 500,
+        //     spawnAreaScale = 1.0f,
+        //     useMerging = true,
+        //     useOcclusion = false,
+        //     gpuMergeMethod = GpuMergeMethod.BucketedUnion,
+        //     renderModes = new[] { NprRenderMode.GPU },
+        //     testEffect = TestEffect.Heavy,
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
     };
 
     private void Awake()
@@ -672,7 +952,7 @@ public class TestRunner : MonoBehaviour
         yield return null;
     }
 
-    private IEnumerator RegenerateSpawnedScene(int objectCount, int totalStyles, int stylesPerObject, float areaScale)
+    private IEnumerator RegenerateSpawnedScene(int objectCount, int totalStyles, int stylesPerObject, float areaScale, StylePattern stylePattern = StylePattern.SameStyle)
     {
         Spawner spawner = FindFirstObjectByType<Spawner>();
         if (spawner == null)
@@ -683,7 +963,7 @@ public class TestRunner : MonoBehaviour
 
         spawner.Regenerate(
             objectCount,
-            StylePattern.SameStyle,
+            stylePattern,
             totalStyles,
             stylesPerObject,
             12345,
@@ -820,13 +1100,13 @@ public class TestRunner : MonoBehaviour
                             curS = Mathf.Clamp(v, 0, 32);
                             break;
                         case TestVariable.ObjectCount:
-                            yield return RegenerateSpawnedScene(v, curN, curS, test.spawnAreaScale);
+                            yield return RegenerateSpawnedScene(v, curN, curS, test.spawnAreaScale, test.stylePattern);
                             break;
                         case TestVariable.Coverage:
                             UpdateCoverage(v);
                             break;
                         case TestVariable.SpawnAreaScale:
-                            yield return RegenerateSpawnedScene(test.objectCount, curN, curS, v / 100.0f);
+                            yield return RegenerateSpawnedScene(test.objectCount, curN, curS, v / 100.0f, test.stylePattern);
                             break;
                     }
 
