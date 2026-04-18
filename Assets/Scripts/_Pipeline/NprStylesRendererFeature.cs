@@ -15,6 +15,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private GpuMerging _gpuMergingPrepass;
     private GpuTiling _gpuTileMergingPrepass;
     private BboxDebugPass _bboxDebugPass;
+    private IdTiling _idTilingPrepass;
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -34,7 +35,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader bboxMergingComputeShader;
-    [SerializeField] private ComputeShader TileMergingComputeShader;   
+    [SerializeField] private ComputeShader tileMergingComputeShader;   
+    [SerializeField] private ComputeShader tilingComputeShader;
     [SerializeField] private Shader bboxDebugShader;
 
     // TEST EFFECTS
@@ -79,6 +81,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         return NprTestingConfig.RenderMode == NprRenderMode.CPU;
     }
 
+    bool UseTiling()
+    {
+        return NprTestingConfig.RenderMode == NprRenderMode.Tiling;
+    }
+
     bool UseBatchedScreenPasses()
     {
         return UseGpuMode();
@@ -106,6 +113,17 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass = new IdPrepass(idShader);
 
         _sourcePrepass = new SourcePrepass();
+
+        if(UseTiling())
+        {
+            if (tilingComputeShader == null)
+            {
+                Debug.LogError("Tiling compute shader 'tileGeneration' not set");
+                return;
+            }
+
+            _idTilingPrepass = new IdTiling(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode);
+        }
 
         if (bboxGenerationComputeShader == null)
         {
@@ -145,13 +163,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
                 _gpuMergingPrepass = new GpuMerging(bboxMergingComputeShader);
 
-                if (TileMergingComputeShader == null)
+                if (tileMergingComputeShader == null)
                 {
                     Debug.LogError("Tile merging compute shader 'TileMerge' not set");
                     return;
                 }
 
-                _gpuTileMergingPrepass = new GpuTiling(TileMergingComputeShader);
+                _gpuTileMergingPrepass = new GpuTiling(tileMergingComputeShader);
             }
         }
 
@@ -284,20 +302,30 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         renderer.EnqueuePass(_idPrepass);
 
-        renderer.EnqueuePass(_bboxPrepass);
-
-        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
-            renderer.EnqueuePass(_cpuMergingPrepass);
-
-        if (NprTestingConfig.UseOcclusion && UseBoundingBoxes() && _bboxOcclusionPrepass != null)
-            renderer.EnqueuePass(_bboxOcclusionPrepass);
-
-        if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode())
+        if(!UseTiling())
         {
-            if(UseIterativeGpuMerging() && _gpuMergingPrepass != null)
-                renderer.EnqueuePass(_gpuMergingPrepass);
-            else if(_gpuTileMergingPrepass != null)
-                renderer.EnqueuePass(_gpuTileMergingPrepass);
+            renderer.EnqueuePass(_bboxPrepass);
+
+            if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
+                renderer.EnqueuePass(_cpuMergingPrepass);
+
+            if (NprTestingConfig.UseOcclusion && UseBoundingBoxes() && _bboxOcclusionPrepass != null)
+                renderer.EnqueuePass(_bboxOcclusionPrepass);
+
+            if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode())
+            {
+                if(UseIterativeGpuMerging() && _gpuMergingPrepass != null)
+                    renderer.EnqueuePass(_gpuMergingPrepass);
+                else if(_gpuTileMergingPrepass != null)
+                    renderer.EnqueuePass(_gpuTileMergingPrepass);
+            }
+        }
+        else
+        {
+            if (_idTilingPrepass == null)
+                return;
+
+            renderer.EnqueuePass(_idTilingPrepass);
         }
 
         foreach (Effect effect in imageEffects)
@@ -332,6 +360,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         _idPrepass?.Dispose();
         _idPrepass = null;
+
+        _idTilingPrepass?.Dispose();
+        _idTilingPrepass = null;
 
         _bboxPrepass?.Dispose();
         _bboxPrepass = null;

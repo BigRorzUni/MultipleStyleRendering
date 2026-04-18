@@ -1,0 +1,70 @@
+#pragma kernel GenerateTiles
+#pragma kernel BuildDrawArgs
+
+Texture2D<float4> _IdTexture;
+
+RWStructuredBuffer<float4> _TileRectBuffer;
+RWStructuredBuffer<uint> _TileMaskBuffer;
+RWStructuredBuffer<uint> _TileCountBuffer;
+RWStructuredBuffer<uint> _IndirectArgs;
+
+int4 _ScreenSize;
+int _TileSize;
+int4 _TileGridSize;
+
+uint DecodeMask32(float4 s)
+{
+    uint r = (uint)round(saturate(s.r) * 255.0);
+    uint g = (uint)round(saturate(s.g) * 255.0);
+    uint b = (uint)round(saturate(s.b) * 255.0);
+    uint a = (uint)round(saturate(s.a) * 255.0);
+
+    return r | (g << 8) | (b << 16) | (a << 24);
+}
+
+[numthreads(1, 1, 1)]
+void GenerateTiles(uint3 id : SV_DispatchThreadID)
+{
+    uint tileX = id.x;
+    uint tileY = id.y;
+
+    if (tileX >= (uint)_TileGridSize.x || tileY >= (uint)_TileGridSize.y)
+        return;
+
+    uint x0 = tileX * _TileSize;
+    uint y0 = tileY * _TileSize;
+
+    uint x1 = min(x0 + _TileSize, (uint)_ScreenSize.x);
+    uint y1 = min(y0 + _TileSize, (uint)_ScreenSize.y);
+
+    uint mask = 0u;
+
+    for (uint y = y0; y < y1; y++)
+    {
+        for (uint x = x0; x < x1; x++)
+        {
+            float4 s = _IdTexture.Load(int3(x, y, 0));
+            mask |= DecodeMask32(s);
+        }
+    }
+
+    if (mask == 0u)
+        return;
+
+    uint outIndex;
+    InterlockedAdd(_TileCountBuffer[0], 1u, outIndex);
+
+    _TileRectBuffer[outIndex] = float4((float)x0, (float)y0, (float)(x1 - x0), (float)(y1 - y0));
+    _TileMaskBuffer[outIndex] = mask;
+}
+
+[numthreads(1, 1, 1)]
+void BuildDrawArgs(uint3 id : SV_DispatchThreadID)
+{
+    uint activeTileCount = _TileCountBuffer[0];
+
+    _IndirectArgs[0] = 6u;
+    _IndirectArgs[1] = activeTileCount;
+    _IndirectArgs[2] = 0u;
+    _IndirectArgs[3] = 0u;
+}

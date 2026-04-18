@@ -103,7 +103,7 @@ public class GpuTiling : Prepass
         if (_tileMerging == null)
             return;
 
-        if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxVisibilityBuffer == null)
+        if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null || nprFrameData.visibilityBuffer == null)
             return;
 
         if (nprFrameData.bboxCount <= 0)
@@ -140,9 +140,9 @@ public class GpuTiling : Prepass
             passData.emitTilesKernel = _emitTilesKernel;
             passData.buildDrawArgsKernel = _buildDrawArgsKernel;
 
-            passData.rectBuffer = nprFrameData.bboxRectBuffer;
-            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-            passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+            passData.rectBuffer = nprFrameData.rectBuffer;
+            passData.maskBuffer = nprFrameData.maskBuffer;
+            passData.visibilityBuffer = nprFrameData.visibilityBuffer;
 
             passData.tileMaskBuffer = _tileMaskBuffer;
 
@@ -194,11 +194,11 @@ public class GpuTiling : Prepass
             });
         }
 
-        nprFrameData.bboxRectBuffer = _outputRectBuffer;
-        nprFrameData.bboxMaskBuffer = _outputMaskBuffer;
-        nprFrameData.bboxVisibilityBuffer = _outputVisibilityBuffer;
-        nprFrameData.bboxCountBuffer = _outputCountBuffer;
-        nprFrameData.bboxIndirectArgsBuffer = _indirectArgsBuffer;
+        nprFrameData.rectBuffer = _outputRectBuffer;
+        nprFrameData.maskBuffer = _outputMaskBuffer;
+        nprFrameData.visibilityBuffer = _outputVisibilityBuffer;
+        nprFrameData.countBuffer = _outputCountBuffer;
+        nprFrameData.indirectArgsBuffer = _indirectArgsBuffer;
 
         GpuDebugState.SetTileBuffers(_tileMaskBuffer, tilesX, tilesY, _tileSize, nprFrameData.bboxCount);
         GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);

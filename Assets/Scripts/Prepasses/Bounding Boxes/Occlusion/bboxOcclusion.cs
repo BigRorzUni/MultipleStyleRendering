@@ -66,7 +66,7 @@ public class BBoxOcclusion : Prepass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-        if (nprFrameData.bboxVisibilityBuffer == null)
+        if (nprFrameData.visibilityBuffer == null)
             return;
 
         if (nprFrameData.bboxCount <= 0)
@@ -96,7 +96,7 @@ public class BBoxOcclusion : Prepass
                     builder.AllowPassCulling(false);
 
                     passData.visibilityTex = nprFrameData.idTexture;
-                    passData.resultBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.resultBuffer = nprFrameData.visibilityBuffer;
                     passData.rect = bbox.box;
                     passData.compute = _occlusionCompute;
                     passData.kernel = _occlusionKernelSingle;
@@ -122,10 +122,10 @@ public class BBoxOcclusion : Prepass
         else
         {
             // occlusion using gpu bbox buffers and id tex
-            if (nprFrameData.bboxRectBuffer == null)
+            if (nprFrameData.rectBuffer == null)
                 return;
 
-            if (nprFrameData.bboxMaskBuffer == null)
+            if (nprFrameData.maskBuffer == null)
                 return;
 
             using (var builder = renderGraph.AddComputePass("BBox Occlusion Analysis (ID Tex)", out ComputePassData passData, profilingSampler))
@@ -133,11 +133,11 @@ public class BBoxOcclusion : Prepass
                 builder.AllowPassCulling(false);
 
                 passData.visibilityTex = nprFrameData.idTexture;
-                passData.resultBuffer = nprFrameData.bboxVisibilityBuffer;
+                passData.resultBuffer = nprFrameData.visibilityBuffer;
                 passData.compute = _occlusionCompute;
                 passData.kernel = _occlusionKernelBatched;
-                passData.rectBuffer = nprFrameData.bboxRectBuffer;
-                passData.maskBuffer = nprFrameData.bboxMaskBuffer;
+                passData.rectBuffer = nprFrameData.rectBuffer;
+                passData.maskBuffer = nprFrameData.maskBuffer;
                 passData.bboxCount = nprFrameData.bboxCount;
 
                 builder.UseTexture(passData.visibilityTex, AccessFlags.Read);

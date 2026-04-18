@@ -108,8 +108,8 @@ public class BBoxGeneration : Prepass
 
         nprFrameData.presentImageBits = 0;
         nprFrameData.presentTestStyles = 0;
-        nprFrameData.bboxCountBuffer = null;
-        nprFrameData.bboxIndirectArgsBuffer = null;
+        nprFrameData.countBuffer = null;
+        nprFrameData.indirectArgsBuffer = null;
 
         bool fullscreenMode = NprTestingConfig.RenderMode == NprRenderMode.Fullscreen;
         bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
@@ -121,14 +121,6 @@ public class BBoxGeneration : Prepass
                 nprFrameData.bboxes = new List<BoundingBox>();
             else
                 nprFrameData.bboxes.Clear();
-
-            if (NprTestingConfig.UseOcclusion && cpuMode)
-            {
-                if (nprFrameData.occlusionCandidateBoxes == null)
-                    nprFrameData.occlusionCandidateBoxes = new List<BoundingBox>();
-                else
-                    nprFrameData.occlusionCandidateBoxes.Clear();
-            }
 
             StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
 
@@ -299,10 +291,10 @@ public class BBoxGeneration : Prepass
                     _bboxIndirectArgsBuffer.SetData(argsInit, 0, 0, 4);
                 }
 
-                nprFrameData.bboxRectBuffer = _bboxRectBuffer;
-                nprFrameData.bboxMaskBuffer = _bboxMaskBuffer;
-                nprFrameData.bboxCountBuffer = _bboxCountBuffer;
-                nprFrameData.bboxIndirectArgsBuffer = _bboxIndirectArgsBuffer;
+                nprFrameData.rectBuffer = _bboxRectBuffer;
+                nprFrameData.maskBuffer = _bboxMaskBuffer;
+                nprFrameData.countBuffer = _bboxCountBuffer;
+                nprFrameData.indirectArgsBuffer = _bboxIndirectArgsBuffer;
             }
         }
         else // fullscreen
@@ -336,18 +328,18 @@ public class BBoxGeneration : Prepass
                     if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
                         _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
-                    nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
+                    nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
                     nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
                 }
                 else
                 {
-                    nprFrameData.bboxVisibilityBuffer = null;
+                    nprFrameData.visibilityBuffer = null;
                     nprFrameData.bboxVisibilityCount = 0;
                 }
             }
             else
             {
-                nprFrameData.bboxVisibilityBuffer = null;
+                nprFrameData.visibilityBuffer = null;
                 nprFrameData.bboxVisibilityCount = 0;
             }
         }
@@ -365,16 +357,16 @@ public class BBoxGeneration : Prepass
             if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
                 _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
-            nprFrameData.bboxVisibilityBuffer = _bboxVisibilityBuffer;
+            nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
             nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
 
-            // GpuDebugState.SetOutputBuffers(
-            //     nprFrameData.bboxRectBuffer,
-            //     nprFrameData.bboxMaskBuffer,
-            //     nprFrameData.bboxVisibilityBuffer,
-            //     nprFrameData.bboxCountBuffer,
-            //     nprFrameData.bboxIndirectArgsBuffer
-            // );
+            GpuDebugState.SetOutputBuffers(
+                nprFrameData.rectBuffer,
+                nprFrameData.maskBuffer,
+                nprFrameData.visibilityBuffer,
+                nprFrameData.countBuffer,
+                nprFrameData.indirectArgsBuffer
+            );
         }
     }
 

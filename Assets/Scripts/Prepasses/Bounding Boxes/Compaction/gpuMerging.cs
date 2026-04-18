@@ -105,7 +105,7 @@ public class GpuMerging : Prepass
         if (_bboxMerging == null)
             return;
 
-        if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxVisibilityBuffer == null)
+        if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null || nprFrameData.visibilityBuffer == null)
             return;
 
         if (nprFrameData.bboxCount <= 0)
@@ -151,9 +151,9 @@ public class GpuMerging : Prepass
             passData.emitMergedKernel = _emitMergedKernel;
             passData.buildDrawArgsKernel = _buildDrawArgsKernel;
 
-            passData.rectBuffer = nprFrameData.bboxRectBuffer;
-            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-            passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+            passData.rectBuffer = nprFrameData.rectBuffer;
+            passData.maskBuffer = nprFrameData.maskBuffer;
+            passData.visibilityBuffer = nprFrameData.visibilityBuffer;
 
             passData.pairBuffer = _pairBuffer;
             passData.validPairBuffer = _validPairBuffer;
@@ -202,11 +202,11 @@ public class GpuMerging : Prepass
             });
         }
 
-        nprFrameData.bboxRectBuffer = _outputRectBuffer;
-        nprFrameData.bboxMaskBuffer = _outputMaskBuffer;
-        nprFrameData.bboxVisibilityBuffer = _outputVisibilityBuffer;
-        nprFrameData.bboxCountBuffer = _outputCountBuffer;
-        nprFrameData.bboxIndirectArgsBuffer = _indirectArgsBuffer;
+        nprFrameData.rectBuffer = _outputRectBuffer;
+        nprFrameData.maskBuffer = _outputMaskBuffer;
+        nprFrameData.visibilityBuffer = _outputVisibilityBuffer;
+        nprFrameData.countBuffer = _outputCountBuffer;
+        nprFrameData.indirectArgsBuffer = _indirectArgsBuffer;
 
         GpuDebugState.SetOutputBuffers(_outputRectBuffer, _outputMaskBuffer, _outputVisibilityBuffer, _outputCountBuffer, _indirectArgsBuffer);
     }

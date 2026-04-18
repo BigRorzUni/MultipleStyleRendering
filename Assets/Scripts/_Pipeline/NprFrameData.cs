@@ -8,7 +8,8 @@ public enum NprRenderMode
 {
     Fullscreen,
     CPU,
-    GPU
+    GPU,
+    Tiling
 }
 
 
@@ -46,17 +47,16 @@ public sealed class NprFrameData : ContextItem
 
     // CPU lists
     public List<BoundingBox> bboxes;
-    public List<BoundingBox> occlusionCandidateBoxes; 
 
     public int bboxCount;
     public int bboxVisibilityCount;
 
     // GPU buffers
-    public ComputeBuffer bboxRectBuffer;
-    public ComputeBuffer bboxMaskBuffer;
-    public ComputeBuffer bboxVisibilityBuffer;
-    public ComputeBuffer bboxCountBuffer;
-    public ComputeBuffer bboxIndirectArgsBuffer;
+    public ComputeBuffer rectBuffer;
+    public ComputeBuffer maskBuffer;
+    public ComputeBuffer visibilityBuffer;
+    public ComputeBuffer countBuffer;
+    public ComputeBuffer indirectArgsBuffer;
 
     // detected styles in the scene
     public StyleBits.ImageSpaceEffect presentImageBits;
@@ -100,15 +100,12 @@ public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int st
         if (bboxes != null)
             bboxes.Clear();
 
-        if (occlusionCandidateBoxes != null)
-            occlusionCandidateBoxes.Clear();
+        rectBuffer = null;
+        maskBuffer = null;
+        visibilityBuffer = null;
 
-        bboxRectBuffer = null;
-        bboxMaskBuffer = null;
-        bboxVisibilityBuffer = null;
-
-        bboxCountBuffer = null;
-        bboxIndirectArgsBuffer = null;
+        countBuffer = null;
+        indirectArgsBuffer = null;
 
         bboxCount = 0;
         bboxVisibilityCount = 0;

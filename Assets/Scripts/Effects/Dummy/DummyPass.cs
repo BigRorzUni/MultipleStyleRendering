@@ -103,9 +103,9 @@ public class DummyPass : EffectPass
 
                 passData.useOcclusion = 0;
 
-                if (NprTestingConfig.UseOcclusion && nprFrameData.bboxVisibilityBuffer != null)
+                if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
                 {
-                    passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                    passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                     passData.useOcclusion = 1;
                 }
 
@@ -129,7 +129,7 @@ public class DummyPass : EffectPass
 
     protected override void RunGpu(RenderGraph renderGraph, UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null || nprFrameData.bboxIndirectArgsBuffer == null)
+        if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null || nprFrameData.indirectArgsBuffer == null)
             return;
 
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
@@ -139,17 +139,17 @@ public class DummyPass : EffectPass
         {
             passData.ids = nprFrameData.idTexture;
             passData.mat = _mat;
-            passData.instanceBuffer = nprFrameData.bboxRectBuffer;
-            passData.maskBuffer = nprFrameData.bboxMaskBuffer;
-            passData.indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+            passData.instanceBuffer = nprFrameData.rectBuffer;
+            passData.maskBuffer = nprFrameData.maskBuffer;
+            passData.indirectArgsBuffer = nprFrameData.indirectArgsBuffer;
             passData.screenSize = screenSize;
             passData.requiredBit = _testRequiredBit;
 
             passData.useOcclusion = 0;
 
-            if (NprTestingConfig.UseOcclusion && nprFrameData.bboxVisibilityBuffer != null)
+            if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
             {
-                passData.visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+                passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                 passData.useOcclusion = 1;
             }
 

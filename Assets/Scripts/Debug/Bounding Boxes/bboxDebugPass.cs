@@ -133,14 +133,14 @@ public class BboxDebugPass : ScriptableRenderPass
 
         if (gpuMode)
         {
-            if (nprFrameData.bboxRectBuffer == null || nprFrameData.bboxMaskBuffer == null)
+            if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null)
                 return;
 
-            rectBuffer = nprFrameData.bboxRectBuffer;
-            maskBuffer = nprFrameData.bboxMaskBuffer;
-            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+            rectBuffer = nprFrameData.rectBuffer;
+            maskBuffer = nprFrameData.maskBuffer;
+            visibilityBuffer = nprFrameData.visibilityBuffer;
 
-            indirectArgsBuffer = nprFrameData.bboxIndirectArgsBuffer;
+            indirectArgsBuffer = nprFrameData.indirectArgsBuffer;
             useIndirect = indirectArgsBuffer != null;
 
             if (!useIndirect)
@@ -178,7 +178,7 @@ public class BboxDebugPass : ScriptableRenderPass
 
             rectBuffer = _cpuRectBuffer;
             maskBuffer = _cpuMaskBuffer;
-            visibilityBuffer = nprFrameData.bboxVisibilityBuffer;
+            visibilityBuffer = nprFrameData.visibilityBuffer;
 
             bboxInstanceCount = count;
             occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
