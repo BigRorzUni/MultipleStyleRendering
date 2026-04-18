@@ -79,16 +79,7 @@ public static class CsvWriter
         }
     }
 
-    public static void AppendSummaryRow(
-        string path,
-        NprTestCase test,
-        int value,
-        NprRenderMode renderMode,
-        int curN,
-        int curK,
-        int curS,
-        double[] cpuTimings,
-        double[] gpuTimings)
+    public static void AppendSummaryRow(string path, NprTestCase test, int value, NprRenderMode renderMode, int curN, int curK, int curS, double[] cpuTimings, double[] gpuTimings)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -159,15 +150,7 @@ public static class CsvWriter
         sw.WriteLine(string.Join(",", fields));
     }
 
-    public static void AppendPassSummaryRows(
-        string path,
-        NprTestCase test,
-        int value,
-        NprRenderMode renderMode,
-        int curN,
-        int curK,
-        int curS,
-        Dictionary<string, PassTimingCapture> passCaptures)
+    public static void AppendPassSummaryRows(string path, NprTestCase test, int value, NprRenderMode renderMode, int curN, int curK, int curS, Dictionary<string, PassTimingCapture> passCaptures)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

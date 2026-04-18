@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 [System.Serializable]

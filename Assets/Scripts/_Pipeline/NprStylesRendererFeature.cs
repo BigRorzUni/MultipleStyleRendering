@@ -122,7 +122,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            _idTilingPrepass = new IdTiling(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode);
+            if(NprTestingConfig.TestMode)
+                _idTilingPrepass = new IdTiling(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode, (int)NprTestingConfig.CurrentTileSize);
+            else
+                _idTilingPrepass = new IdTiling(tilingComputeShader, (int)NprTestingConfig.CurrentTileSize);
         }
 
         if (bboxGenerationComputeShader == null)

@@ -19,7 +19,7 @@ public class IdTiling : Prepass
     readonly int _tileSize;
 
     static readonly int IdTexID = Shader.PropertyToID("_IdTexture");
-    static readonly int DebugTexID = Shader.PropertyToID("_DebugTex");
+    // static readonly int DebugTexID = Shader.PropertyToID("_DebugTex");
 
     static readonly int TileRectBufferID = Shader.PropertyToID("_TileRectBuffer");
     static readonly int TileMaskBufferID = Shader.PropertyToID("_TileMaskBuffer");
@@ -69,7 +69,7 @@ public class IdTiling : Prepass
         public TextureHandle destination;
     }
 
-    public IdTiling(ComputeShader tileGeneration, int tileSize = 16) : base("IdTiling")
+    public IdTiling(ComputeShader tileGeneration, int tileSize = 32) : base("IdTiling")
     {
         _tileGeneration = tileGeneration;
         _tileSize = Mathf.Max(1, tileSize);
@@ -85,7 +85,7 @@ public class IdTiling : Prepass
         }
     }
 
-    public IdTiling(ComputeShader tileGeneration, int testCount, bool testModeEnabled, int tileSize = 16) : base("IdTiling")
+    public IdTiling(ComputeShader tileGeneration, int testCount, bool testModeEnabled, int tileSize = 32) : base("IdTiling")
     {
         testStyleCount = testCount;
         _testModeEnabled = testModeEnabled;

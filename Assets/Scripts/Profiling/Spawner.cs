@@ -80,8 +80,7 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    public void Regenerate(
-        int objectCount,
+    public void Regenerate(int objectCount,
         StylePattern pattern,
         int totalStyles,
         int stylesPerObj,

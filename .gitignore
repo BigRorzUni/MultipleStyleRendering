@@ -100,7 +100,7 @@ InitTestScene*.unity*
 
 # python plotting files
 *.py
-*.ipynb
+plotter.ipynb
 *.csv
 
 /FinalGraphs
