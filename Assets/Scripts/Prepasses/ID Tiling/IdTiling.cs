@@ -9,12 +9,18 @@ public class IdTiling : Prepass
     public bool _testModeEnabled;
 
     readonly ComputeShader _tileGeneration;
+
     readonly int _tileGenerationKernel;
     readonly int _buildDrawArgsKernel;
+
+    // Debug kernel kept for later use
+    readonly int _debugReadIdKernel;
 
     readonly int _tileSize;
 
     static readonly int IdTexID = Shader.PropertyToID("_IdTexture");
+    static readonly int DebugTexID = Shader.PropertyToID("_DebugTex");
+
     static readonly int TileRectBufferID = Shader.PropertyToID("_TileRectBuffer");
     static readonly int TileMaskBufferID = Shader.PropertyToID("_TileMaskBuffer");
     static readonly int TileCountBufferID = Shader.PropertyToID("_TileCountBuffer");
@@ -39,10 +45,13 @@ public class IdTiling : Prepass
     private class ComputePassData
     {
         public ComputeShader compute;
+
         public int tileGenerationKernel;
         public int buildDrawArgsKernel;
+        public int debugReadIdKernel;
 
         public TextureHandle idTexture;
+        public TextureHandle debugTexture;
 
         public ComputeBuffer tileRectBuffer;
         public ComputeBuffer tileMaskBuffer;
@@ -54,6 +63,12 @@ public class IdTiling : Prepass
         public int tileSize;
     }
 
+    private class BlitPassData
+    {
+        public TextureHandle source;
+        public TextureHandle destination;
+    }
+
     public IdTiling(ComputeShader tileGeneration, int tileSize = 16) : base("IdTiling")
     {
         _tileGeneration = tileGeneration;
@@ -63,6 +78,10 @@ public class IdTiling : Prepass
         {
             _tileGenerationKernel = _tileGeneration.FindKernel("GenerateTiles");
             _buildDrawArgsKernel = _tileGeneration.FindKernel("BuildDrawArgs");
+
+            //  debug kernel
+            if (_tileGeneration.HasKernel("DebugReadId"))
+                _debugReadIdKernel = _tileGeneration.FindKernel("DebugReadId");
         }
     }
 
@@ -77,6 +96,10 @@ public class IdTiling : Prepass
         {
             _tileGenerationKernel = _tileGeneration.FindKernel("GenerateTiles");
             _buildDrawArgsKernel = _tileGeneration.FindKernel("BuildDrawArgs");
+
+            //  debug kernel
+            if (_tileGeneration.HasKernel("DebugReadId"))
+                _debugReadIdKernel = _tileGeneration.FindKernel("DebugReadId");
         }
     }
 
@@ -89,6 +112,7 @@ public class IdTiling : Prepass
             return;
 
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
+        // UniversalResourceData resourceData = frameContext.Get<UniversalResourceData>(); // Debug only
 
         NprFrameData nprFrameData;
         if (frameContext.Contains<NprFrameData>())
@@ -124,6 +148,18 @@ public class IdTiling : Prepass
         if (maxTileCount <= 0)
             return;
 
+
+        // TextureHandle debugTexture = renderGraph.CreateTexture(new TextureDesc(screenWidth, screenHeight)
+        // {
+        //     name = "_NprDebugIdTexture",
+        //     colorFormat = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm,
+        //     enableRandomWrite = true,
+        //     clearBuffer = true,
+        //     filterMode = FilterMode.Point
+        // });
+
+        // nprFrameData.sourceTexture = debugTexture;
+
         NprFrameData.EnsureBufferCapacity(ref _tileRectBuffer, ref _tileRectBufferCapacity, maxTileCount, sizeof(float) * 4);
         NprFrameData.EnsureBufferCapacity(ref _tileMaskBuffer, ref _tileMaskBufferCapacity, maxTileCount, sizeof(uint));
         NprFrameData.EnsureFixedBuffer(ref _tileCountBuffer, 1, sizeof(uint));
@@ -142,8 +178,10 @@ public class IdTiling : Prepass
             passData.compute = _tileGeneration;
             passData.tileGenerationKernel = _tileGenerationKernel;
             passData.buildDrawArgsKernel = _buildDrawArgsKernel;
+            passData.debugReadIdKernel = _debugReadIdKernel;
 
             passData.idTexture = nprFrameData.idTexture;
+            // passData.debugTexture = debugTexture; // Debug 
 
             passData.tileRectBuffer = _tileRectBuffer;
             passData.tileMaskBuffer = _tileMaskBuffer;
@@ -155,15 +193,38 @@ public class IdTiling : Prepass
             passData.tileSize = _tileSize;
 
             builder.UseTexture(passData.idTexture, AccessFlags.Read);
+            // builder.UseTexture(passData.debugTexture, AccessFlags.Write); // Debug 
 
             builder.SetRenderFunc(static (ComputePassData data, ComputeGraphContext ctx) =>
             {
+
+                // ctx.cmd.SetComputeTextureParam(data.compute, data.debugReadIdKernel, IdTexID, data.idTexture);
+                // ctx.cmd.SetComputeTextureParam(data.compute, data.debugReadIdKernel, DebugTexID, data.debugTexture);
+                // ctx.cmd.SetComputeIntParams(data.compute, ScreenSizeID,
+                //     data.screenSize.x, data.screenSize.y, 0, 0);
+
+                // int groupsX = Mathf.CeilToInt(data.screenSize.x / 8.0f);
+                // int groupsY = Mathf.CeilToInt(data.screenSize.y / 8.0f);
+
+                // ctx.cmd.DispatchCompute(
+                //     data.compute,
+                //     data.debugReadIdKernel,
+                //     groupsX,
+                //     groupsY,
+                //     1
+                // );
+
                 ctx.cmd.SetComputeTextureParam(data.compute, data.tileGenerationKernel, IdTexID, data.idTexture);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tileGenerationKernel, TileRectBufferID, data.tileRectBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tileGenerationKernel, TileMaskBufferID, data.tileMaskBuffer);
                 ctx.cmd.SetComputeBufferParam(data.compute, data.tileGenerationKernel, TileCountBufferID, data.tileCountBuffer);
-                ctx.cmd.SetComputeVectorParam(data.compute, ScreenSizeID, new Vector4(data.screenSize.x, data.screenSize.y, 0f, 0f));
-                ctx.cmd.SetComputeVectorParam(data.compute, TileGridSizeID, new Vector4(data.tileGridSize.x, data.tileGridSize.y, 0f, 0f));
+
+                ctx.cmd.SetComputeIntParams(data.compute, ScreenSizeID,
+                    data.screenSize.x, data.screenSize.y, 0, 0);
+
+                ctx.cmd.SetComputeIntParams(data.compute, TileGridSizeID,
+                    data.tileGridSize.x, data.tileGridSize.y, 0, 0);
+
                 ctx.cmd.SetComputeIntParam(data.compute, TileSizeID, data.tileSize);
 
                 ctx.cmd.DispatchCompute(
@@ -179,6 +240,28 @@ public class IdTiling : Prepass
                 ctx.cmd.DispatchCompute(data.compute, data.buildDrawArgsKernel, 1, 1, 1);
             });
         }
+
+
+        // using (var builder = renderGraph.AddRasterRenderPass<BlitPassData>("Blit ID Debug Texture", out var passData, profilingSampler))
+        // {
+        //     passData.source = debugTexture;
+        //     passData.destination = resourceData.activeColorTexture;
+
+        //     builder.UseTexture(passData.source, AccessFlags.Read);
+        //     builder.SetRenderAttachment(passData.destination, 0, AccessFlags.Write);
+
+        //     builder.SetRenderFunc(static (BlitPassData data, RasterGraphContext ctx) =>
+        //     {
+        //         Blitter.BlitTexture(
+        //             ctx.cmd,
+        //             data.source,
+        //             new Vector4(1f, 1f, 0f, 0f),
+        //             0,
+        //             false
+        //         );
+        //     });
+        // }
+
 
         nprFrameData.rectBuffer = _tileRectBuffer;
         nprFrameData.maskBuffer = _tileMaskBuffer;
@@ -197,16 +280,15 @@ public class IdTiling : Prepass
 
         nprFrameData.visibilityBuffer = _tileVisibilityBuffer;
         nprFrameData.bboxVisibilityCount = maxTileCount;
-
         nprFrameData.bboxCount = maxTileCount;
 
-        GpuDebugState.SetOutputBuffers(
-            nprFrameData.rectBuffer,
-            nprFrameData.maskBuffer,
-            nprFrameData.visibilityBuffer,
-            nprFrameData.countBuffer,
-            nprFrameData.indirectArgsBuffer
-        );
+        // GpuDebugState.SetOutputBuffers(
+        //     nprFrameData.rectBuffer,
+        //     nprFrameData.maskBuffer,
+        //     nprFrameData.visibilityBuffer,
+        //     nprFrameData.countBuffer,
+        //     nprFrameData.indirectArgsBuffer
+        // );
     }
 
     public override void Dispose()
@@ -233,6 +315,12 @@ public class IdTiling : Prepass
         {
             _tileIndirectArgsBuffer.Release();
             _tileIndirectArgsBuffer = null;
+        }
+
+        if (_tileVisibilityBuffer != null)
+        {
+            _tileVisibilityBuffer.Release();
+            _tileVisibilityBuffer = null;
         }
     }
 }

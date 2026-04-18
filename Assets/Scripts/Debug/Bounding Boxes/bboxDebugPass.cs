@@ -131,7 +131,7 @@ public class BboxDebugPass : ScriptableRenderPass
         int occlusionInstanceCount = 0;
         bool useIndirect = false;
 
-        if (gpuMode)
+        if (gpuMode || NprTestingConfig.RenderMode == NprRenderMode.Tiling)
         {
             if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null)
                 return;

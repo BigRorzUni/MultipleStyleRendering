@@ -1,5 +1,10 @@
 #pragma kernel GenerateTiles
 #pragma kernel BuildDrawArgs
+// #pragma kernel DebugReadId
+
+
+// RWTexture2D<float4> _DebugTex;
+
 
 Texture2D<float4> _IdTexture;
 
@@ -21,6 +26,24 @@ uint DecodeMask32(float4 s)
 
     return r | (g << 8) | (b << 16) | (a << 24);
 }
+
+// [numthreads(8,8,1)]
+// void DebugReadId(uint3 id : SV_DispatchThreadID)
+// {
+//     uint x = id.x;
+//     uint y = id.y;
+
+//     if (x >= (uint)_ScreenSize.x || y >= (uint)_ScreenSize.y)
+//         return;
+
+//     float4 s = _IdTexture.Load(int3(x, y, 0));
+//     uint mask = DecodeMask32(s);
+
+//     float v = (mask != 0u) ? 1.0 : 0.0;
+//     _DebugTex[int2(x, y)] = float4(v, v, v, 1.0);
+// }
+
+
 
 [numthreads(1, 1, 1)]
 void GenerateTiles(uint3 id : SV_DispatchThreadID)
@@ -48,7 +71,7 @@ void GenerateTiles(uint3 id : SV_DispatchThreadID)
         }
     }
 
-    mask = 1u; // DEBUG
+    // mask = 1u; // DEBUG
     if (mask == 0u)
         return;
 

@@ -173,7 +173,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
         }
 
-        if (NprTestingConfig.DebugBBoxes && UseBoundingBoxes())
+        if (NprTestingConfig.DebugBBoxes && !(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen))
         {
             if (occlusionDebugShader == null)
             {
@@ -302,12 +302,11 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         renderer.EnqueuePass(_idPrepass);
 
-
-        renderer.EnqueuePass(_bboxPrepass);
-        
         if(!UseTiling())
         {
 
+            renderer.EnqueuePass(_bboxPrepass);
+        
             if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);
 
