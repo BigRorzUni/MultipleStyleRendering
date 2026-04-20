@@ -108,6 +108,19 @@ public class IdPrepass : Prepass
                 if (data.debug)
                     ctx.cmd.DisableShaderKeyword(DebugKeyword);
             });
+
+        
+        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
+        foreach (var tag in tags)
+        {
+            if (tag == null)
+                continue;
+
+            nprFrameData.presentImageBits |= tag.imageEffects;
+
+            if (NprTestingConfig.TestMode)
+                nprFrameData.presentTestStyles |= tag.currentTestEffects;
+        }
         }
     }
 

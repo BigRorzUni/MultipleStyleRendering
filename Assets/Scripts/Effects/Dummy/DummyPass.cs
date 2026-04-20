@@ -39,10 +39,7 @@ public class DummyPass : EffectPass
         _testRequiredBit = 1u << requiredIndex;
     }
 
-    protected override bool ShouldRun(
-        UniversalResourceData frameData,
-        UniversalCameraData cameraData,
-        NprFrameData nprFrameData)
+    protected override bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
         if (_mat == null)
             return false;
@@ -50,7 +47,7 @@ public class DummyPass : EffectPass
         if (!nprFrameData.idTexture.IsValid())
             return false;
 
-        if ((nprFrameData.presentTestStyles & _testRequiredBit) == 0)
+        if (((nprFrameData.presentTestStyles & _testRequiredBit) == 0) && NprTestingConfig.RenderMode != NprRenderMode.Fullscreen)
             return false;
 
         return true;

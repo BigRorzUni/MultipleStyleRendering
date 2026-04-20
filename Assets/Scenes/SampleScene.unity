@@ -1247,8 +1247,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
   imageEffects: 4294967295
   testAssignmentMode: 0
-  inspectorTestEffects: 0000000001010000000000000000000000000000000000000000000000000000
-  currentTestEffects: 48
+  inspectorTestEffects: 0000000001010101000000000000000000000000000000000000000000000000
+  currentTestEffects: 240
 --- !u!65 &1512478180
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -1704,7 +1704,7 @@ Transform:
   m_GameObject: {fileID: 1964602097}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.63, y: 1.97, z: -5.4}
+  m_LocalPosition: {x: 3.63, y: 2.38, z: -5.4}
   m_LocalScale: {x: 5, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1768,7 +1768,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setRenderMode
-      value: 3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3036463409381389133, guid: f1ac5d00efd5e40e5865f0a914d1d782, type: 3}
       propertyPath: setUseMerging

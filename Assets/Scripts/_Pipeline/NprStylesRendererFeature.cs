@@ -235,7 +235,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if (NprTestingConfig.TestMode)
         {
-            Shader chosenShader = null;
+            Shader chosenShader;
 
             if (UseBatchedScreenPasses())
             {
@@ -305,18 +305,17 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         renderer.EnqueuePass(_idPrepass);
 
-        if(!UseTiling())
+        if(UseBoundingBoxes())
         {
-
             renderer.EnqueuePass(_bboxPrepass);
         
-            if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseCpuMode() && _cpuMergingPrepass != null)
+            if (NprTestingConfig.UseMerging && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);
 
-            if (NprTestingConfig.UseOcclusion && UseBoundingBoxes() && _bboxOcclusionPrepass != null)
+            if (NprTestingConfig.UseOcclusion && _bboxOcclusionPrepass != null)
                 renderer.EnqueuePass(_bboxOcclusionPrepass);
 
-            if (NprTestingConfig.UseMerging && UseBoundingBoxes() && UseGpuMode())
+            if (NprTestingConfig.UseMerging && UseGpuMode())
             {
                 if(UseIterativeGpuMerging() && _gpuMergingPrepass != null)
                     renderer.EnqueuePass(_gpuMergingPrepass);
@@ -324,7 +323,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                     renderer.EnqueuePass(_gpuTileMergingPrepass);
             }
         }
-        else
+        else if (UseTiling())
         {
             if (_idTilingPrepass == null)
                 return;

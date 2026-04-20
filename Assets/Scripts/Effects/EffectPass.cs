@@ -67,8 +67,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
 
     protected virtual bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (_requiredBit != StyleBits.ImageSpaceEffect.None &&
-            (nprFrameData.presentImageBits & _requiredBit) == 0)
+        if (_requiredBit != StyleBits.ImageSpaceEffect.None && ((nprFrameData.presentImageBits & _requiredBit) == 0) && NprTestingConfig.RenderMode != NprRenderMode.Fullscreen)
             return false;
 
         return true;

@@ -94,6 +94,8 @@ public class BBoxGeneration : Prepass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
+        if(NprTestingConfig.RenderMode == (NprRenderMode.Fullscreen | NprRenderMode.Tiling))
+            return;
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
         Camera camera = cameraData.camera;
 
@@ -111,9 +113,9 @@ public class BBoxGeneration : Prepass
         nprFrameData.countBuffer = null;
         nprFrameData.indirectArgsBuffer = null;
 
-        bool fullscreenMode = NprTestingConfig.RenderMode == NprRenderMode.Fullscreen;
         bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
         bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
+        bool fullscreenMode = false;
 
         if (!fullscreenMode)
         {
@@ -296,19 +298,6 @@ public class BBoxGeneration : Prepass
                 nprFrameData.countBuffer = _bboxCountBuffer;
                 nprFrameData.indirectArgsBuffer = _bboxIndirectArgsBuffer;
             }
-        }
-        else // fullscreen
-        {
-            StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-            foreach (var tag in tags)
-            {
-                nprFrameData.presentImageBits |= tag.imageEffects;
-
-                if (NprTestingConfig.TestMode)
-                    nprFrameData.presentTestStyles |= tag.currentTestEffects;
-            }
-
-            nprFrameData.bboxCount = 0;
         }
 
         if (cpuMode)

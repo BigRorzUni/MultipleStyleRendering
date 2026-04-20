@@ -120,23 +120,9 @@ public class IdTiling : Prepass
         else
             nprFrameData = frameContext.Create<NprFrameData>();
 
-        nprFrameData.presentImageBits = 0;
-        nprFrameData.presentTestStyles = 0;
-
         if (!nprFrameData.idTexture.IsValid())
             return;
 
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        foreach (var tag in tags)
-        {
-            if (tag == null)
-                continue;
-
-            nprFrameData.presentImageBits |= tag.imageEffects;
-
-            if (NprTestingConfig.TestMode)
-                nprFrameData.presentTestStyles |= tag.currentTestEffects;
-        }
 
         int screenWidth = cameraData.cameraTargetDescriptor.width;
         int screenHeight = cameraData.cameraTargetDescriptor.height;
@@ -147,7 +133,6 @@ public class IdTiling : Prepass
 
         if (maxTileCount <= 0)
             return;
-
 
         // TextureHandle debugTexture = renderGraph.CreateTexture(new TextureDesc(screenWidth, screenHeight)
         // {
