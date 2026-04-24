@@ -1,0 +1,221 @@
+Shader "Custom/ScreenspaceOutlinesBatched"
+{
+    Properties
+    {
+        _OutlineColour ("Outline Colour", Color) = (0,0,0,1)
+    }
+
+    SubShader
+    {
+        Tags { "RenderPipeline"="UniversalPipeline" }
+        Pass
+        {
+            Name "ScreenspaceOutlinesBatched"
+
+            ZTest Always 
+            ZWrite Off 
+            Cull Off 
+            Blend Off
+
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            StructuredBuffer<float4> _InstanceData;
+            float4 _NprScreenSize; 
+
+            TEXTURE2D(_NprDepthTexture);
+            TEXTURE2D(_NprNormalsTexture);
+            TEXTURE2D(_NprIdTexture);
+            TEXTURE2D(_NprSourceTexture);
+            float4 _NprSourceTexture_TexelSize;
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _OutlineColour;
+            CBUFFER_END
+
+            float _ThicknessPx;    
+
+            float _DepthThreshold;   
+            float _DepthStrength;    
+
+            float _NormalThreshold; 
+            float _NormalStrength;
+
+            StructuredBuffer<uint> _BboxVisibilityFlags;
+            StructuredBuffer<uint> _BboxIndices;
+            StructuredBuffer<uint> _BBoxMasks;
+            int _UseOcclusion;
+            int _UseBboxIndices;
+            uint _OutlinesBit;
+
+
+            struct Attributes 
+            { 
+                uint vertexID : SV_VertexID; 
+                uint instanceID : SV_InstanceID;
+            };
+
+            struct Varyings  
+            { 
+                float4 posCS : SV_POSITION; 
+                float2 uv : TEXCOORD0; 
+            };
+
+            // each quad is made of 2 triangles based on the rect of the instance data
+            float2 GetQuadUV(uint vertexID)
+            {
+                switch (vertexID)
+                {
+                    case 0: 
+                        return float2(0, 0);
+                    case 1: 
+                        return float2(1, 0);
+                    case 2: 
+                        return float2(1, 1);
+                    case 3: 
+                        return float2(0, 0);
+                    case 4: 
+                        return float2(1, 1);
+                    case 5: 
+                        return float2(0, 1);
+
+
+                    default:
+                        return float2(0, 0); // should never happen
+                }
+            }
+
+            Varyings Vert (Attributes v)
+            {
+                Varyings o;
+
+                uint bboxIndex = v.instanceID;
+                if (_UseBboxIndices != 0)
+                    bboxIndex = _BboxIndices[v.instanceID];
+
+                uint bboxMask = _BBoxMasks[bboxIndex];
+
+                if ((bboxMask & _OutlinesBit) == 0u)
+                {
+                    o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                    o.uv = float2(0.0, 0.0);
+                    return o;
+                }
+
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[bboxIndex];
+
+                    // visible (1) -> draw
+                    // hidden  (0) -> collapse (skip rasterisation)
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(-2.0, -2.0, 0.0, 1.0);
+                        o.uv = float2(0.0, 0.0);
+                        return o;
+                    }
+                }
+
+                float2 uv = GetQuadUV(v.vertexID);
+                float4 rect = _InstanceData[v.instanceID];
+
+                // map local quad UV to pixel coords within bbox
+                float2 pixelPos = rect.xy + uv * rect.zw;
+
+                // convert to clip space
+                float2 ndc;
+                ndc.x = pixelPos.x * _NprScreenSize.z * 2.0 - 1.0;
+                ndc.y = 1.0 - pixelPos.y * _NprScreenSize.w * 2.0; // flip y for Unity's screen space
+
+                o.posCS = float4(ndc, 0.0, 1.0);
+
+                // convert pixel coords to texture UVs
+                o.uv = pixelPos * _NprScreenSize.zw;
+
+                return o;
+            }
+
+            float3 getNormal(float2 uv)
+            {
+                return SAMPLE_TEXTURE2D(_NprNormalsTexture, sampler_PointClamp, uv);
+            }
+            // get linear depth from raw depth to perform operations on
+            float getDepth(float2 uv)
+            {
+                float raw = SAMPLE_TEXTURE2D(_NprDepthTexture, sampler_PointClamp, uv).r;
+                return Linear01Depth(raw, _ZBufferParams);
+            }
+
+            uint ReadMask32(float2 uv)
+            {
+                float4 s = SAMPLE_TEXTURE2D(_NprIdTexture, sampler_PointClamp, uv);
+
+                uint r = (uint)round(saturate(s.r) * 255.0);
+                uint g = (uint)round(saturate(s.g) * 255.0);
+                uint b = (uint)round(saturate(s.b) * 255.0);
+                uint a = (uint)round(saturate(s.a) * 255.0);
+
+                return r | (g << 8) | (b << 16) | (a << 24);
+            }
+
+            float4 Frag (Varyings i) : SV_Target
+            {
+                // discard if pixel is not tagged for outlining in id tex
+                uint mask = ReadMask32(i.uv);
+                if ((mask & _OutlinesBit) == 0u)
+                    clip(-1);
+        
+                // step size
+                float2 stepUV = _NprSourceTexture_TexelSize.xy * max(1.0, _ThicknessPx);
+
+                // dont step onto fullscreen borders
+                if (i.uv.x < stepUV.x || i.uv.x > 1.0 - stepUV.x ||
+                    i.uv.y < stepUV.y || i.uv.y > 1.0 - stepUV.y)
+                    clip(-1);
+
+                float zC = getDepth(i.uv);
+
+                // skip skybox
+                if (zC >= 0.999)
+                    clip(-1);
+
+                // depth laplacian 
+                float zR = getDepth(i.uv + float2( stepUV.x, 0));
+                float zL = getDepth(i.uv + float2(-stepUV.x, 0));
+                float zU = getDepth(i.uv + float2(0,  stepUV.y));
+                float zD = getDepth(i.uv + float2(0, -stepUV.y));
+
+                float lap = abs(zR + zL + zU + zD - 4.0 * zC);
+                float lapN = lap / max(zC, 1e-3);
+                float depthEdge = lapN * _DepthStrength;
+                float depthMask = step(_DepthThreshold, depthEdge);
+
+                // normal discontinuity
+                float3 nC = getNormal(i.uv);
+                float3 nR = getNormal(i.uv + float2( stepUV.x, 0));
+                float3 nL = getNormal(i.uv + float2(-stepUV.x, 0));
+                float3 nU = getNormal(i.uv + float2(0,  stepUV.y));
+                float3 nD = getNormal(i.uv + float2(0, -stepUV.y));
+
+                float normalEdge = 0.0;
+                normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nR)));
+                normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nL)));
+                normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nU)));
+                normalEdge = max(normalEdge, 1.0 - saturate(dot(nC, nD)));
+                normalEdge *= _NormalStrength;
+
+                float normalMask = step(_NormalThreshold, normalEdge);
+
+                float edgeMask = max(depthMask, normalMask);
+
+                // outline colour on the outlines, otherwise clip (edgemask = 0 and clip() clips anything less than 0)
+                clip(edgeMask - 0.001);
+                return _OutlineColour;
+
+            }
+            ENDHLSL
+        }
+    }
+}

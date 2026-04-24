@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 201609183533132451}
   - component: {fileID: 3036463409381389133}
-  - component: {fileID: 9149287039531368099}
   m_Layer: 0
   m_Name: TestRunner
   m_TagString: Untagged
@@ -45,26 +44,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00f25181f51634323945a574e4efaa19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestRunner
-  testScenes:
-  - TestScene1
-  - TestScene2
-  - TestScene3
-  - TestScene4
   startupFrames: 100
   framesToCapture: 500
+  setRenderMode: 1
+  setUseMerging: 1
+  setGpuMergeMethod: 1
+  setUseOcclusion: 1
   setRendererTestmode: 0
+  setRuntimeTestEffectsInEditor: 0
   setDebugBBoxes: 1
---- !u!114 &9149287039531368099
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7329352657357545300}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a6218a1453fef4ef889deb4fe4ba6ed8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BBoxDebugOverlay
-  drawLabels: 1
-  thickness: 2
+  setDebugId: 0

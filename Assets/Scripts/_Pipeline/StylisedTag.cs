@@ -75,34 +75,25 @@ public class StylisedTag : MonoBehaviour
             
         if (NprTestingConfig.TestMode)
         {
-            Debug.Log("apply test effects");
+            // Debug.Log("apply test effects");
             ApplyTestEffects();
         }
         else
         {
-            ApplyImageSpace();
+            ApplyEffects();
         }
 
-        Debug.Log("Effects applied");
+        // Debug.Log("Effects applied");
     }
 
     // image space effects - mpbs
-    void ApplyImageSpace()
+    void ApplyEffects()
     {
         if (_renderers == null) return;
 
         foreach (var r in _renderers)
         {
             if (!r) continue;
-
-            uint mask = r.renderingLayerMask;
-
-            if (imageEffects != StyleBits.ImageSpaceEffect.None)
-                mask |= StyleBits.ImageSpaceBit;
-            else
-                mask &= ~StyleBits.ImageSpaceBit;
-
-            r.renderingLayerMask = mask;
 
             MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
@@ -125,15 +116,13 @@ public class StylisedTag : MonoBehaviour
         List<bool> activeEffects = GetActiveTestEffects();
         currentTestEffects = BuildMask(activeEffects);
 
-        Debug.Log($"Test mask (bin): {Convert.ToString(currentTestEffects, 2).PadLeft(32, '0')}");
+        // Debug.Log($"Test mask (bin): {Convert.ToString(currentTestEffects, 2).PadLeft(32, '0')}");
 
         if (_renderers == null) return;
 
         foreach (var r in _renderers)
         {
             if (!r) continue;
-
-            r.renderingLayerMask = StyleBits.DefaultBit | StyleBits.ImageSpaceBit;
 
             var mpb = new MaterialPropertyBlock();
             r.GetPropertyBlock(mpb);
@@ -156,7 +145,7 @@ public class StylisedTag : MonoBehaviour
     {
         if (effects == null || effects.Count == 0)
         {
-            Debug.Log("Test effect list is empty");
+            Debug.LogWarning("Test effect list is empty");
             return 0u;
         }
 

@@ -8,7 +8,8 @@ public enum NprRenderMode
 {
     Fullscreen,
     CPU,
-    GPU
+    GPU,
+    Tiling
 }
 
 
@@ -39,71 +40,72 @@ public class BoundingBox
 }
 
 public sealed class NprFrameData : ContextItem
-{
+{   
+    // textures needed for effects
     public TextureHandle idTexture;
-    public TextureHandle normalsTexture;
     public TextureHandle sourceTexture;
 
-    // CPU PATH
+    // CPU lists
     public List<BoundingBox> bboxes;
-    public List<BoundingBox> occlusionCandidateBoxes; 
 
     public int bboxCount;
     public int bboxVisibilityCount;
 
-    // public int bboxRectBufferCapacity;
-    // public int bboxMaskBufferCapacity;
-    // public int bboxVisibilityBufferCapacity;
+    // GPU buffers
+    public ComputeBuffer rectBuffer;
+    public ComputeBuffer maskBuffer;
+    public ComputeBuffer visibilityBuffer;
+    public ComputeBuffer countBuffer;
+    public ComputeBuffer indirectArgsBuffer;
 
-    public ComputeBuffer bboxVisibilityBuffer;
-    public ComputeBuffer bboxRectBuffer;
-    public ComputeBuffer bboxMaskBuffer;
-    public ComputeBuffer bboxCountBuffer;
-    public ComputeBuffer bboxIndirectArgsBuffer;
-
+    // detected styles in the scene
     public StyleBits.ImageSpaceEffect presentImageBits;
-
     public uint presentTestStyles;  
 
-    public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
-    {
-        int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
+public static void EnsureBufferCapacity(ref ComputeBuffer buffer, ref int capacity, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
+{
+    int requiredCapacity = Mathf.NextPowerOfTwo(Mathf.Max(1, count));
 
-        if (buffer == null || capacity < requiredCapacity)
+    if (buffer == null || capacity < requiredCapacity)
+    {
+        if (buffer != null)
         {
-            if (buffer != null)
-                buffer.Release();
-
-            capacity = requiredCapacity;
-            buffer = new ComputeBuffer(capacity, stride, type);
+            buffer.Release();
         }
+
+        capacity = requiredCapacity;
+        buffer = new ComputeBuffer(capacity, stride, type);
+    }
+}
+
+public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
+{
+    if (buffer != null)
+    {
+        if (buffer.count == count && buffer.stride == stride)
+            return;
+
+        buffer.Release();
     }
 
-    public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int stride, ComputeBufferType type = ComputeBufferType.Default)
-    {
-        if (buffer == null)
-            buffer = new ComputeBuffer(count, stride, type);
-    }
+    buffer = new ComputeBuffer(count, stride, type);
+}
 
 
     public override void Reset()
     {
         idTexture = TextureHandle.nullHandle;
-        normalsTexture = TextureHandle.nullHandle;
         sourceTexture = TextureHandle.nullHandle;
 
         if (bboxes != null)
             bboxes.Clear();
 
-        if (occlusionCandidateBoxes != null)
-            occlusionCandidateBoxes.Clear();
+        rectBuffer = null;
+        maskBuffer = null;
+        visibilityBuffer = null;
 
-        bboxRectBuffer = null;
-        bboxMaskBuffer = null;
-        bboxVisibilityBuffer = null;
-
-        bboxCountBuffer = null;
-        bboxIndirectArgsBuffer = null;
+        countBuffer = null;
+        indirectArgsBuffer = null;
 
         bboxCount = 0;
         bboxVisibilityCount = 0;
