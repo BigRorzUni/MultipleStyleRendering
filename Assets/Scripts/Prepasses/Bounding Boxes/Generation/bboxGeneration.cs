@@ -94,7 +94,7 @@ public class BBoxGeneration : Prepass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if(NprTestingConfig.RenderMode == (NprRenderMode.Fullscreen | NprRenderMode.Tiling))
+        if(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen || NprTestingConfig.RenderMode == NprRenderMode.Tiling)
             return;
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
         Camera camera = cameraData.camera;

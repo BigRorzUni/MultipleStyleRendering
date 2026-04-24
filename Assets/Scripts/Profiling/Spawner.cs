@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,7 +9,6 @@ public enum StylePattern
 {
     SameStyle,
     RandomSingleStyle,
-    RandomMultiStyle
 }
 
 public class Spawner : MonoBehaviour
@@ -20,30 +18,19 @@ public class Spawner : MonoBehaviour
     [SerializeField] private Camera targetCamera;
 
     [Header("Spawn Settings")]
-    [SerializeField] private int seed = 12345;
     [SerializeField] private float spawnDepth = 5f;
-    [SerializeField, Range(0.05f, 1f)] private float spawnAreaScale = 1f;
-    [SerializeField] private Vector3 objectScale = Vector3.one;
 
-    [Header("Style Settings")]
-    [SerializeField] private StylePattern stylePattern = StylePattern.SameStyle;
-    [SerializeField, Min(1)] private int totalAvailableStyles = 32;
-    [SerializeField, Min(1)] private int stylesPerObject = 1;
-    [SerializeField, Min(0)] private int sameStyleIndex = 0;
+    [Header("Coverage")]
+    [SerializeField, Range(0f, 1f)] private float targetCoverageFraction = 0.5f;
 
-    [Header("Editor Preview")]
-    [SerializeField] private int previewObjectCount = 100;
-    [SerializeField] private int previewSeed = 12345;
-    [SerializeField] private float previewAreaScale = 1f;
-    [SerializeField] private StylePattern previewPattern = StylePattern.SameStyle;
-    [SerializeField] private int previewTotalStyles = 32;
-    [SerializeField] private int previewStylesPerObject = 1;
-    [SerializeField] private int previewSameStyleIndex = 0;
+    [Header("Overlap")]
+    [SerializeField, Range(0f, 1f)] private float overlapFraction = 0f;
 
-    [Header("Editor Triggers")]
-    [SerializeField] private bool generatePreview = false;
-    [SerializeField] private bool clearPreview = false;
-    [SerializeField] private bool reassignStylesPreview = false;
+
+    [Header("Editor Tools")]
+    [SerializeField] private int editorObjectCount = 100;
+    [SerializeField] private bool regenerate = false;
+    [SerializeField] private bool clearAll = false;
 
     private void Awake()
     {
@@ -56,44 +43,45 @@ public class Spawner : MonoBehaviour
         if (targetCamera == null)
             targetCamera = Camera.main;
 
-        previewAreaScale = Mathf.Clamp(previewAreaScale, 0.05f, 1f);
-        previewTotalStyles = Mathf.Clamp(previewTotalStyles, 1, 32);
-        previewStylesPerObject = Mathf.Clamp(previewStylesPerObject, 1, 32);
-        previewSameStyleIndex = Mathf.Clamp(previewSameStyleIndex, 0, 31);
+        targetCoverageFraction = SnapCoverageFraction(targetCoverageFraction);
+        overlapFraction = Mathf.Clamp01(overlapFraction);
+        editorObjectCount = Mathf.Max(0, editorObjectCount);
 
-        if (clearPreview)
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
         {
-            clearPreview = false;
-            RequestClearPreview();
-        }
+            if (clearAll)
+            {
+                clearAll = false;
+                EditorApplication.delayCall += () => { if (this) ClearSpawnedObjects(); };
+            }
 
-        if (generatePreview)
-        {
-            generatePreview = false;
-            RequestGeneratePreview();
+            if (regenerate)
+            {
+                regenerate = false;
+                EditorApplication.delayCall += () => { if (this) Regenerate(editorObjectCount); };
+            }
         }
-
-        if (reassignStylesPreview)
-        {
-            reassignStylesPreview = false;
-            RequestReassignStylesPreview();
-        }
+#endif
     }
 
-    public void Regenerate(int objectCount,
-        StylePattern pattern,
-        int totalStyles,
-        int stylesPerObj,
-        int randomSeed,
-        float areaScale,
-        int sameStyle = 0)
+    private float SnapCoverageFraction(float f)
     {
-        stylePattern = pattern;
-        totalAvailableStyles = Mathf.Clamp(totalStyles, 1, 32);
-        stylesPerObject = Mathf.Clamp(stylesPerObj, 1, 32);
-        sameStyleIndex = Mathf.Clamp(sameStyle, 0, totalAvailableStyles - 1);
-        seed = randomSeed;
-        spawnAreaScale = Mathf.Clamp(areaScale, 0.05f, 1f);
+        float percent = Mathf.Clamp(f * 100f, 0f, 100f);
+        percent = Mathf.Round(percent / 10f) * 10f;
+        return percent / 100f;
+    }
+
+    public void Regenerate(int objectCount)
+    {
+        ClearSpawnedObjects();
+        SpawnObjects(objectCount);
+    }
+
+    public void Regenerate(int objectCount, float coverageFraction, float overlap)
+    {
+        targetCoverageFraction = SnapCoverageFraction(coverageFraction);
+        overlapFraction = Mathf.Clamp01(overlap);
 
         ClearSpawnedObjects();
         SpawnObjects(objectCount);
@@ -101,14 +89,10 @@ public class Spawner : MonoBehaviour
 
     public void ClearSpawnedObjects()
     {
-        List<GameObject> children = GetSpawnedObjects();
+        var children = GetSpawnedObjects();
 
-        for (int i = 0; i < children.Count; i++)
+        foreach (var obj in children)
         {
-            GameObject obj = children[i];
-            if (obj == null)
-                continue;
-
             if (Application.isPlaying)
                 Destroy(obj);
             else
@@ -116,267 +100,116 @@ public class Spawner : MonoBehaviour
         }
     }
 
-    public void ReassignStylesToSpawnedObjects()
-    {
-        List<GameObject> children = GetSpawnedObjects();
-
-        if (children.Count == 0)
-        {
-            Debug.LogWarning("Spawner: no spawned objects to reassign styles to.");
-            return;
-        }
-
-        ApplyPreviewStyleSettings();
-
-        System.Random rng = new System.Random(seed);
-
-        for (int i = 0; i < children.Count; i++)
-        {
-            GameObject obj = children[i];
-            if (obj == null)
-                continue;
-
-            SetupStylisedTag(obj, rng, i);
-        }
-
-        // Debug.Log(
-        //     $"Spawner: reassigned styles | " +
-        //     $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
-        //     $"sameStyleIndex={sameStyleIndex} | totalStyles={totalAvailableStyles} | seed={seed}");
-    }
 
     private void SpawnObjects(int objectCount)
     {
-        if (!ValidateSetup())
+        if (!ValidateSetup() || objectCount <= 0)
             return;
 
-        System.Random rng = new System.Random(seed);
+        GetScreenBounds(out float minX, out float maxX, out float minY, out float maxY);
 
-        GetSpawnBounds(out float minX, out float maxX, out float minY, out float maxY);
+        float screenWidth = maxX - minX;
+        float screenHeight = maxY - minY;
+        float screenArea = screenWidth * screenHeight;
 
-        for (int i = 0; i < objectCount; i++)
+        float targetArea = screenArea * targetCoverageFraction;
+
+        // No-overlap layout used to determine object size.
+        float baseRegionHeight = targetArea / screenWidth;
+        baseRegionHeight = Mathf.Clamp(baseRegionHeight, 0f, screenHeight);
+
+        float aspect = screenWidth / screenHeight;
+        int cols = Mathf.CeilToInt(Mathf.Sqrt(objectCount * aspect));
+        cols = Mathf.Max(1, cols);
+
+        int fullRows = objectCount / cols;
+        int remainder = objectCount % cols;
+        int rows = fullRows + (remainder > 0 ? 1 : 0);
+        rows = Mathf.Max(1, rows);
+
+        float baseRowHeight = baseRegionHeight / rows;
+        float regionMinY = -baseRegionHeight * 0.5f;
+
+        Vector3 overlapCentre = new Vector3(0f, 0f, spawnDepth);
+
+        int spawned = 0;
+
+        for (int r = 0; r < rows && spawned < objectCount; r++)
         {
-            Vector3 position = GetRandomSpawnPosition(rng, minX, maxX, minY, maxY);
+            bool lastRow = (r == rows - 1 && remainder > 0);
+            int colsThisRow = lastRow ? remainder : cols;
 
-            GameObject obj = Instantiate(prefab, position, Quaternion.identity, transform);
-            obj.name = $"SpawnedStylisedObject_{i}";
-            obj.transform.localScale = objectScale;
+            float cellWidth = screenWidth / colsThisRow;
+            float rowHeight = baseRowHeight;
 
-            SetupStylisedTag(obj, rng, i);
+            for (int c = 0; c < colsThisRow && spawned < objectCount; c++)
+            {
+                float x = minX + (c + 0.5f) * cellWidth;
+                float y = regionMinY + (r + 0.5f) * rowHeight;
+
+                Vector3 gridPos = new Vector3(x, y, spawnDepth);
+                Vector3 finalPos = Vector3.Lerp(gridPos, overlapCentre, overlapFraction);
+
+                var obj = Instantiate(
+                    prefab,
+                    finalPos,
+                    Quaternion.identity,
+                    transform
+                );
+
+                obj.name = $"Obj_{spawned}";
+                obj.transform.localScale = new Vector3(cellWidth, rowHeight, 1f);
+
+                SetupStylisedTag(obj);
+                spawned++;
+            }
         }
 
-        // Debug.Log(
-        //     $"Spawner: spawned {objectCount} objects | " +
-        //     $"pattern={stylePattern} | stylesPerObject={stylesPerObject} | " +
-        //     $"sameStyleIndex={sameStyleIndex} | areaScale={spawnAreaScale} | seed={seed}");
+        float realisedObjectArea = 0f;
+        foreach (Transform t in transform)
+            realisedObjectArea += t.localScale.x * t.localScale.y;
+
+        Debug.Log(
+            $"Coverage area: {realisedObjectArea / screenArea:P4} (target {targetCoverageFraction:P0}) | " +
+            $"Overlap: {overlapFraction:P0}"
+        );
     }
 
     private List<GameObject> GetSpawnedObjects()
     {
-        List<GameObject> result = new();
+        var result = new List<GameObject>();
 
         for (int i = 0; i < transform.childCount; i++)
-        {
-            Transform child = transform.GetChild(i);
-            if (child != null)
-                result.Add(child.gameObject);
-        }
+            result.Add(transform.GetChild(i).gameObject);
 
         return result;
     }
 
     private bool ValidateSetup()
     {
-        if (prefab == null)
-        {
-            Debug.LogError("Spawner: prefab is not assigned.");
+        if (prefab == null || targetCamera == null)
             return false;
-        }
-
-        if (targetCamera == null)
-        {
-            Debug.LogError("Spawner: target camera is not assigned.");
-            return false;
-        }
 
         if (!targetCamera.orthographic)
-        {
-            Debug.LogWarning("Spawner currently assumes an orthographic camera.");
-        }
+            Debug.LogWarning("Spawner assumes orthographic camera.");
 
         return true;
     }
 
-    private void GetSpawnBounds(out float minX, out float maxX, out float minY, out float maxY)
+    private void GetScreenBounds(out float minX, out float maxX, out float minY, out float maxY)
     {
-        float fullHeight = targetCamera.orthographicSize * 2f;
-        float fullWidth = fullHeight * targetCamera.aspect;
+        float h = targetCamera.orthographicSize * 2f;
+        float w = h * targetCamera.aspect;
 
-        float spawnWidth = fullWidth * spawnAreaScale;
-        float spawnHeight = fullHeight * spawnAreaScale;
-
-        minX = -spawnWidth * 0.5f;
-        maxX = spawnWidth * 0.5f;
-        minY = -spawnHeight * 0.5f;
-        maxY = spawnHeight * 0.5f;
+        minX = -w * 0.5f;
+        maxX = w * 0.5f;
+        minY = -h * 0.5f;
+        maxY = h * 0.5f;
     }
 
-    private Vector3 GetRandomSpawnPosition(System.Random rng, float minX, float maxX, float minY, float maxY)
+    private void SetupStylisedTag(GameObject obj)
     {
-        float x = Mathf.Lerp(minX, maxX, (float)rng.NextDouble());
-        float y = Mathf.Lerp(minY, maxY, (float)rng.NextDouble());
-
-        return new Vector3(x, y, spawnDepth);
-    }
-
-    private void SetupStylisedTag(GameObject obj, System.Random rng, int objectIndex)
-    {
-        StylisedTag tag = obj.GetComponent<StylisedTag>();
-        if (tag == null)
-            tag = obj.AddComponent<StylisedTag>();
-
-        List<int> styles = GenerateStyles(rng, objectIndex);
-
-        // match TestRunner behaviour
-        tag.SetTestEffectCount(totalAvailableStyles);
+        StylisedTag tag = obj.GetComponent<StylisedTag>() ?? obj.AddComponent<StylisedTag>();
         tag.UseRuntimeTestEffects();
-        tag.ClearRuntimeTestEffects();
-        tag.SetRuntimeTestEffects(styles);
-        tag.Apply();
-
-        // Debug.Log($"{obj.name}: assigned styles [{string.Join(", ", styles)}]");
     }
-
-    private List<int> GenerateStyles(System.Random rng, int objectIndex)
-    {
-        switch (stylePattern)
-        {
-            case StylePattern.SameStyle:
-                return GenerateSameStyle();
-
-            case StylePattern.RandomSingleStyle:
-                return GenerateRandomSingleStyle(rng);
-
-            case StylePattern.RandomMultiStyle:
-                return GenerateRandomMultiStyle(rng);
-
-            default:
-                return new List<int> { 0 };
-        }
-    }
-
-    private List<int> GenerateSameStyle()
-    {
-        return new List<int>
-        {
-            Mathf.Clamp(sameStyleIndex, 0, totalAvailableStyles - 1)
-        };
-    }
-
-    private List<int> GenerateRandomSingleStyle(System.Random rng)
-    {
-        return new List<int>
-        {
-            rng.Next(totalAvailableStyles)
-        };
-    }
-
-    private List<int> GenerateRandomMultiStyle(System.Random rng)
-    {
-        int count = Mathf.Clamp(stylesPerObject, 1, totalAvailableStyles);
-
-        HashSet<int> uniqueStyles = new();
-        while (uniqueStyles.Count < count)
-            uniqueStyles.Add(rng.Next(totalAvailableStyles));
-
-        return new List<int>(uniqueStyles);
-    }
-
-    private void ApplyPreviewStyleSettings()
-    {
-        stylePattern = previewPattern;
-        totalAvailableStyles = Mathf.Clamp(previewTotalStyles, 1, 32);
-        stylesPerObject = Mathf.Clamp(previewStylesPerObject, 1, 32);
-        sameStyleIndex = Mathf.Clamp(previewSameStyleIndex, 0, totalAvailableStyles - 1);
-        seed = previewSeed;
-        spawnAreaScale = Mathf.Clamp(previewAreaScale, 0.05f, 1f);
-    }
-
-    private void GeneratePreviewNow()
-    {
-        ApplyPreviewStyleSettings();
-
-        Regenerate(
-            previewObjectCount,
-            previewPattern,
-            previewTotalStyles,
-            previewStylesPerObject,
-            previewSeed,
-            previewAreaScale,
-            previewSameStyleIndex
-        );
-    }
-
-    private void ClearPreviewNow()
-    {
-        ClearSpawnedObjects();
-    }
-
-    private void ReassignStylesPreviewNow()
-    {
-        ReassignStylesToSpawnedObjects();
-    }
-
-    private void RequestGeneratePreview()
-    {
-#if UNITY_EDITOR
-        EditorApplication.delayCall += DelayedGeneratePreview;
-#endif
-    }
-
-    private void RequestClearPreview()
-    {
-#if UNITY_EDITOR
-        EditorApplication.delayCall += DelayedClearPreview;
-#endif
-    }
-
-    private void RequestReassignStylesPreview()
-    {
-#if UNITY_EDITOR
-        EditorApplication.delayCall += DelayedReassignStylesPreview;
-#endif
-    }
-
-#if UNITY_EDITOR
-    private void DelayedGeneratePreview()
-    {
-        EditorApplication.delayCall -= DelayedGeneratePreview;
-
-        if (this == null)
-            return;
-
-        GeneratePreviewNow();
-    }
-
-    private void DelayedClearPreview()
-    {
-        EditorApplication.delayCall -= DelayedClearPreview;
-
-        if (this == null)
-            return;
-
-        ClearPreviewNow();
-    }
-
-    private void DelayedReassignStylesPreview()
-    {
-        EditorApplication.delayCall -= DelayedReassignStylesPreview;
-
-        if (this == null)
-            return;
-
-        ReassignStylesPreviewNow();
-    }
-#endif
 }
