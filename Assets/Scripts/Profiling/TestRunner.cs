@@ -418,17 +418,14 @@ public class TestRunner : MonoBehaviour
     // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP\
     public void UpdateCoverage(float coveragePercent)
     {
-        var controllers = FindObjectsByType<CoverageController>(FindObjectsSortMode.None);
-        Debug.Log($"CoverageControllers found: {controllers.Length}");
-
-        CoverageController coverageController = FindFirstObjectByType<CoverageController>();
-        if (coverageController == null)
+        OcclusionController occlusionController = FindFirstObjectByType<OcclusionController>();
+        if (occlusionController == null)
         {
-            Debug.LogError("No CoverageController found in scene");
+            Debug.LogError("No Occlusion Controller found in scene");
             return;
         }
 
-        coverageController.UpdateCoverage(coveragePercent);
+        occlusionController.UpdateCoverage(coveragePercent);
     }
 
     private IEnumerator ForceCleanup()

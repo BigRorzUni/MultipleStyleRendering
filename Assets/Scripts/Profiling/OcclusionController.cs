@@ -1,13 +1,13 @@
 using UnityEngine;
 
-public class CoverageController : MonoBehaviour
+public class OcclusionController : MonoBehaviour
 {
-    [SerializeField] private Material coverageMaterial;
+    [SerializeField] private Material occlusionMaterial;
     [SerializeField] public bool useAsOccluder = false;
 
     [Header("Debug")]
     [SerializeField, Range(0f, 100f)]
-    private float debugCoveragePercent = 0f;
+    private float debugOcclusionPercent = 0f;
 
     [SerializeField]
     private bool applyInEditor = true;
@@ -20,7 +20,7 @@ public class CoverageController : MonoBehaviour
     void Awake()
     {
         CreateOrResetQuad();
-        UpdateCoverage(debugCoveragePercent);
+        UpdateCoverage(debugOcclusionPercent);
     }
 
     void OnValidate()
@@ -29,7 +29,7 @@ public class CoverageController : MonoBehaviour
             return;
 
         CreateOrResetQuad();
-        UpdateCoverage(debugCoveragePercent);
+        UpdateCoverage(debugOcclusionPercent);
     }
 
     private void CreateOrResetQuad()
@@ -37,7 +37,7 @@ public class CoverageController : MonoBehaviour
         cam = Camera.main;
         if (cam == null)
         {
-            Debug.LogError("CoverageController: No main camera found.");
+            Debug.LogError("No main camera found for Occlusion Controller");
             return;
         }
 
@@ -48,7 +48,7 @@ public class CoverageController : MonoBehaviour
         // Reuse existing quad if one already exists
         if (quad == null)
         {
-            GameObject existing = GameObject.Find("CoverageQuad");
+            GameObject existing = GameObject.Find("OcclusionQuad");
             if (existing != null)
                 quad = existing;
         }
@@ -57,7 +57,7 @@ public class CoverageController : MonoBehaviour
         GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
         foreach (var obj in allObjects)
         {
-            if (obj.name == "CoverageQuad" && obj != quad)
+            if (obj.name == "OcclusionQuad" && obj != quad)
             {
                 if (Application.isPlaying)
                     Destroy(obj);
@@ -69,7 +69,7 @@ public class CoverageController : MonoBehaviour
         if (quad == null)
         {
             quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            quad.name = "CoverageQuad";
+            quad.name = "OcclusionQuad";
             quad.transform.SetParent(null, true);
 
             if (!useAsOccluder)
@@ -77,8 +77,8 @@ public class CoverageController : MonoBehaviour
         }
 
         Renderer r = quad.GetComponent<Renderer>();
-        if (r != null && coverageMaterial != null)
-            r.sharedMaterial = coverageMaterial;
+        if (r != null && occlusionMaterial != null)
+            r.sharedMaterial = occlusionMaterial;
 
         camHeight = cam.orthographicSize * 2f;
         camWidth = camHeight * cam.aspect;
@@ -90,16 +90,14 @@ public class CoverageController : MonoBehaviour
     public void LoadScene()
     {
         CreateOrResetQuad();
-        UpdateCoverage(debugCoveragePercent);
+        UpdateCoverage(debugOcclusionPercent);
     }
 
     public void UpdateCoverage(float coveragePercent)
     {
-        Debug.Log($"[Coverage] {coveragePercent}% → pos {quad.transform.position.x}");
-
         if (quad == null)
         {
-            Debug.LogError("CoverageController: quad is null.");
+            Debug.LogError("Occlusion quad is null.");
             return;
         }
 
@@ -108,15 +106,8 @@ public class CoverageController : MonoBehaviour
         quad.transform.rotation = Quaternion.identity;
         quad.transform.localScale = new Vector3(camWidth, camHeight, 1f);
 
-        // Horizontal wipe: 0% = fully off-screen left, 100% = fully covering screen.
         float targetX = Mathf.Lerp(-camWidth, 0f, t);
 
         quad.transform.position = new Vector3(targetX, 0f, 0f);
-
-        Debug.Log(
-            $"CoverageController: coverage={coveragePercent}% | t={t} | " +
-            $"targetX={targetX} | pos={quad.transform.position} | " +
-            $"scale={quad.transform.localScale} | camWidth={camWidth} | camHeight={camHeight}"
-        );
     }
 }

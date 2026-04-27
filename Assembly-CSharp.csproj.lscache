@@ -81,8 +81,8 @@ Assets/Scripts/Prepasses/
  Source Prepass/SourcePrepass.cs
 Assets/Scripts/Profiling/
  BenchmarkStats.cs
- CoverageController.cs
  CsvWriter.cs
+ OcclusionController.cs
  Spawner.cs
  TestRunner.cs
 Assets/Scripts/_Pipeline/

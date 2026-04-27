@@ -16,7 +16,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
         PassName = passName;
         _requiredBit = requiredBit;
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        profilingSampler = new ProfilingSampler(passName); // makes pass appear in profiler
+        profilingSampler = new ProfilingSampler(passName); 
 
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
