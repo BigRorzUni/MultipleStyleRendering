@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Profiling;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public class NprStylesRendererFeature : ScriptableRendererFeature
@@ -56,7 +54,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     public void EnableTestMode(int styleCount)
     {
         NprTestingConfig.TestMode = true;
-        testEffectCount = Mathf.Clamp(styleCount, 1, 32);
+        testEffectCount = Mathf.Clamp(styleCount, 0, 32);
         Create();
     }
 
@@ -101,8 +99,54 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         return NprTestingConfig.CurrentTestEffect == TestEffect.Heavy;
     }
 
+    private void ApplySettingsToConfig()
+    {
+        NprTestingConfig.RenderMode = settings.renderMode;
+        NprTestingConfig.GPUMergeMethod = settings.gpuMergeMethod;
+        NprTestingConfig.CurrentTestEffect = settings.currentTestEffect;
+        NprTestingConfig.CurrentTileSize = settings.currentTileSize;
+
+        NprTestingConfig.UseMerging = settings.useMerging;
+        NprTestingConfig.UseOcclusion = settings.useOcclusion;
+        NprTestingConfig.TestMode = settings.testMode;
+
+        NprTestingConfig.DebugBBoxes = settings.debugBBoxes;
+        NprTestingConfig.DebugID = settings.debugID;
+    }
+
+    private void ConfigureTagsForSettings()
+    {
+        StylisedTag[] tags;
+
+        tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        foreach (var tag in tags)
+        {
+            if (!tag) continue;
+
+            tag.SetTestEffectCount(TestEffectCount);
+
+            if (NprTestingConfig.TestMode)
+            {
+                tag.UseInspectorTestEffects();
+            }
+
+            tag.Apply();
+        }
+    }
+
+    void OnValidate()
+    {
+        Create();
+    }
+
     public override void Create()
     {
+        if (!NprTestingConfig.IsBenchmarkRunning)
+        {
+            ApplySettingsToConfig();
+            ConfigureTagsForSettings();
+        }
         DisposePasses();
         
         if (idShader == null)
@@ -342,18 +386,12 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
                 pass.ConfigureInput(effect.RequiredInputs);
 
-                pass.ApplySettings(settings);
-
                 renderer.EnqueuePass(pass);
             }
         }
 
         if (NprTestingConfig.DebugBBoxes && _bboxDebugPass != null)
             renderer.EnqueuePass(_bboxDebugPass);
-
-        if(NprTestingConfig.DebugID)
-            // debug id pass
-            Debug.Log("show hashed IDs");
     }
 
     private void DisposePasses()

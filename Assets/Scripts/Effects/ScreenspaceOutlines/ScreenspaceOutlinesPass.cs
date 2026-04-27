@@ -29,7 +29,7 @@ public class ScreenspaceOutlinesPass : EffectPass
     float _depthStrength = 1.0f;
     float _normalThreshold = 0.2f;
     float _normalStrength = 1.0f;
-    public Color _outlineColour;
+    public Color _outlineColour = Color.black;
     public float _outlineThickness;
 
     private class PassData
@@ -62,16 +62,6 @@ public class ScreenspaceOutlinesPass : EffectPass
 
     public ScreenspaceOutlinesPass(Shader shader, StyleBits.ImageSpaceEffect requiredBit) : base(shader, "ScreenspaceOutlinesPass", requiredBit)
     {
-    }
-
-    public override void ApplySettings(Settings settings)
-    {
-        _outlineColour = settings.outlines.colour;
-        _outlineThickness = settings.outlines.thickness;
-        _depthThreshold = settings.outlines.depthThreshold;
-        _depthStrength = settings.outlines.depthStrength;
-        _normalThreshold = settings.outlines.normalThreshold;
-        _normalStrength = settings.outlines.normalStrength;
     }
 
     protected override bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)

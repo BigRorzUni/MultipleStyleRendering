@@ -3,20 +3,18 @@ using UnityEngine;
 [System.Serializable]
 public class Settings
 {
-    [Header("Outlines")]
-    public OutlinesSettings outlines = new OutlinesSettings();
+    [Header("Pipeline")]
+    public NprRenderMode renderMode = NprRenderMode.CPU;
+    public GpuMergeMethod gpuMergeMethod = GpuMergeMethod.BucketedUnion;
+    public TestEffect currentTestEffect = TestEffect.Dummy;
+    public TileSize currentTileSize = TileSize.Size32;
 
-}
+    public bool useMerging;
+    public bool useOcclusion;
+    public bool testMode;
 
-[System.Serializable]
-public class OutlinesSettings
-{
-    public Color colour = Color.black;
-    public float thickness = 1f;
+    public bool debugBBoxes;
+    public bool debugID;
 
-    public float depthThreshold = 0.02f;
-    public float depthStrength = 1.0f;
-    public float normalThreshold = 0.2f;
-    public float normalStrength = 1.0f;
 }
 

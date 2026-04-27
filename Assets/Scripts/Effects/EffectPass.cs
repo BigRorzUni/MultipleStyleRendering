@@ -23,11 +23,6 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
     }
 
 
-    public virtual void ApplySettings(Settings settings)
-    {
-        // if RendererFeature applies settings they can be given to pass here
-    }
-
     public sealed override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (_mat == null)

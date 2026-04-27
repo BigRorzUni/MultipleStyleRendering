@@ -9,29 +9,6 @@ using UnityEngine.Rendering.Universal;
 using System.Reflection;
 using System.Collections.Generic;
 
-public static class NprTestingConfig
-{
-    public static NprRenderMode RenderMode = NprRenderMode.CPU;
-
-    public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;
-    public static TestEffect CurrentTestEffect = TestEffect.Dummy;
-    public static TileSize CurrentTileSize = TileSize.Size32;
-
-
-    public static bool UseMerging;
-    public static bool UseOcclusion;
-    public static bool TestMode = false;
-
-    public static int N = 0; // total styles
-    public static int K = 0; // actice styles in scene
-    public static int StylesPerObject = 0; // max styles per object
-
-    public static string SceneName = ""; // scene to test
-    public static bool IsBenchmarkRunning = false;
-    public static bool DebugBBoxes = false;
-    public static bool DebugID = false;
-}
-
 public enum TestEffect
 {
     Dummy,
@@ -80,20 +57,18 @@ public class NprTestCase
     public int[] values;
 
     // parameters
-    public int N = 32;
-    public int K = 1;
-    public int stylesPerObject = 1;
+    public int N = 32; // number of queued styles
+    public int K = 1; // number of applied styles in scene
+    public int stylesPerObject = 1; // number of styles per each object
 
     public int objectCount = 0;
     public float coverageFraction = 1.0f;
     public float overlapFraction = 0.0f;
-    public float spawnAreaScale = 1.0f;
     public StylePattern stylePattern = StylePattern.SameStyle;
 
     public bool useMerging = false;
     public bool useOcclusion = false;
     public bool useOcclusionCoverageController = false;
-    public GpuMergeMethod gpuMergeMethod = GpuMergeMethod.BucketedUnion;
     public TestEffect testEffect = TestEffect.Dummy;
     public TileSize tileSize = TileSize.Size32;  
     public NprRenderMode[] renderModes;
@@ -122,16 +97,8 @@ public class TestRunner : MonoBehaviour
     [SerializeField] private int framesToCapture = 1000;
     NprStylesRendererFeature n;
 
-    [Header("pipeline config")]
-    public NprRenderMode setRenderMode = NprRenderMode.CPU;
-    public bool setUseMerging = true;
-    public GpuMergeMethod setGpuMergeMethod = GpuMergeMethod.BucketedUnion;
-    public bool setUseOcclusion = true;
 
-    public bool setRendererTestmode = false;
     public bool setRuntimeTestEffectsInEditor = false;
-    public bool setDebugBBoxes = false;
-    public bool setDebugId = false;
     private string logDir = null;
 
     private ProfilerRecorder cpuFrameRec;
@@ -315,34 +282,6 @@ public class TestRunner : MonoBehaviour
         logDir = Path.Combine(buildFolder, "ProfilingLogs");
     }
 
-    private void ConfigureTagsForTestMode(TestEffectAssignmentMode mode, bool includeInactive = false)
-    {
-        StylisedTag[] tags;
-        if (includeInactive)
-            tags = FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        else
-            tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        foreach (var tag in tags)
-        {
-            if (!tag) continue;
-
-            tag.SetTestEffectCount(n.TestEffectCount);
-
-            if (mode == TestEffectAssignmentMode.Inspector)
-            {
-                tag.UseInspectorTestEffects();
-            }
-            else
-            {
-                tag.UseRuntimeTestEffects();
-                tag.ClearRuntimeTestEffects();
-            }
-
-            tag.Apply();
-        }
-    }
-
     private void PrepareSceneTagsForRuntime()
     {
         var tags = FindObjectsByType<StylisedTag>(
@@ -456,64 +395,6 @@ public class TestRunner : MonoBehaviour
         yield return null;
         yield return null;
     }
-    public void OnValidate()
-    {
-        if (n == null)
-        {
-            ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
-
-            FieldInfo field = typeof(ScriptableRenderer).GetField("m_RendererFeatures", BindingFlags.NonPublic | BindingFlags.Instance);
-            IList list = field.GetValue(renderer) as IList;
-
-            foreach (UnityEngine.Object f in list)
-            {
-                if (f is NprStylesRendererFeature feature)
-                    n = feature;
-            }
-
-            if (n == null)
-            {
-                Debug.Log("No renderer feature found");
-                return;
-            }
-        }
-
-        NprTestingConfig.TestMode = setRendererTestmode;
-        NprTestingConfig.DebugBBoxes = setDebugBBoxes;
-        NprTestingConfig.DebugID = setDebugId;
-        NprTestingConfig.GPUMergeMethod = setGpuMergeMethod;
-
-        NprTestingConfig.RenderMode = setRenderMode;
-        NprTestingConfig.UseMerging = setUseMerging;
-        NprTestingConfig.UseOcclusion = setUseOcclusion;
-        
-
-        if (NprTestingConfig.TestMode)
-        {
-            n.EnableTestMode(32);
-
-            if (setRuntimeTestEffectsInEditor)
-            {
-                ConfigureTagsForTestMode(TestEffectAssignmentMode.Runtime, includeInactive: true);
-                foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
-                {
-                    tag.SetRuntimeTestEffects(Enumerable.Range(0, n.TestEffectCount));
-                    tag.Apply();
-                }
-            }
-            else
-            {
-                ConfigureTagsForTestMode(TestEffectAssignmentMode.Inspector, includeInactive: true);
-            }
-        }
-        else
-        {
-            n.DisableTestMode();
-
-            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
-                tag.Apply();
-        }
-    }
 
     private IEnumerator RunAllTests()
     {
@@ -596,7 +477,7 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.UseOcclusion = test.useOcclusion;
 
                     if (renderMode == NprRenderMode.GPU && test.useMerging)
-                        NprTestingConfig.GPUMergeMethod = test.gpuMergeMethod;
+                        NprTestingConfig.GPUMergeMethod = GpuMergeMethod.BucketedUnion; // not benchmarking the other one as it is not correct
 
                     n.EnableTestMode(curN);
 
