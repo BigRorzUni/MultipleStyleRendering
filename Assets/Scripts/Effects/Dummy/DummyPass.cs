@@ -47,7 +47,7 @@ public class DummyPass : EffectPass
         if (!nprFrameData.idTexture.IsValid())
             return false;
 
-        if (((nprFrameData.presentTestStyles & _testRequiredBit) == 0) && NprTestingConfig.RenderMode != NprRenderMode.Fullscreen)
+        if ((nprFrameData.presentTestStyles & _testRequiredBit) == 0)
             return false;
 
         return true;
