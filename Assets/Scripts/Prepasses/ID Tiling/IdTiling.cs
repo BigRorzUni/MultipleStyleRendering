@@ -123,7 +123,11 @@ public class IdTiling : Prepass
         if (!nprFrameData.idTexture.IsValid())
             return;
 
+        
+        if (NprTestingConfig.TestMode && nprFrameData.presentTestStyles == 0)
+            return;
 
+        
         int screenWidth = cameraData.cameraTargetDescriptor.width;
         int screenHeight = cameraData.cameraTargetDescriptor.height;
 

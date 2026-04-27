@@ -17,6 +17,7 @@ public static class NprTestingConfig
 
     public static string SceneName = ""; // scene to test
     public static bool IsBenchmarkRunning = false;
+    public static bool IsValidationRunning = false;
     public static bool DebugBBoxes = false;
     public static bool DebugID = false;
 }

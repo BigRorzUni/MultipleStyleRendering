@@ -55,7 +55,7 @@ Assets/Scripts/Debug/
  Compute Buffers/
   GpuDebug.cs
   GpuDebugState.cs
- Correctness/CorrectnessCheck.cs
+ Correctness/Validator.cs
 Assets/Scripts/Effects/Dithering/
  DitheringEffect.cs
  DitheringPass.cs

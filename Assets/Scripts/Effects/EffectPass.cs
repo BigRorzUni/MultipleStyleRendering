@@ -55,7 +55,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
                 break;
             
             case NprRenderMode.Tiling:
-                RunGpu(renderGraph, frameData, cameraData, nprFrameData); // For now run GPU version for tiling as well
+                RunGpu(renderGraph, frameData, cameraData, nprFrameData);
                 break;
         }
     }

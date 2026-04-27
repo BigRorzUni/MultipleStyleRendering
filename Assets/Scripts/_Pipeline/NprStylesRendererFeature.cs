@@ -142,7 +142,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public override void Create()
     {
-        if (!NprTestingConfig.IsBenchmarkRunning)
+        if (!NprTestingConfig.IsBenchmarkRunning && !NprTestingConfig.IsValidationRunning)
         {
             ApplySettingsToConfig();
             ConfigureTagsForSettings();

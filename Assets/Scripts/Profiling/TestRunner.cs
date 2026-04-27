@@ -76,29 +76,12 @@ public class NprTestCase
     public TestEffectAssignmentMode effectMode = TestEffectAssignmentMode.Runtime;
 }
 
-[Serializable]
-public class PassTimingCapture
-{
-    public string passName;
-    public double[] cpuMs;
-    public double[] gpuMs;
-
-    public PassTimingCapture(string passName, int frameCount)
-    {
-        this.passName = passName;
-        cpuMs = new double[frameCount];
-        gpuMs = new double[frameCount];
-    }
-}
-
 public class TestRunner : MonoBehaviour
 {
-    [SerializeField] private int startupFrames = 500;
-    [SerializeField] private int framesToCapture = 1000;
+    private int startupFrames = 500;
+    private int framesToCapture = 500;
     NprStylesRendererFeature n;
 
-
-    public bool setRuntimeTestEffectsInEditor = false;
     private string logDir = null;
 
     private ProfilerRecorder cpuFrameRec;
@@ -354,6 +337,7 @@ public class TestRunner : MonoBehaviour
 
         Debug.Log($"Applied rotating single-style masks across {k} styles to {tags.Length} objects.");
     }
+
     // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP\
     public void UpdateCoverage(float coveragePercent)
     {
@@ -412,17 +396,6 @@ public class TestRunner : MonoBehaviour
                 Debug.LogWarning($"'{test.name}' has no values. Skipping.");
                 continue;
             }
-
-            // List<int> shuffledValues = test.values.ToList();
-            // System.Random rng = new(12345); // fixed seed 
-
-            // for (int i = shuffledValues.Count - 1; i > 0; i--)
-            // {
-            //     int j = rng.Next(i + 1);
-            //     (shuffledValues[i], shuffledValues[j]) = (shuffledValues[j], shuffledValues[i]);
-            // }
-
-            // Debug.Log($"Shuffled testing order {string.Join(", ", shuffledValues)}");
 
             foreach (int v in test.values.ToList())
             {
@@ -484,10 +457,6 @@ public class TestRunner : MonoBehaviour
                     // scene setup depending on variable being tested
                     switch (test.variable)
                     {
-                        case TestVariable.ObjectCount:
-                            yield return RegenerateSpawnedScene(v, test.coverageFraction, 0f);
-                            break;
-
                         case TestVariable.Coverage:
                             if (test.useOcclusionCoverageController)
                                 {
@@ -507,16 +476,8 @@ public class TestRunner : MonoBehaviour
                             yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, v / 100f);
                             break;
 
-                        case TestVariable.StylesPerObject:
-                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f);
-                            break;
-
-                        case TestVariable.N:
-                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f);
-                            break;
-
                         default:
-                            // for non-spawner-driven tests
+                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f);
                             break;
                     }
 
@@ -572,9 +533,6 @@ public class TestRunner : MonoBehaviour
 
     private void Start()
     {
-        // TEMPORARY FOR TESTING
-        //ApplyTestStylesToScene(32, 1);
-
         if (!NprTestingConfig.IsBenchmarkRunning)
             return;
 
