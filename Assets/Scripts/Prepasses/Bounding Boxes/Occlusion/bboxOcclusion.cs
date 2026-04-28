@@ -81,6 +81,8 @@ public class BBoxOcclusion : Prepass
             if (!nprFrameData.idTexture.IsValid())
                 return;
 
+            
+
             for (int i = 0; i < nprFrameData.bboxes.Count; i++)
             {
                 BoundingBox bbox = nprFrameData.bboxes[i];
@@ -93,6 +95,7 @@ public class BBoxOcclusion : Prepass
 
                 using (var builder = renderGraph.AddComputePass($"BBox Occlusion Analyse {i}", out ComputePassData passData, profilingSampler))
                 {
+                    
                     builder.AllowPassCulling(false);
 
                     passData.visibilityTex = nprFrameData.idTexture;
@@ -101,7 +104,10 @@ public class BBoxOcclusion : Prepass
                     passData.compute = _occlusionCompute;
                     passData.kernel = _occlusionKernelSingle;
                     passData.bboxIndex = (uint)i;
-                    passData.expectedMask = bbox.testMask;
+                    if(NprTestingConfig.TestMode)
+                        passData.expectedMask = bbox.testMask;
+                    else
+                        passData.expectedMask = (uint)bbox.styles;
 
                     builder.UseTexture(passData.visibilityTex, AccessFlags.Read);
 

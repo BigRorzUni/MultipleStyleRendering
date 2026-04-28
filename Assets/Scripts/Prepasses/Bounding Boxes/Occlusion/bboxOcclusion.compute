@@ -12,6 +12,7 @@ StructuredBuffer<float4> _Rects;
 int _BboxCount;
 
 StructuredBuffer<uint> _ExpectedMasks;
+uint _ExpectedMask;
 
 groupshared uint anyVisible;
 
@@ -48,13 +49,11 @@ void OcclusionCheckSingle(uint3 groupThreadID : SV_GroupThreadID)
 
         int2 pixel = int2(_Rect.x + localX, _Rect.y + localY);
 
-        float value = _VisibilityTex.Load(int3(pixel, 0)).r;
-
         // reconstruct mask from texture (0–255 range)
-        uint pixelMask = (uint)round(saturate(value) * 255.0);
+        uint pixelMask = ReadMask32(pixel);
 
         // check if any expected ID bit is present
-        if (pixelMask != 0) // using visibility tex
+        if ((pixelMask & _ExpectedMask) != 0) // using visibility tex
             anyVisible = 1;
     }
 
@@ -75,33 +74,30 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
 
     float4 rect = _Rects[bboxIndex];
 
+    int x0 = (int)floor(rect.x);
+    int y0 = (int)floor(rect.y);
+    uint width = max(1u, (uint)ceil(rect.z));
+    uint height = max(1u, (uint)ceil(rect.w));
+    uint total = width * height;
+
+    uint expectedMask = _ExpectedMasks[bboxIndex];
+
     if (groupThreadID.x == 0)
         anyVisible = 0;
 
     GroupMemoryBarrierWithGroupSync();
 
-    uint width = (uint)rect.z;
-    uint height = (uint)rect.w;
-    uint total = width * height;
-
-    // each thread scans part of the bbox
     for (uint index = groupThreadID.x; index < total; index += 64)
     {
         uint localX = index % width;
         uint localY = index / width;
 
-        int2 pixel = int2((int)rect.x + (int)localX, (int)rect.y + (int)localY);
+        int2 pixel = int2(x0 + (int)localX, y0 + (int)localY);
 
-        float value = _VisibilityTex.Load(int3(pixel, 0)).r;
-
-        // reconstruct mask from texture (0–255 range)
         uint pixelMask = ReadMask32(pixel);
 
-        uint expectedMask = _ExpectedMasks[bboxIndex];
-
-        // check if any expected ID bit is present
-        if (pixelMask == expectedMask) // if using id
-            anyVisible = 1;
+        if (pixelMask != 0)
+            InterlockedOr(anyVisible, 1);
     }
 
     GroupMemoryBarrierWithGroupSync();
