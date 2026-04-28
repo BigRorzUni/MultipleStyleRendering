@@ -9,10 +9,6 @@ public class CpuGeneration : Prepass
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
-    ComputeBuffer _bboxVisibilityBuffer;
-    int _bboxVisibilityBufferCapacity = 0;
-    uint[] _bboxVisibilityInitData;
-
     private class ComputePassData
     {
         public ComputeShader compute;
@@ -61,6 +57,7 @@ public class CpuGeneration : Prepass
 
         nprFrameData.presentImageBits = 0;
         nprFrameData.presentTestStyles = 0;
+        nprFrameData.visibilityBuffer = null; 
 
         if (nprFrameData.bboxes == null)
             nprFrameData.bboxes = new List<BoundingBox>();
@@ -107,8 +104,6 @@ public class CpuGeneration : Prepass
         }
 
         nprFrameData.bboxCount = nprFrameData.bboxes.Count;
-        nprFrameData.visibilityBuffer = null; 
-        
     }
 
     static readonly int[,] BoxEdges = new int[,]
@@ -248,10 +243,5 @@ public class CpuGeneration : Prepass
 
     public override void Dispose()
     {
-        if (_bboxVisibilityBuffer != null)
-        {
-            _bboxVisibilityBuffer.Release();
-            _bboxVisibilityBuffer = null;
-        }
     }
 }

@@ -14,6 +14,9 @@ public class GpuOcclusion : Prepass
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
+    int _bboxVisibilityBufferCapacity = 0;
+    uint[] _bboxVisibilityInitData;
+
 
     private class ComputePassData
     {
@@ -54,6 +57,18 @@ public class GpuOcclusion : Prepass
             nprFrameData = frameContext.Get<NprFrameData>();
         else
             nprFrameData = frameContext.Create<NprFrameData>();
+
+
+        NprFrameData.EnsureBufferCapacity(ref nprFrameData.visibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+
+        if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
+            _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
+
+        for (int i = 0; i < nprFrameData.bboxCount; i++)
+            _bboxVisibilityInitData[i] = 1u;
+
+        if (nprFrameData.visibilityBuffer != null && _bboxVisibilityInitData != null)
+            nprFrameData.visibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
         if (nprFrameData.visibilityBuffer == null)
             return;

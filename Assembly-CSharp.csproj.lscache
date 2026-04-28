@@ -76,8 +76,8 @@ Assets/Scripts/Prepasses/Bounding Boxes/Generation/
  cpuGeneration.cs
  gpuGeneration.cs
 Assets/Scripts/Prepasses/Bounding Boxes/Occlusion/
- bboxOcclusion.cs
  cpuOcclusion.cs
+ gpuOcclusion.cs
 Assets/Scripts/Prepasses/
  Id Prepass/IdPrepass.cs
  ID Tiling/IdTiling.cs
