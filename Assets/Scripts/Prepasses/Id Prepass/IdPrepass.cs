@@ -110,17 +110,17 @@ public class IdPrepass : Prepass
             });
 
         
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        foreach (var tag in tags)
-        {
-            if (tag == null)
-                continue;
+            StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
+            foreach (var tag in tags)
+            {
+                if (tag == null)
+                    continue;
 
-            nprFrameData.presentImageBits |= tag.imageEffects;
+                nprFrameData.presentImageBits |= tag.imageEffects;
 
-            if (NprTestingConfig.TestMode)
-                nprFrameData.presentTestStyles |= tag.currentTestEffects;
-        }
+                if (NprTestingConfig.TestMode)
+                    nprFrameData.presentTestStyles |= tag.currentTestEffects;
+            }
         }
     }
 

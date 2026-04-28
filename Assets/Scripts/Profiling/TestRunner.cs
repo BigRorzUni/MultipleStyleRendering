@@ -110,21 +110,216 @@ public class TestRunner : MonoBehaviour
         //     effectMode = TestEffectAssignmentMode.Runtime,
         // },
         // Count scaling, same style, 50% coverage
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 10 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] {  50 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] {  100 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
         new NprTestCase
         {
             name = "CountScaling_Cov50_SameStyle",
             scene = "TestScene_Spawner",
             variable = TestVariable.ObjectCount,
-            values = new[] { 1, 10, 50, 100 },
+            values = new[] { 1 },
             N = 32,
             K = 32,
             stylesPerObject = 32,
-            objectCount = 1,
             coverageFraction = 0.5f,
             stylePattern = StylePattern.SameStyle,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+            renderModes = new[] { NprRenderMode.GPU },
             effectMode = TestEffectAssignmentMode.Runtime,
         },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 8 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 32 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 128 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 512 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1024 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 2048 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        new NprTestCase
+        {
+            name = "CountScaling_Cov50_SameStyle",
+            scene = "TestScene_Spawner",
+            variable = TestVariable.ObjectCount,
+            values = new[] { 4096 },
+            N = 32,
+            K = 32,
+            stylesPerObject = 32,
+            coverageFraction = 0.5f,
+            stylePattern = StylePattern.SameStyle,
+            renderModes = new[] { NprRenderMode.GPU },
+            effectMode = TestEffectAssignmentMode.Runtime,
+        },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 1000},
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 2000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "CountScaling_Cov50_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 5000 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     coverageFraction = 0.5f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
         // Tiling object scale test, 1000 objects
         // new NprTestCase
         // {
@@ -578,7 +773,10 @@ public class TestRunner : MonoBehaviour
                         case TestVariable.ObjectScale:
                             yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, test.overlapFraction, 1.0f / v);
                             break;
-
+                        
+                        case TestVariable.ObjectCount:
+                            yield return RegenerateSpawnedScene(v, test.coverageFraction, 0f, test.objectScaleFactor);
+                            break;
                         default:
                             yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f, test.objectScaleFactor);
                             break;
