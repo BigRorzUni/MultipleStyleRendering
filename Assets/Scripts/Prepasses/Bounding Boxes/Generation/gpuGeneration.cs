@@ -16,12 +16,12 @@ public struct BBoxGenerationInput // 32 bytes total for GPU
     public uint mask; // 4 bytes
 }
 
-public class BBoxGeneration : Prepass
+public class GpuGeneration : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
-    readonly ComputeShader _bboxGeneration;
+    readonly ComputeShader _gpuBboxGeneration;
     readonly int _bboxGenerationKernel;
     readonly int _buildDrawArgsKernel;
 
@@ -69,26 +69,26 @@ public class BBoxGeneration : Prepass
         public float nearZ;
     }
 
-    public BBoxGeneration(ComputeShader bboxGeneration) : base("BBoxGeneration")
+    public GpuGeneration(ComputeShader gpuBboxGeneration) : base("GpuGeneration")
     {
-        if (bboxGeneration != null)
+        if (gpuBboxGeneration != null)
         {
-            _bboxGeneration = bboxGeneration;
-            _bboxGenerationKernel = _bboxGeneration.FindKernel("GenerateBboxes");
-            _buildDrawArgsKernel = _bboxGeneration.FindKernel("BuildDrawArgs");
+            _gpuBboxGeneration = gpuBboxGeneration;
+            _bboxGenerationKernel = _gpuBboxGeneration.FindKernel("GenerateBboxes");
+            _buildDrawArgsKernel = _gpuBboxGeneration.FindKernel("BuildDrawArgs");
         }
     }
 
-    public BBoxGeneration(ComputeShader bboxGeneration, int testCount, bool testModeEnabled) : base("BBoxGeneration")
+    public GpuGeneration(ComputeShader bboxGeneration, int testCount, bool testModeEnabled) : base("GpuGeneration")
     {
         testStyleCount = testCount;
         _testModeEnabled = testModeEnabled;
 
         if (bboxGeneration != null)
         {
-            _bboxGeneration = bboxGeneration;
-            _bboxGenerationKernel = _bboxGeneration.FindKernel("GenerateBboxes");
-            _buildDrawArgsKernel = _bboxGeneration.FindKernel("BuildDrawArgs");
+            _gpuBboxGeneration = bboxGeneration;
+            _bboxGenerationKernel = _gpuBboxGeneration.FindKernel("GenerateBboxes");
+            _buildDrawArgsKernel = _gpuBboxGeneration.FindKernel("BuildDrawArgs");
         }
     }
 
@@ -231,7 +231,7 @@ public class BBoxGeneration : Prepass
 
                     _bboxMaskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxCount);
 
-                    if (_bboxGeneration == null)
+                    if (_gpuBboxGeneration == null)
                     {
                         Debug.LogError("bboxPrepass: bbox generation compute shader not assigned.");
                         return;
@@ -252,7 +252,7 @@ public class BBoxGeneration : Prepass
                     {
                         builder.AllowPassCulling(false);
 
-                        passData.compute = _bboxGeneration;
+                        passData.compute = _gpuBboxGeneration;
                         passData.bboxGenerationKernel = _bboxGenerationKernel;
                         passData.buildDrawArgsKernel = _buildDrawArgsKernel;
 

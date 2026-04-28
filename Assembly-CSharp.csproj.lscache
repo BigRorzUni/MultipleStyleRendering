@@ -72,10 +72,11 @@ Assets/Scripts/Prepasses/Bounding Boxes/Compaction/
  cpuMerging.cs
  gpuMerging.cs
  gpuTiling.cs
-Assets/Scripts/Prepasses/Bounding Boxes/
- Generation/bboxGeneration.cs
- Occlusion/bboxOcclusion.cs
+Assets/Scripts/Prepasses/Bounding Boxes/Generation/
+ cpuGeneration.cs
+ gpuGeneration.cs
 Assets/Scripts/Prepasses/
+ Bounding Boxes/Occlusion/bboxOcclusion.cs
  Id Prepass/IdPrepass.cs
  ID Tiling/IdTiling.cs
  Prepass.cs

@@ -7,7 +7,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     // prepasses
     private SourcePrepass _sourcePrepass;
     private IdPrepass _idPrepass;
-    private BBoxGeneration _bboxPrepass;
+    private CpuGeneration _cpuGenerationPrepass;
+    private GpuGeneration _gpuGenerationPrepass;
     private BBoxOcclusion _bboxOcclusionPrepass;
     private CpuMerging _cpuMergingPrepass;
     private GpuMerging _gpuMergingPrepass;
@@ -29,7 +30,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader ditheringBatchedShader;
 
-    [SerializeField] private ComputeShader bboxGenerationComputeShader;
+    [SerializeField] private ComputeShader gpuGenerationComputeShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader bboxMergingComputeShader;
@@ -62,11 +63,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     {
         NprTestingConfig.TestMode = false;
         Create();
-    }
-
-    bool UseBoundingBoxes()
-    {
-        return UseCpuMode() || UseGpuMode();
     }
 
     bool UseGpuMode()
@@ -172,18 +168,30 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 _idTilingPrepass = new IdTiling(tilingComputeShader, (int)NprTestingConfig.CurrentTileSize);
         }
 
-        if (bboxGenerationComputeShader == null)
+        if(UseCpuMode())
         {
-            Debug.LogError("Occlusion compute shader 'GenerateBboxes' not set");
-            return;
+            if (NprTestingConfig.TestMode)
+                _cpuGenerationPrepass = new CpuGeneration(testEffectCount, true);
+            else
+                _cpuGenerationPrepass = new CpuGeneration();
         }
 
-        if (NprTestingConfig.TestMode)
-            _bboxPrepass = new BBoxGeneration(bboxGenerationComputeShader, testEffectCount, true);
-        else
-            _bboxPrepass = new BBoxGeneration(bboxGenerationComputeShader);
 
-        if (NprTestingConfig.UseOcclusion && UseBoundingBoxes())
+        if(UseGpuMode())
+        {
+            if (gpuGenerationComputeShader == null)
+            {
+                Debug.LogError("Occlusion compute shader 'GenerateBboxes' not set");
+                return;
+            }
+
+            if (NprTestingConfig.TestMode)
+                _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader, testEffectCount, true);
+            else
+                _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader);
+        }
+
+        if (NprTestingConfig.UseOcclusion && UseCpuMode())
         {
             if (occlusionComputeShader == null)
             {
@@ -194,30 +202,40 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             _bboxOcclusionPrepass = new BBoxOcclusion(occlusionComputeShader);
         }
 
-        if (NprTestingConfig.UseMerging && UseBoundingBoxes())
+        if (NprTestingConfig.UseOcclusion && UseGpuMode())
         {
-            if (UseCpuMode())
+            if (occlusionComputeShader == null)
             {
-                _cpuMergingPrepass = new CpuMerging();
+                Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
+                return;
             }
-            else if (UseGpuMode())
+
+            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionComputeShader);
+        }
+
+        if (NprTestingConfig.UseMerging && UseCpuMode())
+        {
+            _cpuMergingPrepass = new CpuMerging();
+        }
+
+        if(NprTestingConfig.UseMerging && UseGpuMode())
+        {
+            if (bboxMergingComputeShader == null)
             {
-                if (bboxMergingComputeShader == null)
-                {
-                    Debug.LogError("Merging compute shader 'MergeBboxes' not set");
-                    return;
-                }
-
-                _gpuMergingPrepass = new GpuMerging(bboxMergingComputeShader);
-
-                if (tileMergingComputeShader == null)
-                {
-                    Debug.LogError("Tile merging compute shader 'TileMerge' not set");
-                    return;
-                }
-
-                _gpuTileMergingPrepass = new GpuTiling(tileMergingComputeShader);
+                Debug.LogError("Merging compute shader 'MergeBboxes' not set");
+                return;
             }
+
+            _gpuMergingPrepass = new GpuMerging(bboxMergingComputeShader);
+
+            if (tileMergingComputeShader == null)
+            {
+                Debug.LogError("Tile merging compute shader 'TileMerge' not set");
+                return;
+            }
+
+            _gpuTileMergingPrepass = new GpuTiling(tileMergingComputeShader);
+            
         }
 
         if (NprTestingConfig.DebugBBoxes && !(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen))
@@ -344,17 +362,27 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        if (_idPrepass == null || _bboxPrepass == null)
+        if (_idPrepass == null)
             return;
 
         renderer.EnqueuePass(_idPrepass);
 
-        if(UseBoundingBoxes())
+        if(UseCpuMode())
         {
-            renderer.EnqueuePass(_bboxPrepass);
+            if(_cpuGenerationPrepass != null)
+                renderer.EnqueuePass(_cpuGenerationPrepass);
         
             if (NprTestingConfig.UseMerging && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);
+
+            if (NprTestingConfig.UseOcclusion && _bboxOcclusionPrepass != null)
+                renderer.EnqueuePass(_bboxOcclusionPrepass);
+        }
+        else if(UseGpuMode())
+        {
+            if(_gpuGenerationPrepass != null)
+                renderer.EnqueuePass(_gpuGenerationPrepass);
+        
 
             if (NprTestingConfig.UseOcclusion && _bboxOcclusionPrepass != null)
                 renderer.EnqueuePass(_bboxOcclusionPrepass);
@@ -405,8 +433,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idTilingPrepass?.Dispose();
         _idTilingPrepass = null;
 
-        _bboxPrepass?.Dispose();
-        _bboxPrepass = null;
+        _gpuGenerationPrepass?.Dispose();
+        _gpuGenerationPrepass = null;
 
         _bboxOcclusionPrepass?.Dispose();
         _bboxOcclusionPrepass = null;
