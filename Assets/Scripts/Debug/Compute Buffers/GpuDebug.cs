@@ -43,7 +43,7 @@ public class GpuDebug : MonoBehaviour
 
         if (tileMaskBuffer == null)
         {
-            Debug.Log("=== NPR GPU TILE DEBUG ===\nTile mask buffer: null");
+            Debug.Log("=== GPU TILE DEBUG ===\nTile mask buffer: null");
             return;
         }
 
@@ -54,7 +54,7 @@ public class GpuDebug : MonoBehaviour
 
         if (tileCount <= 0)
         {
-            Debug.Log("=== NPR GPU TILE DEBUG ===\nTile grid is empty");
+            Debug.Log("=== GPU TILE DEBUG ===\nTile grid is empty");
             return;
         }
 
@@ -111,7 +111,7 @@ public class GpuDebug : MonoBehaviour
         ComputeBuffer countBuffer = GpuDebugState.outputCountBuffer;
         ComputeBuffer argsBuffer = GpuDebugState.indirectArgsBuffer;
 
-        sb.AppendLine("=== NPR GPU TILE OUTPUT DEBUG ===");
+        sb.AppendLine("=== GPU TILE OUTPUT DEBUG ===");
 
         if (rectBuffer == null)
         {
