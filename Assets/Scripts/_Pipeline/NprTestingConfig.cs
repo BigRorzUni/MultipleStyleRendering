@@ -1,7 +1,6 @@
 public static class NprTestingConfig
 {
     public static NprRenderMode RenderMode = NprRenderMode.CPU;
-
     public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;
     public static TestEffect CurrentTestEffect = TestEffect.Dummy;
     public static TileSize CurrentTileSize = TileSize.Size32;

@@ -9,7 +9,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private CpuGeneration _cpuGenerationPrepass;
     private GpuGeneration _gpuGenerationPrepass;
-    private BBoxOcclusion _bboxOcclusionPrepass;
+    private CpuOcclusion _cpuOcclusionprepass;
+    private GpuOcclusion _gpuOcclusionPrepass;
     private CpuMerging _cpuMergingPrepass;
     private GpuMerging _gpuMergingPrepass;
     private GpuTiling _gpuTileMergingPrepass;
@@ -133,7 +134,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     void OnValidate()
     {
-        Create();
+        // Create();
     }
 
     public override void Create()
@@ -199,7 +200,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionComputeShader);
+            _cpuOcclusionprepass = new CpuOcclusion(occlusionComputeShader);
         }
 
         if (NprTestingConfig.UseOcclusion && UseGpuMode())
@@ -210,7 +211,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            _bboxOcclusionPrepass = new BBoxOcclusion(occlusionComputeShader);
+            _gpuOcclusionPrepass = new GpuOcclusion(occlusionComputeShader);
         }
 
         if (NprTestingConfig.UseMerging && UseCpuMode())
@@ -375,8 +376,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             if (NprTestingConfig.UseMerging && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);
 
-            if (NprTestingConfig.UseOcclusion && _bboxOcclusionPrepass != null)
-                renderer.EnqueuePass(_bboxOcclusionPrepass);
+            if (NprTestingConfig.UseOcclusion && _cpuOcclusionprepass != null)
+                renderer.EnqueuePass(_cpuOcclusionprepass);
         }
         else if(UseGpuMode())
         {
@@ -384,8 +385,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 renderer.EnqueuePass(_gpuGenerationPrepass);
         
 
-            if (NprTestingConfig.UseOcclusion && _bboxOcclusionPrepass != null)
-                renderer.EnqueuePass(_bboxOcclusionPrepass);
+            if (NprTestingConfig.UseOcclusion && _gpuOcclusionPrepass != null)
+                renderer.EnqueuePass(_gpuOcclusionPrepass);
 
             if (NprTestingConfig.UseMerging && UseGpuMode())
             {
@@ -436,8 +437,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _gpuGenerationPrepass?.Dispose();
         _gpuGenerationPrepass = null;
 
-        _bboxOcclusionPrepass?.Dispose();
-        _bboxOcclusionPrepass = null;
+        _gpuOcclusionPrepass?.Dispose();
+        _gpuOcclusionPrepass = null;
 
         _cpuMergingPrepass?.Dispose();
         _cpuMergingPrepass = null;
