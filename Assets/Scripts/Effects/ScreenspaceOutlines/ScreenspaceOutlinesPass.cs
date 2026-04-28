@@ -30,7 +30,7 @@ public class ScreenspaceOutlinesPass : EffectPass
     float _normalThreshold = 0.2f;
     float _normalStrength = 1.0f;
     public Color _outlineColour = Color.black;
-    public float _outlineThickness;
+    public float _outlineThickness = 1.5f;
 
     private class PassData
     {

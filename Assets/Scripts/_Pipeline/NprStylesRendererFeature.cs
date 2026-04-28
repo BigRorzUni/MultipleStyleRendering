@@ -9,11 +9,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private IdPrepass _idPrepass;
     private CpuGeneration _cpuGenerationPrepass;
     private GpuGeneration _gpuGenerationPrepass;
+
     private CpuOcclusion _cpuOcclusionprepass;
     private GpuOcclusion _gpuOcclusionPrepass;
+
     private CpuMerging _cpuMergingPrepass;
-    private GpuMerging _gpuMergingPrepass;
-    private GpuTiling _gpuTileMergingPrepass;
+    private GpuTiling _tileMergingPrepass;
+
     private BboxDebugPass _bboxDebugPass;
     private IdTiling _idTilingPrepass;
 
@@ -34,7 +36,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private ComputeShader gpuGenerationComputeShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
-    [SerializeField] private ComputeShader bboxMergingComputeShader;
     [SerializeField] private ComputeShader tileMergingComputeShader;   
     [SerializeField] private ComputeShader tilingComputeShader;
     [SerializeField] private Shader bboxDebugShader;
@@ -86,11 +87,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         return UseGpuMode() || UseTiling();
     }
 
-    bool UseIterativeGpuMerging()
-    {
-        return NprTestingConfig.GPUMergeMethod == GpuMergeMethod.PairwiseIterative;
-    }
-
     bool UseHeavyDummy()
     {
         return NprTestingConfig.CurrentTestEffect == TestEffect.Heavy;
@@ -99,7 +95,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private void ApplySettingsToConfig()
     {
         NprTestingConfig.RenderMode = settings.renderMode;
-        NprTestingConfig.GPUMergeMethod = settings.gpuMergeMethod;
+        // NprTestingConfig.GPUMergeMethod = settings.gpuMergeMethod;
         NprTestingConfig.CurrentTestEffect = settings.currentTestEffect;
         NprTestingConfig.CurrentTileSize = settings.currentTileSize;
 
@@ -221,22 +217,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
         if(NprTestingConfig.UseMerging && UseGpuMode())
         {
-            if (bboxMergingComputeShader == null)
-            {
-                Debug.LogError("Merging compute shader 'MergeBboxes' not set");
-                return;
-            }
-
-            _gpuMergingPrepass = new GpuMerging(bboxMergingComputeShader);
-
             if (tileMergingComputeShader == null)
             {
                 Debug.LogError("Tile merging compute shader 'TileMerge' not set");
                 return;
             }
 
-            _gpuTileMergingPrepass = new GpuTiling(tileMergingComputeShader);
-            
+            _tileMergingPrepass = new GpuTiling(tileMergingComputeShader);
         }
 
         if (NprTestingConfig.DebugBBoxes && !(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen))
@@ -390,10 +377,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             if (NprTestingConfig.UseMerging && UseGpuMode())
             {
-                if(UseIterativeGpuMerging() && _gpuMergingPrepass != null)
-                    renderer.EnqueuePass(_gpuMergingPrepass);
-                else if(_gpuTileMergingPrepass != null)
-                    renderer.EnqueuePass(_gpuTileMergingPrepass);
+                if(_tileMergingPrepass != null)
+                    renderer.EnqueuePass(_tileMergingPrepass);
             }
         }
         else if (UseTiling())
@@ -443,11 +428,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _cpuMergingPrepass?.Dispose();
         _cpuMergingPrepass = null;
 
-        _gpuMergingPrepass?.Dispose();
-        _gpuMergingPrepass = null;
-
-        _gpuTileMergingPrepass?.Dispose();
-        _gpuTileMergingPrepass = null;
+        _tileMergingPrepass?.Dispose();
+        _tileMergingPrepass = null;
 
         _bboxDebugPass?.Dispose();
         _bboxDebugPass = null;

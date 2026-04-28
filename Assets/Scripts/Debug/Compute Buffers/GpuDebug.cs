@@ -29,8 +29,7 @@ public class GpuDebug : MonoBehaviour
 
         DumpOutputBuffers(sb);
         sb.AppendLine();
-        if(NprTestingConfig.GPUMergeMethod == GpuMergeMethod.BucketedUnion)
-            DumpTileBuffer(sb);
+        DumpTileBuffer(sb);
 
 
         Debug.Log(sb.ToString());

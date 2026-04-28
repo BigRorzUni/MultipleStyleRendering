@@ -5,7 +5,6 @@ public class Settings
 {
     [Header("Pipeline")]
     public NprRenderMode renderMode = NprRenderMode.CPU;
-    public GpuMergeMethod gpuMergeMethod = GpuMergeMethod.BucketedUnion;
     public TestEffect currentTestEffect = TestEffect.Dummy;
     public TileSize currentTileSize = TileSize.Size32;
 

@@ -23,12 +23,6 @@ public enum TileSize
     Size64 = 64
 }
 
-public enum GpuMergeMethod
-{
-    PairwiseIterative,
-    BucketedUnion
-}
-
 // what the test will be changing
 public enum TestVariable
 {
@@ -548,8 +542,8 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.UseMerging = test.useMerging;
                     NprTestingConfig.UseOcclusion = test.useOcclusion;
 
-                    if (renderMode == NprRenderMode.GPU && test.useMerging)
-                        NprTestingConfig.GPUMergeMethod = GpuMergeMethod.BucketedUnion; // not benchmarking the other one as it is not correct
+                    // if (renderMode == NprRenderMode.GPU && test.useMerging)
+                    //     NprTestingConfig.GPUMergeMethod = GpuMergeMethod.BucketedUnion; // not benchmarking the other one as it is not correct
 
                     n.EnableTestMode(curN);
 
