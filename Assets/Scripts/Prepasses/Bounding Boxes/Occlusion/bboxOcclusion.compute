@@ -9,7 +9,6 @@ int _BboxIndex;
 
 // for batched mode
 StructuredBuffer<float4> _Rects;
-int _BboxCount;
 
 StructuredBuffer<uint> _ExpectedMasks;
 uint _ExpectedMask;
@@ -69,9 +68,6 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
 {
     uint bboxIndex = groupID.x;
 
-    if (bboxIndex >= (uint)_BboxCount)
-        return;
-
     float4 rect = _Rects[bboxIndex];
 
     int x0 = (int)floor(rect.x);
@@ -96,8 +92,8 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
 
         uint pixelMask = ReadMask32(pixel);
 
-        if (pixelMask != 0)
-            InterlockedOr(anyVisible, 1);
+        if ((pixelMask & expectedMask) != 0)
+            InterlockedOr(anyVisible, 2);
     }
 
     GroupMemoryBarrierWithGroupSync();
