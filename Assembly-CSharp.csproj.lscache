@@ -55,6 +55,7 @@ Assets/Scripts/Debug/
  Compute Buffers/
   GpuDebug.cs
   GpuDebugState.cs
+ Correctness/Validator.cs
 Assets/Scripts/Effects/Dithering/
  DitheringEffect.cs
  DitheringPass.cs
@@ -70,24 +71,29 @@ Assets/Scripts/Effects/
 Assets/Scripts/Prepasses/Bounding Boxes/Compaction/
  cpuMerging.cs
  gpuMerging.cs
- gpuTiling.cs
-Assets/Scripts/Prepasses/Bounding Boxes/
- Generation/bboxGeneration.cs
- Occlusion/bboxOcclusion.cs
+Assets/Scripts/Prepasses/Bounding Boxes/Generation/
+ cpuGeneration.cs
+ gpuGeneration.cs
+Assets/Scripts/Prepasses/Bounding Boxes/Occlusion/
+ cpuOcclusion.cs
+ gpuOcclusion.cs
 Assets/Scripts/Prepasses/
  Id Prepass/IdPrepass.cs
- ID Tiling/IdTiling.cs
  Prepass.cs
  Source Prepass/SourcePrepass.cs
+ Tiling/
+  tileGeneration.cs
+  tileMerging.cs
 Assets/Scripts/Profiling/
  BenchmarkStats.cs
- CoverageController.cs
  CsvWriter.cs
+ OcclusionController.cs
  Spawner.cs
  TestRunner.cs
 Assets/Scripts/_Pipeline/
  NprFrameData.cs
  NprStylesRendererFeature.cs
+ NprTestingConfig.cs
  Settings.cs
  StyleBits.cs
  StylisedTag.cs

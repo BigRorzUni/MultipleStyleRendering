@@ -16,17 +16,12 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
         PassName = passName;
         _requiredBit = requiredBit;
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
-        profilingSampler = new ProfilingSampler(passName); // makes pass appear in profiler
+        profilingSampler = new ProfilingSampler(passName); 
 
         if (shader != null)
             _mat = CoreUtils.CreateEngineMaterial(shader);
     }
 
-
-    public virtual void ApplySettings(Settings settings)
-    {
-        // if RendererFeature applies settings they can be given to pass here
-    }
 
     public sealed override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
@@ -60,7 +55,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
                 break;
             
             case NprRenderMode.Tiling:
-                RunGpu(renderGraph, frameData, cameraData, nprFrameData); // For now run GPU version for tiling as well
+                RunGpu(renderGraph, frameData, cameraData, nprFrameData);
                 break;
         }
     }

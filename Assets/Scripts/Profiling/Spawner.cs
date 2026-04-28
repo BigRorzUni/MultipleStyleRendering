@@ -26,8 +26,11 @@ public class Spawner : MonoBehaviour
     [Header("Overlap")]
     [SerializeField, Range(0f, 1f)] private float overlapFraction = 0f;
 
+    [Header("Scale Test")]
+    [SerializeField] private float objectScaleFactor = 1f;
 
-    [Header("Editor Tools")]
+
+    [Header("Editor Test")]
     [SerializeField] private int editorObjectCount = 100;
     [SerializeField] private bool regenerate = false;
     [SerializeField] private bool clearAll = false;
@@ -45,6 +48,7 @@ public class Spawner : MonoBehaviour
 
         targetCoverageFraction = SnapCoverageFraction(targetCoverageFraction);
         overlapFraction = Mathf.Clamp01(overlapFraction);
+        objectScaleFactor = Mathf.Max(0f, objectScaleFactor);
         editorObjectCount = Mathf.Max(0, editorObjectCount);
 
 #if UNITY_EDITOR
@@ -87,6 +91,16 @@ public class Spawner : MonoBehaviour
         SpawnObjects(objectCount);
     }
 
+    public void Regenerate(int objectCount, float coverageFraction, float overlap = 0f, float scaleFactor = 1f)
+    {
+        targetCoverageFraction = SnapCoverageFraction(coverageFraction);
+        overlapFraction = Mathf.Clamp01(overlap);
+        objectScaleFactor = scaleFactor;
+
+        ClearSpawnedObjects();
+        SpawnObjects(objectCount);
+    }
+
     public void ClearSpawnedObjects()
     {
         var children = GetSpawnedObjects();
@@ -114,7 +128,7 @@ public class Spawner : MonoBehaviour
 
         float targetArea = screenArea * targetCoverageFraction;
 
-        // No-overlap layout used to determine object size.
+        // make sure there are no overlaps
         float baseRegionHeight = targetArea / screenWidth;
         baseRegionHeight = Mathf.Clamp(baseRegionHeight, 0f, screenHeight);
 
@@ -150,15 +164,10 @@ public class Spawner : MonoBehaviour
                 Vector3 gridPos = new Vector3(x, y, spawnDepth);
                 Vector3 finalPos = Vector3.Lerp(gridPos, overlapCentre, overlapFraction);
 
-                var obj = Instantiate(
-                    prefab,
-                    finalPos,
-                    Quaternion.identity,
-                    transform
-                );
+                var obj = Instantiate(prefab, finalPos, Quaternion.identity, transform);
 
                 obj.name = $"Obj_{spawned}";
-                obj.transform.localScale = new Vector3(cellWidth, rowHeight, 1f);
+                obj.transform.localScale = new Vector3(cellWidth * objectScaleFactor, rowHeight * objectScaleFactor, 1f); // apply scale for tiling tests
 
                 SetupStylisedTag(obj);
                 spawned++;
@@ -169,10 +178,7 @@ public class Spawner : MonoBehaviour
         foreach (Transform t in transform)
             realisedObjectArea += t.localScale.x * t.localScale.y;
 
-        Debug.Log(
-            $"Coverage area: {realisedObjectArea / screenArea:P4} (target {targetCoverageFraction:P0}) | " +
-            $"Overlap: {overlapFraction:P0}"
-        );
+        Debug.Log($"Coverage area: {realisedObjectArea / screenArea:P4} (target {targetCoverageFraction:P0}) | " + $"Overlap: {overlapFraction:P0}");
     }
 
     private List<GameObject> GetSpawnedObjects()

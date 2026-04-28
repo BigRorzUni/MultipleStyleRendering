@@ -49,7 +49,6 @@ public sealed class NprFrameData : ContextItem
     public List<BoundingBox> bboxes;
 
     public int bboxCount;
-    public int bboxVisibilityCount;
 
     // GPU buffers
     public ComputeBuffer rectBuffer;
@@ -108,7 +107,6 @@ public static void EnsureFixedBuffer(ref ComputeBuffer buffer, int count, int st
         indirectArgsBuffer = null;
 
         bboxCount = 0;
-        bboxVisibilityCount = 0;
 
         presentImageBits = 0;
         presentTestStyles = 0;

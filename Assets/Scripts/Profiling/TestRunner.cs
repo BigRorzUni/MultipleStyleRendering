@@ -9,29 +9,6 @@ using UnityEngine.Rendering.Universal;
 using System.Reflection;
 using System.Collections.Generic;
 
-public static class NprTestingConfig
-{
-    public static NprRenderMode RenderMode = NprRenderMode.CPU;
-
-    public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;
-    public static TestEffect CurrentTestEffect = TestEffect.Dummy;
-    public static TileSize CurrentTileSize = TileSize.Size32;
-
-
-    public static bool UseMerging;
-    public static bool UseOcclusion;
-    public static bool TestMode = false;
-
-    public static int N = 0; // total styles
-    public static int K = 0; // actice styles in scene
-    public static int StylesPerObject = 0; // max styles per object
-
-    public static string SceneName = ""; // scene to test
-    public static bool IsBenchmarkRunning = false;
-    public static bool DebugBBoxes = false;
-    public static bool DebugID = false;
-}
-
 public enum TestEffect
 {
     Dummy,
@@ -46,12 +23,6 @@ public enum TileSize
     Size64 = 64
 }
 
-public enum GpuMergeMethod
-{
-    PairwiseIterative,
-    BucketedUnion
-}
-
 // what the test will be changing
 public enum TestVariable
 {
@@ -60,7 +31,8 @@ public enum TestVariable
     StylesPerObject,
     ObjectCount,
     Coverage,
-    Overlap
+    Overlap,
+    ObjectScale
 }
 
 [Serializable]
@@ -80,20 +52,19 @@ public class NprTestCase
     public int[] values;
 
     // parameters
-    public int N = 32;
-    public int K = 1;
-    public int stylesPerObject = 1;
+    public int N = 32; // number of queued styles
+    public int K = 1; // number of applied styles in scene
+    public int stylesPerObject = 1; // number of styles per each object
 
     public int objectCount = 0;
     public float coverageFraction = 1.0f;
     public float overlapFraction = 0.0f;
-    public float spawnAreaScale = 1.0f;
+    public float objectScaleFactor = 1.0f;
     public StylePattern stylePattern = StylePattern.SameStyle;
 
     public bool useMerging = false;
     public bool useOcclusion = false;
     public bool useOcclusionCoverageController = false;
-    public GpuMergeMethod gpuMergeMethod = GpuMergeMethod.BucketedUnion;
     public TestEffect testEffect = TestEffect.Dummy;
     public TileSize tileSize = TileSize.Size32;  
     public NprRenderMode[] renderModes;
@@ -101,37 +72,12 @@ public class NprTestCase
     public TestEffectAssignmentMode effectMode = TestEffectAssignmentMode.Runtime;
 }
 
-[Serializable]
-public class PassTimingCapture
-{
-    public string passName;
-    public double[] cpuMs;
-    public double[] gpuMs;
-
-    public PassTimingCapture(string passName, int frameCount)
-    {
-        this.passName = passName;
-        cpuMs = new double[frameCount];
-        gpuMs = new double[frameCount];
-    }
-}
-
 public class TestRunner : MonoBehaviour
 {
-    [SerializeField] private int startupFrames = 500;
-    [SerializeField] private int framesToCapture = 1000;
+    private int startupFrames = 500;
+    private int framesToCapture = 500;
     NprStylesRendererFeature n;
 
-    [Header("pipeline config")]
-    public NprRenderMode setRenderMode = NprRenderMode.CPU;
-    public bool setUseMerging = true;
-    public GpuMergeMethod setGpuMergeMethod = GpuMergeMethod.BucketedUnion;
-    public bool setUseOcclusion = true;
-
-    public bool setRendererTestmode = false;
-    public bool setRuntimeTestEffectsInEditor = false;
-    public bool setDebugBBoxes = false;
-    public bool setDebugId = false;
     private string logDir = null;
 
     private ProfilerRecorder cpuFrameRec;
@@ -139,105 +85,202 @@ public class TestRunner : MonoBehaviour
 
     List<NprTestCase> tests = new()
     {
-        // Style scaling, same style, 0% coverage
+        // BBox/object count scaling, same style
+        // new NprTestCase
+        // {
+        //     name = "BBoxCountScaling_SameStyle",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectCount,
+        //     values = new[] { 500, 1000, },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 1.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Fullscreen, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // Count scaling, same style, 50% coverage
         new NprTestCase
         {
-            name = "StyleScaling_SameStyle_Cov0",
+            name = "CountScaling_Cov50_SameStyle",
             scene = "TestScene_Spawner",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 1, 2, 4, 8, 16, 32 },
+            variable = TestVariable.ObjectCount,
+            values = new[] { 1, 10, 50, 100 },
             N = 32,
             K = 32,
-            stylesPerObject = 1,
-            objectCount = 1,
-            coverageFraction = 0.0f,
-            overlapFraction = 0.0f,
-            stylePattern = StylePattern.SameStyle,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
-
-        // Style scaling, same style, 25% coverage
-        new NprTestCase
-        {
-            name = "StyleScaling_SameStyle_Cov25",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 1, 2, 4, 8, 16, 32 },
-            N = 32,
-            K = 32,
-            stylesPerObject = 1,
-            objectCount = 1,
-            coverageFraction = 0.25f,
-            overlapFraction = 0.0f,
-            stylePattern = StylePattern.SameStyle,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
-
-        // Style scaling, same style, 50% coverage
-        new NprTestCase
-        {
-            name = "StyleScaling_SameStyle_Cov50",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 1, 2, 4, 8, 16, 32 },
-            N = 32,
-            K = 32,
-            stylesPerObject = 1,
+            stylesPerObject = 32,
             objectCount = 1,
             coverageFraction = 0.5f,
-            overlapFraction = 0.0f,
             stylePattern = StylePattern.SameStyle,
-            useMerging = false,
-            useOcclusion = false,
             renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
             effectMode = TestEffectAssignmentMode.Runtime,
         },
+        // Tiling object scale test, 1000 objects
+        // new NprTestCase
+        // {
+        //     name = "TilingObjectScale_Obj1000_Tile8",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectScale,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     objectCount = 1000,
+        //     stylePattern = StylePattern.SameStyle,
+        //     tileSize = TileSize.Size8,
+        //     renderModes = new[] { NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        // Style scaling, same style, 75% coverage
-        new NprTestCase
-        {
-            name = "StyleScaling_SameStyle_Cov75",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 1, 2, 4, 8, 16, 32 },
-            N = 32,
-            K = 32,
-            stylesPerObject = 1,
-            objectCount = 1,
-            coverageFraction = 0.75f,
-            overlapFraction = 0.0f,
-            stylePattern = StylePattern.SameStyle,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "TilingObjectScale_Obj1000_Tile16",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectScale,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     objectCount = 1000,
+        //     stylePattern = StylePattern.SameStyle,
+        //     tileSize = TileSize.Size16,
+        //     renderModes = new[] { NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // new NprTestCase
+        // {
+        //     name = "TilingObjectScale_Obj1000_Tile32",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectScale,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     objectCount = 1000,
+        //     stylePattern = StylePattern.SameStyle,
+        //     tileSize = TileSize.Size32,
+        //     renderModes = new[] { NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
 
-        // Style scaling, same style, 100% coverage
-        new NprTestCase
-        {
-            name = "StyleScaling_SameStyle_Cov100",
-            scene = "TestScene_Spawner",
-            variable = TestVariable.StylesPerObject,
-            values = new[] { 1, 2, 4, 8, 16, 32 },
-            N = 32,
-            K = 32,
-            stylesPerObject = 1,
-            objectCount = 1,
-            coverageFraction = 1.0f,
-            overlapFraction = 0.0f,
-            stylePattern = StylePattern.SameStyle,
-            useMerging = false,
-            useOcclusion = false,
-            renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
-            effectMode = TestEffectAssignmentMode.Runtime,
-        },
+        // new NprTestCase
+        // {
+        //     name = "TilingObjectScale_Obj1000_Tile64",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.ObjectScale,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 32,
+        //     objectCount = 1000,
+        //     stylePattern = StylePattern.SameStyle,
+        //     tileSize = TileSize.Size64,
+        //     renderModes = new[] { NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+        // // Style scaling, same style, 0% coverage
+        // new NprTestCase
+        // {
+        //     name = "StyleScaling_SameStyle_Cov0",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 0.0f,
+        //     overlapFraction = 0.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // // Style scaling, same style, 25% coverage
+        // new NprTestCase
+        // {
+        //     name = "StyleScaling_SameStyle_Cov25",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 0.25f,
+        //     overlapFraction = 0.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // // Style scaling, same style, 50% coverage
+        // new NprTestCase
+        // {
+        //     name = "StyleScaling_SameStyle_Cov50",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 0.5f,
+        //     overlapFraction = 0.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // // Style scaling, same style, 75% coverage
+        // new NprTestCase
+        // {
+        //     name = "StyleScaling_SameStyle_Cov75",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 0.75f,
+        //     overlapFraction = 0.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
+
+        // // Style scaling, same style, 100% coverage
+        // new NprTestCase
+        // {
+        //     name = "StyleScaling_SameStyle_Cov100",
+        //     scene = "TestScene_Spawner",
+        //     variable = TestVariable.StylesPerObject,
+        //     values = new[] { 1, 2, 4, 8, 16, 32 },
+        //     N = 32,
+        //     K = 32,
+        //     stylesPerObject = 1,
+        //     objectCount = 1,
+        //     coverageFraction = 1.0f,
+        //     overlapFraction = 0.0f,
+        //     stylePattern = StylePattern.SameStyle,
+        //     useMerging = false,
+        //     useOcclusion = false,
+        //     renderModes = new[] { NprRenderMode.Fullscreen, NprRenderMode.CPU, NprRenderMode.GPU, NprRenderMode.Tiling },
+        //     effectMode = TestEffectAssignmentMode.Runtime,
+        // },
         
     };
 
@@ -315,34 +358,6 @@ public class TestRunner : MonoBehaviour
         logDir = Path.Combine(buildFolder, "ProfilingLogs");
     }
 
-    private void ConfigureTagsForTestMode(TestEffectAssignmentMode mode, bool includeInactive = false)
-    {
-        StylisedTag[] tags;
-        if (includeInactive)
-            tags = FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        else
-            tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        foreach (var tag in tags)
-        {
-            if (!tag) continue;
-
-            tag.SetTestEffectCount(n.TestEffectCount);
-
-            if (mode == TestEffectAssignmentMode.Inspector)
-            {
-                tag.UseInspectorTestEffects();
-            }
-            else
-            {
-                tag.UseRuntimeTestEffects();
-                tag.ClearRuntimeTestEffects();
-            }
-
-            tag.Apply();
-        }
-    }
-
     private void PrepareSceneTagsForRuntime()
     {
         var tags = FindObjectsByType<StylisedTag>(
@@ -415,20 +430,18 @@ public class TestRunner : MonoBehaviour
 
         Debug.Log($"Applied rotating single-style masks across {k} styles to {tags.Length} objects.");
     }
+
     // HELPER FUNC TO SPAWN OBJECTS WITH A GIVEN AREA OF SCREEN TAKEN UP\
     public void UpdateCoverage(float coveragePercent)
     {
-        var controllers = FindObjectsByType<CoverageController>(FindObjectsSortMode.None);
-        Debug.Log($"CoverageControllers found: {controllers.Length}");
-
-        CoverageController coverageController = FindFirstObjectByType<CoverageController>();
-        if (coverageController == null)
+        OcclusionController occlusionController = FindFirstObjectByType<OcclusionController>();
+        if (occlusionController == null)
         {
-            Debug.LogError("No CoverageController found in scene");
+            Debug.LogError("No Occlusion Controller found in scene");
             return;
         }
 
-        coverageController.UpdateCoverage(coveragePercent);
+        occlusionController.UpdateCoverage(coveragePercent);
     }
 
     private IEnumerator ForceCleanup()
@@ -445,7 +458,7 @@ public class TestRunner : MonoBehaviour
         yield return null;
     }
     
-    private IEnumerator RegenerateSpawnedScene(int objectCount, float coverageFraction, float overlapFraction = 0f)
+    private IEnumerator RegenerateSpawnedScene(int objectCount, float coverageFraction, float overlapFraction = 0f, float objectScaleFactor = 1f)
     {
         Spawner spawner = FindFirstObjectByType<Spawner>();
         if (spawner == null)
@@ -454,68 +467,10 @@ public class TestRunner : MonoBehaviour
             yield break;
         }
 
-        spawner.Regenerate(objectCount, coverageFraction, overlapFraction);
+        spawner.Regenerate(objectCount, coverageFraction, overlapFraction, objectScaleFactor);
 
         yield return null;
         yield return null;
-    }
-    public void OnValidate()
-    {
-        if (n == null)
-        {
-            ScriptableRenderer renderer = UniversalRenderPipeline.asset.GetRenderer(0);
-
-            FieldInfo field = typeof(ScriptableRenderer).GetField("m_RendererFeatures", BindingFlags.NonPublic | BindingFlags.Instance);
-            IList list = field.GetValue(renderer) as IList;
-
-            foreach (UnityEngine.Object f in list)
-            {
-                if (f is NprStylesRendererFeature feature)
-                    n = feature;
-            }
-
-            if (n == null)
-            {
-                Debug.Log("No renderer feature found");
-                return;
-            }
-        }
-
-        NprTestingConfig.TestMode = setRendererTestmode;
-        NprTestingConfig.DebugBBoxes = setDebugBBoxes;
-        NprTestingConfig.DebugID = setDebugId;
-        NprTestingConfig.GPUMergeMethod = setGpuMergeMethod;
-
-        NprTestingConfig.RenderMode = setRenderMode;
-        NprTestingConfig.UseMerging = setUseMerging;
-        NprTestingConfig.UseOcclusion = setUseOcclusion;
-        
-
-        if (NprTestingConfig.TestMode)
-        {
-            n.EnableTestMode(32);
-
-            if (setRuntimeTestEffectsInEditor)
-            {
-                ConfigureTagsForTestMode(TestEffectAssignmentMode.Runtime, includeInactive: true);
-                foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
-                {
-                    tag.SetRuntimeTestEffects(Enumerable.Range(0, n.TestEffectCount));
-                    tag.Apply();
-                }
-            }
-            else
-            {
-                ConfigureTagsForTestMode(TestEffectAssignmentMode.Inspector, includeInactive: true);
-            }
-        }
-        else
-        {
-            n.DisableTestMode();
-
-            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
-                tag.Apply();
-        }
     }
 
     private IEnumerator RunAllTests()
@@ -534,17 +489,6 @@ public class TestRunner : MonoBehaviour
                 Debug.LogWarning($"'{test.name}' has no values. Skipping.");
                 continue;
             }
-
-            // List<int> shuffledValues = test.values.ToList();
-            // System.Random rng = new(12345); // fixed seed 
-
-            // for (int i = shuffledValues.Count - 1; i > 0; i--)
-            // {
-            //     int j = rng.Next(i + 1);
-            //     (shuffledValues[i], shuffledValues[j]) = (shuffledValues[j], shuffledValues[i]);
-            // }
-
-            // Debug.Log($"Shuffled testing order {string.Join(", ", shuffledValues)}");
 
             foreach (int v in test.values.ToList())
             {
@@ -598,22 +542,18 @@ public class TestRunner : MonoBehaviour
                     NprTestingConfig.UseMerging = test.useMerging;
                     NprTestingConfig.UseOcclusion = test.useOcclusion;
 
-                    if (renderMode == NprRenderMode.GPU && test.useMerging)
-                        NprTestingConfig.GPUMergeMethod = test.gpuMergeMethod;
+                    // if (renderMode == NprRenderMode.GPU && test.useMerging)
+                    //     NprTestingConfig.GPUMergeMethod = GpuMergeMethod.BucketedUnion; // not benchmarking the other one as it is not correct
 
                     n.EnableTestMode(curN);
 
                     // scene setup depending on variable being tested
                     switch (test.variable)
                     {
-                        case TestVariable.ObjectCount:
-                            yield return RegenerateSpawnedScene(v, test.coverageFraction, 0f);
-                            break;
-
                         case TestVariable.Coverage:
                             if (test.useOcclusionCoverageController)
                                 {
-                                    yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, test.overlapFraction);
+                                    yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, test.overlapFraction, test.objectScaleFactor);
 
                                     yield return null;
                                     UpdateCoverage(v);
@@ -621,24 +561,20 @@ public class TestRunner : MonoBehaviour
                                 }
                                 else
                                 {
-                                    yield return RegenerateSpawnedScene(test.objectCount, v / 100f, test.overlapFraction);
+                                    yield return RegenerateSpawnedScene(test.objectCount, v / 100f, test.overlapFraction, test.objectScaleFactor);
                                 }
                                 break;
 
                         case TestVariable.Overlap:
-                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, v / 100f);
+                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, v / 100f, test.objectScaleFactor);
                             break;
 
-                        case TestVariable.StylesPerObject:
-                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f);
-                            break;
-
-                        case TestVariable.N:
-                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f);
+                        case TestVariable.ObjectScale:
+                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, test.overlapFraction, 1.0f / v);
                             break;
 
                         default:
-                            // for non-spawner-driven tests
+                            yield return RegenerateSpawnedScene(test.objectCount, test.coverageFraction, 0f, test.objectScaleFactor);
                             break;
                     }
 
@@ -694,9 +630,6 @@ public class TestRunner : MonoBehaviour
 
     private void Start()
     {
-        // TEMPORARY FOR TESTING
-        //ApplyTestStylesToScene(32, 1);
-
         if (!NprTestingConfig.IsBenchmarkRunning)
             return;
 

@@ -127,7 +127,6 @@ public class BboxDebugPass : ScriptableRenderPass
         ComputeBuffer indirectArgsBuffer = null;
 
         int bboxInstanceCount = 0;
-        int occlusionInstanceCount = 0;
         bool useIndirect = false;
 
         if (gpuMode || NprTestingConfig.RenderMode == NprRenderMode.Tiling)
@@ -145,7 +144,6 @@ public class BboxDebugPass : ScriptableRenderPass
             if (!useIndirect)
             {
                 bboxInstanceCount = nprFrameData.bboxCount;
-                occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
             }
         }
         else if (cpuMode)
@@ -180,7 +178,6 @@ public class BboxDebugPass : ScriptableRenderPass
             visibilityBuffer = nprFrameData.visibilityBuffer;
 
             bboxInstanceCount = count;
-            occlusionInstanceCount = nprFrameData.bboxVisibilityCount;
             useIndirect = false;
         }
 
@@ -244,7 +241,7 @@ public class BboxDebugPass : ScriptableRenderPass
         if (rectBuffer == null || visibilityBuffer == null)
             return;
 
-        if (useIndirect || occlusionInstanceCount > 0)
+        if (useIndirect || bboxInstanceCount > 0)
         {
             using (var builder = renderGraph.AddRasterRenderPass("Occlusion Debug Overlay", out OcclusionPassData passData))
             {
@@ -252,7 +249,7 @@ public class BboxDebugPass : ScriptableRenderPass
                 passData.rectBuffer = rectBuffer;
                 passData.visibilityBuffer = visibilityBuffer;
                 passData.screenSize = screenSize;
-                passData.instanceCount = occlusionInstanceCount;
+                passData.instanceCount = bboxInstanceCount;
 
                 passData.indirectArgsBuffer = indirectArgsBuffer;
                 passData.useIndirect = useIndirect ? 1 : 0;

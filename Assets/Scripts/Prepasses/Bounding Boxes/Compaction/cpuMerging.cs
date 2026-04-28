@@ -31,8 +31,6 @@ public class CpuMerging : Prepass
         List<BoundingBox> newBoxes = new List<BoundingBox>();
         List<BoundingBox> toRemove = new List<BoundingBox>();
 
-        Debug.Log($"Before merge: {nprFrameData.bboxes.Count}");
-
         while (!merged)
         {
             merged = true;
@@ -198,8 +196,6 @@ public class CpuMerging : Prepass
             toRemove.Clear();
             newBoxes.Clear();
         }
-
-        Debug.Log($"After merge: {nprFrameData.bboxes.Count}");
     }
 
     public override void Dispose()

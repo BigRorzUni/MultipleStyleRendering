@@ -3,9 +3,15 @@ using System.Linq;
 
 public static class BenchmarkStats
 {
-    public static double Mean(double[] values) => values.Average();
+    public static double Mean(double[] values)
+    { 
+        return values.Average();
+    }
 
-    public static double Median(double[] values) => Percentile(values, 50);
+    public static double Median(double[] values)
+    { 
+        return Percentile(values, 50);
+    }
 
     public static double Percentile(double[] values, double percentile)
     {
@@ -25,7 +31,10 @@ public static class BenchmarkStats
         return sorted[lower] * (1.0 - weight) + sorted[upper] * weight;
     }
 
-    public static double Max(double[] values) => values.Max();
+    public static double Max(double[] values)
+    { 
+        return values.Max();
+    }
 
     public static double StdDev(double[] values)
     {
@@ -33,7 +42,15 @@ public static class BenchmarkStats
             return 0.0;
 
         double mean = Mean(values);
-        double variance = values.Select(v => (v - mean) * (v - mean)).Average();
+
+        double sumSq = 0.0;
+        for (int i = 0; i < values.Length; i++)
+        {
+            double diff = values[i] - mean;
+            sumSq += diff * diff;
+        }
+
+        double variance = sumSq / values.Length;
         return Math.Sqrt(variance);
     }
 }
