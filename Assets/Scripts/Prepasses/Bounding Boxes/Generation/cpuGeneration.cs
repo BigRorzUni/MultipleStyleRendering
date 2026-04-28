@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
-using System.Runtime.InteropServices;
-
 
 public class CpuGeneration : Prepass
 {
@@ -109,37 +107,7 @@ public class CpuGeneration : Prepass
         }
 
         nprFrameData.bboxCount = nprFrameData.bboxes.Count;
-
-
-        if (nprFrameData.bboxCount > 0)
-        {
-            if (NprTestingConfig.UseOcclusion)
-            {
-                NprFrameData.EnsureBufferCapacity(ref _bboxVisibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
-
-                if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
-                    _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
-
-                for (int i = 0; i < nprFrameData.bboxCount; i++)
-                    _bboxVisibilityInitData[i] = 1u;
-
-                if (_bboxVisibilityBuffer != null && _bboxVisibilityInitData != null)
-                    _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
-
-                nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
-                nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
-            }
-            else
-            {
-                nprFrameData.visibilityBuffer = null;
-                nprFrameData.bboxVisibilityCount = 0;
-            }
-        }
-        else
-        {
-            nprFrameData.visibilityBuffer = null;
-            nprFrameData.bboxVisibilityCount = 0;
-        }
+        nprFrameData.visibilityBuffer = null; 
         
     }
 

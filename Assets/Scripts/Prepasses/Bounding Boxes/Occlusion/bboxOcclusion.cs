@@ -87,9 +87,6 @@ public class GpuOcclusion : Prepass
                 ctx.cmd.SetComputeBufferParam(data.compute, data.kernel, BBoxMaskBufferID, data.maskBuffer);
                 ctx.cmd.DispatchCompute(data.compute, data.kernel, data.bboxCount, 1, 1);
             });
-            
-
-            nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
 
             // GpuDebugState.SetOutputBuffers(
             //     nprFrameData.rectBuffer,

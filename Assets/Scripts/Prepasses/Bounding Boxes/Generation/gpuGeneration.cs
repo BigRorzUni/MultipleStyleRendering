@@ -318,18 +318,15 @@ public class GpuGeneration : Prepass
                         _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
                     nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
-                    nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
                 }
                 else
                 {
                     nprFrameData.visibilityBuffer = null;
-                    nprFrameData.bboxVisibilityCount = 0;
                 }
             }
             else
             {
                 nprFrameData.visibilityBuffer = null;
-                nprFrameData.bboxVisibilityCount = 0;
             }
         }
 
@@ -347,7 +344,6 @@ public class GpuGeneration : Prepass
                 _bboxVisibilityBuffer.SetData(_bboxVisibilityInitData, 0, 0, nprFrameData.bboxCount);
 
             nprFrameData.visibilityBuffer = _bboxVisibilityBuffer;
-            nprFrameData.bboxVisibilityCount = nprFrameData.bboxCount;
 
             // GpuDebugState.SetOutputBuffers(
             //     nprFrameData.rectBuffer,

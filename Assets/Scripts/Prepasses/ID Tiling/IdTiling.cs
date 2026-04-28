@@ -268,7 +268,6 @@ public class IdTiling : Prepass
         _tileVisibilityBuffer.SetData(_tileVisibilityInitData, 0, 0, maxTileCount);
 
         nprFrameData.visibilityBuffer = _tileVisibilityBuffer;
-        nprFrameData.bboxVisibilityCount = maxTileCount;
         nprFrameData.bboxCount = maxTileCount;
 
         // GpuDebugState.SetOutputBuffers(
