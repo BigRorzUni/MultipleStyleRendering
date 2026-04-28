@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 using System.Runtime.InteropServices;
 
 [System.Serializable]
-public class GpuTiling : Prepass
+public class TileMerging : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -49,7 +49,7 @@ public class GpuTiling : Prepass
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
-    public GpuTiling(ComputeShader tileMerging) : base("GpuTilingPrepass")
+    public TileMerging(ComputeShader tileMerging) : base("GpuTilingPrepass")
     {
         if (tileMerging != null)
         {

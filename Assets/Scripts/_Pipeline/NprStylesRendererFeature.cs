@@ -14,10 +14,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private GpuOcclusion _gpuOcclusionPrepass;
 
     private CpuMerging _cpuMergingPrepass;
-    private GpuTiling _tileMergingPrepass;
+    private TileMerging _tileMergingPrepass;
 
     private BboxDebugPass _bboxDebugPass;
-    private IdTiling _idTilingPrepass;
+    private TileGeneration _tileGenerationPrepass;
 
     // IMAGE EFFECTS
     [SerializeField]
@@ -95,7 +95,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     private void ApplySettingsToConfig()
     {
         NprTestingConfig.RenderMode = settings.renderMode;
-        // NprTestingConfig.GPUMergeMethod = settings.gpuMergeMethod;
         NprTestingConfig.CurrentTestEffect = settings.currentTestEffect;
         NprTestingConfig.CurrentTileSize = settings.currentTileSize;
 
@@ -160,9 +159,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
 
             if(NprTestingConfig.TestMode)
-                _idTilingPrepass = new IdTiling(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode, (int)NprTestingConfig.CurrentTileSize);
+                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode, (int)NprTestingConfig.CurrentTileSize);
             else
-                _idTilingPrepass = new IdTiling(tilingComputeShader, (int)NprTestingConfig.CurrentTileSize);
+                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, (int)NprTestingConfig.CurrentTileSize);
         }
 
         if(UseCpuMode())
@@ -171,6 +170,23 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 _cpuGenerationPrepass = new CpuGeneration(testEffectCount, true);
             else
                 _cpuGenerationPrepass = new CpuGeneration();
+
+            if (NprTestingConfig.UseMerging)
+            {
+                _cpuMergingPrepass = new CpuMerging();
+            }
+
+            
+            if (NprTestingConfig.UseOcclusion)
+            {
+                if (occlusionComputeShader == null)
+                {
+                    Debug.LogError("Occlusion compute shader not set");
+                    return;
+                }
+
+                _cpuOcclusionprepass = new CpuOcclusion(occlusionComputeShader);
+            }
         }
 
 
@@ -178,7 +194,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         {
             if (gpuGenerationComputeShader == null)
             {
-                Debug.LogError("Occlusion compute shader 'GenerateBboxes' not set");
+                Debug.LogError("GPU generation compute shader not set");
                 return;
             }
 
@@ -186,45 +202,31 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader, testEffectCount, true);
             else
                 _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader);
-        }
 
-        if (NprTestingConfig.UseOcclusion && UseCpuMode())
-        {
-            if (occlusionComputeShader == null)
+            
+            if (NprTestingConfig.UseOcclusion)
             {
-                Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
-                return;
+                if (occlusionComputeShader == null)
+                {
+                    Debug.LogError("Occlusion compute shader not set");
+                    return;
+                }
+
+                _gpuOcclusionPrepass = new GpuOcclusion(occlusionComputeShader);
             }
 
-            _cpuOcclusionprepass = new CpuOcclusion(occlusionComputeShader);
-        }
-
-        if (NprTestingConfig.UseOcclusion && UseGpuMode())
-        {
-            if (occlusionComputeShader == null)
+            if(NprTestingConfig.UseMerging)
             {
-                Debug.LogError("Occlusion compute shader 'OcclusionCheck' not set");
-                return;
+                if (tileMergingComputeShader == null)
+                {
+                    Debug.LogError("Tile merging compute shader not set");
+                    return;
+                }
+
+                _tileMergingPrepass = new TileMerging(tileMergingComputeShader);
             }
-
-            _gpuOcclusionPrepass = new GpuOcclusion(occlusionComputeShader);
         }
 
-        if (NprTestingConfig.UseMerging && UseCpuMode())
-        {
-            _cpuMergingPrepass = new CpuMerging();
-        }
-
-        if(NprTestingConfig.UseMerging && UseGpuMode())
-        {
-            if (tileMergingComputeShader == null)
-            {
-                Debug.LogError("Tile merging compute shader 'TileMerge' not set");
-                return;
-            }
-
-            _tileMergingPrepass = new GpuTiling(tileMergingComputeShader);
-        }
 
         if (NprTestingConfig.DebugBBoxes && !(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen))
         {
@@ -242,6 +244,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             _bboxDebugPass = new BboxDebugPass(occlusionDebugShader, bboxDebugShader);
         }
+
+
+
 
         if (UseBatchedScreenPasses())
         {
@@ -282,6 +287,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
 
         imageEffects.Clear();
+
+
+
+
 
         if (NprTestingConfig.TestMode)
         {
@@ -383,10 +392,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         else if (UseTiling())
         {
-            if (_idTilingPrepass == null)
+            if (_tileGenerationPrepass == null)
                 return;
 
-            renderer.EnqueuePass(_idTilingPrepass);
+            renderer.EnqueuePass(_tileGenerationPrepass);
         }
 
         foreach (Effect effect in imageEffects)
@@ -416,8 +425,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _idPrepass?.Dispose();
         _idPrepass = null;
 
-        _idTilingPrepass?.Dispose();
-        _idTilingPrepass = null;
+        _tileGenerationPrepass?.Dispose();
+        _tileGenerationPrepass = null;
 
         _gpuGenerationPrepass?.Dispose();
         _gpuGenerationPrepass = null;

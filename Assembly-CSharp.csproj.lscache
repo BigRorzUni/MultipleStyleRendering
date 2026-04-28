@@ -71,7 +71,6 @@ Assets/Scripts/Effects/
 Assets/Scripts/Prepasses/Bounding Boxes/Compaction/
  cpuMerging.cs
  gpuMerging.cs
- gpuTiling.cs
 Assets/Scripts/Prepasses/Bounding Boxes/Generation/
  cpuGeneration.cs
  gpuGeneration.cs
@@ -80,9 +79,11 @@ Assets/Scripts/Prepasses/Bounding Boxes/Occlusion/
  gpuOcclusion.cs
 Assets/Scripts/Prepasses/
  Id Prepass/IdPrepass.cs
- ID Tiling/IdTiling.cs
  Prepass.cs
  Source Prepass/SourcePrepass.cs
+ Tiling/
+  tileGeneration.cs
+  tileMerging.cs
 Assets/Scripts/Profiling/
  BenchmarkStats.cs
  CsvWriter.cs

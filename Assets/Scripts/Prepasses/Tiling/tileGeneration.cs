@@ -3,7 +3,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
-public class IdTiling : Prepass
+public class TileGeneration : Prepass
 {
     public int testStyleCount = 0;
     public bool _testModeEnabled;
@@ -69,7 +69,7 @@ public class IdTiling : Prepass
         public TextureHandle destination;
     }
 
-    public IdTiling(ComputeShader tileGeneration, int tileSize = 32) : base("IdTiling")
+    public TileGeneration(ComputeShader tileGeneration, int tileSize = 32) : base("IdTiling")
     {
         _tileGeneration = tileGeneration;
         _tileSize = Mathf.Max(1, tileSize);
@@ -85,7 +85,7 @@ public class IdTiling : Prepass
         }
     }
 
-    public IdTiling(ComputeShader tileGeneration, int testCount, bool testModeEnabled, int tileSize = 32) : base("IdTiling")
+    public TileGeneration(ComputeShader tileGeneration, int testCount, bool testModeEnabled, int tileSize = 32) : base("IdTiling")
     {
         testStyleCount = testCount;
         _testModeEnabled = testModeEnabled;
