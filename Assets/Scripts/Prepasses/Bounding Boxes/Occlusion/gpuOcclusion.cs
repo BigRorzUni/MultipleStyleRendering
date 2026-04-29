@@ -14,6 +14,7 @@ public class GpuOcclusion : Prepass
     static readonly int RectBufferID = Shader.PropertyToID("_Rects");
     static readonly int BBoxMaskBufferID = Shader.PropertyToID("_ExpectedMasks");
 
+    ComputeBuffer _visibilityBuffer;
     int _bboxVisibilityBufferCapacity = 0;
     uint[] _bboxVisibilityInitData;
 
@@ -29,7 +30,7 @@ public class GpuOcclusion : Prepass
         public int bboxCount;
     }
 
-    public GpuOcclusion(ComputeShader occlusionComputeShader) : base("BBoxOcclusion")
+    public GpuOcclusion(ComputeShader occlusionComputeShader) : base("GpuOcclusion")
     {
         _occlusionCompute = occlusionComputeShader;
         if (_occlusionCompute != null)
@@ -59,7 +60,8 @@ public class GpuOcclusion : Prepass
             nprFrameData = frameContext.Create<NprFrameData>();
 
 
-        NprFrameData.EnsureBufferCapacity(ref nprFrameData.visibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        NprFrameData.EnsureBufferCapacity(ref _visibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        nprFrameData.visibilityBuffer = _visibilityBuffer;
 
         if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
             _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
@@ -116,5 +118,12 @@ public class GpuOcclusion : Prepass
 
     public override void Dispose()
     {
+        if (_visibilityBuffer != null)
+        {
+            _visibilityBuffer.Release();
+            _visibilityBuffer = null;
+        }
+
+        _bboxVisibilityBufferCapacity = 0;
     }
 }

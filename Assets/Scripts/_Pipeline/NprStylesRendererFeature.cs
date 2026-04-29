@@ -421,6 +421,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     private void DisposePasses()
     {
+        GpuDebugState.Clear();
+        
         _sourcePrepass?.Dispose();
         _sourcePrepass = null;
 
@@ -430,8 +432,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _tileGenerationPrepass?.Dispose();
         _tileGenerationPrepass = null;
 
+        _cpuGenerationPrepass?.Dispose();
+        _cpuGenerationPrepass = null;
+
         _gpuGenerationPrepass?.Dispose();
         _gpuGenerationPrepass = null;
+
+        _cpuOcclusionprepass?.Dispose();
+        _cpuOcclusionprepass = null;
 
         _gpuOcclusionPrepass?.Dispose();
         _gpuOcclusionPrepass = null;
