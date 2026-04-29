@@ -106,8 +106,7 @@ public class IdPrepass : Prepass
             });
 
         
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        foreach (var tag in tags)
+        foreach (var tag in StylisedTag.ActiveTags)
         {
             if (tag == null)
                 continue;

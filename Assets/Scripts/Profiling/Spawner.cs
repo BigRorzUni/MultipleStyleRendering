@@ -5,12 +5,6 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-public enum StylePattern
-{
-    SameStyle,
-    RandomSingleStyle,
-}
-
 public class Spawner : MonoBehaviour
 {
     [Header("References")]
@@ -103,17 +97,16 @@ public class Spawner : MonoBehaviour
 
     public void ClearSpawnedObjects()
     {
-        var children = GetSpawnedObjects();
-
-        foreach (var obj in children)
+        for (int i = transform.childCount - 1; i >= 0; i--)
         {
+            GameObject obj = transform.GetChild(i).gameObject;
+
             if (Application.isPlaying)
                 Destroy(obj);
             else
                 DestroyImmediate(obj);
         }
     }
-
 
     private void SpawnObjects(int objectCount)
     {
@@ -179,16 +172,6 @@ public class Spawner : MonoBehaviour
             realisedObjectArea += t.localScale.x * t.localScale.y;
 
         Debug.Log($"Coverage area: {realisedObjectArea / screenArea:P4} (target {targetCoverageFraction:P0}) | " + $"Overlap: {overlapFraction:P0}");
-    }
-
-    private List<GameObject> GetSpawnedObjects()
-    {
-        var result = new List<GameObject>();
-
-        for (int i = 0; i < transform.childCount; i++)
-            result.Add(transform.GetChild(i).gameObject);
-
-        return result;
     }
 
     private bool ValidateSetup()

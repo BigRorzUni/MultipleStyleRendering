@@ -48,6 +48,10 @@ public class GpuGeneration : Prepass
     ComputeBuffer _countBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
+    readonly List<BBoxGenerationInput> _gpuInputs = new List<BBoxGenerationInput>();
+    readonly uint[] _countInit = new uint[1];
+    readonly uint[] _argsInit = new uint[4];
+
     private class ComputePassData
     {
         public ComputeShader compute;
@@ -108,20 +112,18 @@ public class GpuGeneration : Prepass
         nprFrameData.presentTestStyles = 0;
         nprFrameData.countBuffer = null;
         nprFrameData.indirectArgsBuffer = null;
+        
+        nprFrameData.bboxes.Clear();
 
-        if (nprFrameData.bboxes == null)
-            nprFrameData.bboxes = new List<BoundingBox>();
-        else
-            nprFrameData.bboxes.Clear();
+        _gpuInputs.Clear();
 
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-
-        List<BBoxGenerationInput> gpuInputs = new List<BBoxGenerationInput>();
-
-        foreach (var tag in tags)
+        foreach (var tag in StylisedTag.ActiveTags)
         {
+            if (tag == null)
+                continue;
+
             GameObject obj = tag.gameObject;
-            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+            Renderer[] renderers = tag.Renderers;
 
             if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
                 continue;
@@ -149,7 +151,7 @@ public class GpuGeneration : Prepass
 
                 Bounds b = renderer.bounds;
 
-                gpuInputs.Add(new BBoxGenerationInput
+                _gpuInputs.Add(new BBoxGenerationInput
                 {
                     center = b.center,
                     extents = b.extents,
@@ -158,7 +160,7 @@ public class GpuGeneration : Prepass
             }
         }
 
-        nprFrameData.bboxCount = gpuInputs.Count;
+        nprFrameData.bboxCount = _gpuInputs.Count;
 
         NprFrameData.EnsureBufferCapacity(ref _bboxInputBuffer, ref _bboxInputCapacity, nprFrameData.bboxCount, Marshal.SizeOf<BBoxGenerationInput>());
         NprFrameData.EnsureBufferCapacity(ref _bboxRectBuffer, ref _bboxRectBufferCapacity, nprFrameData.bboxCount, Marshal.SizeOf<Vector4>());
@@ -176,10 +178,10 @@ public class GpuGeneration : Prepass
 
         if (nprFrameData.bboxCount > 0)
         {
-            _bboxInputBuffer.SetData(gpuInputs);
+            _bboxInputBuffer.SetData(_gpuInputs);
 
             for (int i = 0; i < nprFrameData.bboxCount; i++)
-                _bboxMaskInitData[i] = gpuInputs[i].mask;
+                _bboxMaskInitData[i] = _gpuInputs[i].mask;
 
             nprFrameData.maskBuffer.SetData(_bboxMaskInitData, 0, 0, nprFrameData.bboxCount);
 
@@ -193,11 +195,14 @@ public class GpuGeneration : Prepass
             Matrix4x4 projection = camera.projectionMatrix;
             float nearZ = -camera.nearClipPlane;
 
-            uint[] countInit = new uint[1] { (uint)nprFrameData.bboxCount };
-            nprFrameData.countBuffer.SetData(countInit, 0, 0, 1);
+            _countInit[0] = (uint)nprFrameData.bboxCount;
+            nprFrameData.countBuffer.SetData(_countInit, 0, 0, 1);
 
-            uint[] argsInit = new uint[4] { 0u, 0u, 0u, 0u };
-            nprFrameData.indirectArgsBuffer.SetData(argsInit, 0, 0, 4);
+            _argsInit[0] = 0u;
+            _argsInit[1] = 0u;
+            _argsInit[2] = 0u;
+            _argsInit[3] = 0u;
+            nprFrameData.indirectArgsBuffer.SetData(_argsInit, 0, 0, 4);
 
             // execute bbox generation through a compute pass
             using (var builder = renderGraph.AddComputePass("GPU BBox Generation", out ComputePassData passData, profilingSampler))
@@ -238,11 +243,14 @@ public class GpuGeneration : Prepass
         }
         else
         {
-            uint[] countInit = new uint[1] { 0u };
-            nprFrameData.countBuffer.SetData(countInit, 0, 0, 1);
+            _countInit[0] = 0u;
+            nprFrameData.countBuffer.SetData(_countInit, 0, 0, 1);
 
-            uint[] argsInit = new uint[4] { 6u, 0u, 0u, 0u };
-            nprFrameData.indirectArgsBuffer.SetData(argsInit, 0, 0, 4);
+            _argsInit[0] = 6u;
+            _argsInit[1] = 0u;
+            _argsInit[2] = 0u;
+            _argsInit[3] = 0u;
+            nprFrameData.indirectArgsBuffer.SetData(_argsInit, 0, 0, 4);
         }        
 
         // GpuDebugState.SetOutputBuffers(

@@ -125,5 +125,6 @@ public class GpuOcclusion : Prepass
         }
 
         _bboxVisibilityBufferCapacity = 0;
+        _bboxVisibilityInitData = null;
     }
 }

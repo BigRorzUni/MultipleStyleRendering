@@ -46,7 +46,7 @@ public sealed class NprFrameData : ContextItem
     public TextureHandle sourceTexture;
 
     // CPU lists
-    public List<BoundingBox> bboxes;
+    public List<BoundingBox> bboxes = new List<BoundingBox>();
 
     public int bboxCount;
 

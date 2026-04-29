@@ -139,5 +139,6 @@ public class CpuOcclusion : Prepass
         }
 
         _bboxVisibilityBufferCapacity = 0;
+        _bboxVisibilityInitData = null;
     }
 }

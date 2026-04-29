@@ -110,11 +110,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     private void ConfigureTagsForSettings()
     {
-        StylisedTag[] tags;
-
-        tags = FindObjectsByType<StylisedTag>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        foreach (var tag in tags)
+        foreach (var tag in StylisedTag.ActiveTags)
         {
             if (!tag) continue;
 
