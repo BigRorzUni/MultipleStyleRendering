@@ -1,17 +1,11 @@
-#pragma kernel OcclusionCheckSingle
 #pragma kernel OcclusionCheckBatched
 
 Texture2D<float4> _VisibilityTex;
 RWStructuredBuffer<uint> _Result;
 
-int4 _Rect; 
-int _BboxIndex;
-
-// for batched mode
 StructuredBuffer<float4> _Rects;
 
 StructuredBuffer<uint> _ExpectedMasks;
-uint _ExpectedMask;
 
 groupshared uint anyVisible;
 
@@ -27,40 +21,6 @@ uint ReadMask32(int2 pixel)
     return r | (g << 8) | (b << 16) | (a << 24);
 }
 
-// SINGLE BBOX VERSION
-[numthreads(64, 1, 1)]
-void OcclusionCheckSingle(uint3 groupThreadID : SV_GroupThreadID)
-{
-    if (groupThreadID.x == 0)
-        anyVisible = 0;
-
-    GroupMemoryBarrierWithGroupSync();
-
-    uint width = (uint)_Rect.z;
-    uint height = (uint)_Rect.w;
-    uint total = width * height;
-
-    // each thread scans part of the bbox
-    for (uint index = groupThreadID.x; index < total; index += 64)
-    {
-        uint localX = index % width;
-        uint localY = index / width;
-
-        int2 pixel = int2(_Rect.x + localX, _Rect.y + localY);
-
-        // reconstruct mask from texture (0–255 range)
-        uint pixelMask = ReadMask32(pixel);
-
-        // check if any expected ID bit is present
-        if ((pixelMask & _ExpectedMask) != 0) // using visibility tex
-            anyVisible = 1;
-    }
-
-    GroupMemoryBarrierWithGroupSync();
-
-    if (groupThreadID.x == 0)
-        _Result[_BboxIndex] = anyVisible;
-}
 
 // BATCHED VERSION (one threadgroup per bbox, better use of a compute shader tbh)
 [numthreads(64, 1, 1)]

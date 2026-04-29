@@ -34,6 +34,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
 
     [SerializeField] private ComputeShader gpuGenerationComputeShader;
+
+    [SerializeField] private ComputeShader cpuOcclusionComputeShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader tileMergingComputeShader;   
@@ -179,13 +181,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             
             if (NprTestingConfig.UseOcclusion)
             {
-                if (occlusionComputeShader == null)
+                if (cpuOcclusionComputeShader == null)
                 {
                     Debug.LogError("Occlusion compute shader not set");
                     return;
                 }
 
-                _cpuOcclusionprepass = new CpuOcclusion(occlusionComputeShader);
+                _cpuOcclusionprepass = new CpuOcclusion(cpuOcclusionComputeShader);
             }
         }
 

@@ -9,23 +9,6 @@ public class CpuGeneration : Prepass
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
-    private class ComputePassData
-    {
-        public ComputeShader compute;
-        public int bboxGenerationKernel;
-        public int buildDrawArgsKernel;
-
-        public ComputeBuffer bboxInputBuffer;
-        public ComputeBuffer bboxRectBuffer;
-        public ComputeBuffer bboxIndirectArgsBuffer;
-
-        public int bboxCount;
-        public Matrix4x4 worldToCamera;
-        public Matrix4x4 projection;
-        public Vector2 screenSize;
-        public float nearZ;
-    }
-
     public CpuGeneration(): base("CpuGeneration")
     {
 
@@ -102,6 +85,8 @@ public class CpuGeneration : Prepass
                 }
             }
         }
+
+        
 
         nprFrameData.bboxCount = nprFrameData.bboxes.Count;
     }

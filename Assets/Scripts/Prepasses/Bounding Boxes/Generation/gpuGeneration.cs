@@ -104,10 +104,6 @@ public class GpuGeneration : Prepass
         nprFrameData.countBuffer = null;
         nprFrameData.indirectArgsBuffer = null;
 
-        bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
-        bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
-
-
         if (nprFrameData.bboxes == null)
             nprFrameData.bboxes = new List<BoundingBox>();
         else
