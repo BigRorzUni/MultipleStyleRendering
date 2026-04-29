@@ -15,6 +15,7 @@ public class CpuOcclusion : Prepass
     static readonly int RectID = Shader.PropertyToID("_Rect");
     static readonly int BBoxIndexID = Shader.PropertyToID("_BboxIndex");
 
+    ComputeBuffer _visibilityBuffer;
     int _bboxVisibilityBufferCapacity = 0;
     uint[] _bboxVisibilityInitData;
 
@@ -60,7 +61,8 @@ public class CpuOcclusion : Prepass
             nprFrameData = frameContext.Create<NprFrameData>();
 
 
-        NprFrameData.EnsureBufferCapacity(ref nprFrameData.visibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        NprFrameData.EnsureBufferCapacity(ref _visibilityBuffer, ref _bboxVisibilityBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        nprFrameData.visibilityBuffer = _visibilityBuffer;
 
         if (_bboxVisibilityInitData == null || _bboxVisibilityInitData.Length < _bboxVisibilityBufferCapacity)
             _bboxVisibilityInitData = new uint[_bboxVisibilityBufferCapacity];
@@ -130,5 +132,12 @@ public class CpuOcclusion : Prepass
 
     public override void Dispose()
     {
+        if (_visibilityBuffer != null)
+        {
+            _visibilityBuffer.Release();
+            _visibilityBuffer = null;
+        }
+
+        _bboxVisibilityBufferCapacity = 0;
     }
 }

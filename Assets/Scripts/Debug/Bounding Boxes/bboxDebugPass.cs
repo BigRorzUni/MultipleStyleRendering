@@ -84,21 +84,6 @@ public class BboxDebugPass : ScriptableRenderPass
         renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
     }
 
-    public void Dispose()
-    {
-        if (_occlusionMat != null)
-            CoreUtils.Destroy(_occlusionMat);
-
-        if (_bboxMat != null)
-            CoreUtils.Destroy(_bboxMat);
-
-        if (_cpuRectBuffer != null)
-            _cpuRectBuffer.Release();
-
-        if (_cpuMaskBuffer != null)
-            _cpuMaskBuffer.Release();
-    }
-
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
         if (!NprTestingConfig.DebugBBoxes)
@@ -288,5 +273,20 @@ public class BboxDebugPass : ScriptableRenderPass
                 });
             }
         }
+    }
+
+    public void Dispose()
+    {
+        if (_occlusionMat != null)
+            CoreUtils.Destroy(_occlusionMat);
+
+        if (_bboxMat != null)
+            CoreUtils.Destroy(_bboxMat);
+
+        if (_cpuRectBuffer != null)
+            _cpuRectBuffer.Release();
+
+        if (_cpuMaskBuffer != null)
+            _cpuMaskBuffer.Release();
     }
 }

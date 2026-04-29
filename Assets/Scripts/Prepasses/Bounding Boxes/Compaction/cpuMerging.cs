@@ -196,6 +196,8 @@ public class CpuMerging : Prepass
             toRemove.Clear();
             newBoxes.Clear();
         }
+
+        nprFrameData.bboxCount = nprFrameData.bboxes.Count;
     }
 
     public override void Dispose()

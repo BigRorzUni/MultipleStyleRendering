@@ -34,6 +34,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
 
     [SerializeField] private ComputeShader gpuGenerationComputeShader;
+
+    [SerializeField] private ComputeShader cpuOcclusionComputeShader;
     [SerializeField] private ComputeShader occlusionComputeShader;
     [SerializeField] private Shader occlusionDebugShader;
     [SerializeField] private ComputeShader tileMergingComputeShader;   
@@ -179,13 +181,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             
             if (NprTestingConfig.UseOcclusion)
             {
-                if (occlusionComputeShader == null)
+                if (cpuOcclusionComputeShader == null)
                 {
                     Debug.LogError("Occlusion compute shader not set");
                     return;
                 }
 
-                _cpuOcclusionprepass = new CpuOcclusion(occlusionComputeShader);
+                _cpuOcclusionprepass = new CpuOcclusion(cpuOcclusionComputeShader);
             }
         }
 
@@ -419,6 +421,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     private void DisposePasses()
     {
+        GpuDebugState.Clear();
+        
         _sourcePrepass?.Dispose();
         _sourcePrepass = null;
 
@@ -428,8 +432,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         _tileGenerationPrepass?.Dispose();
         _tileGenerationPrepass = null;
 
+        _cpuGenerationPrepass?.Dispose();
+        _cpuGenerationPrepass = null;
+
         _gpuGenerationPrepass?.Dispose();
         _gpuGenerationPrepass = null;
+
+        _cpuOcclusionprepass?.Dispose();
+        _cpuOcclusionprepass = null;
 
         _gpuOcclusionPrepass?.Dispose();
         _gpuOcclusionPrepass = null;

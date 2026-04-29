@@ -9,7 +9,6 @@ public class IdPrepass : Prepass
     readonly ShaderTagId _shaderTagId = new ShaderTagId("UniversalForward");
     readonly FilteringSettings _filteringSettings;
     readonly Shader _idShader;
-    private readonly Material _idMat;
 
 
     class PassData
@@ -23,15 +22,12 @@ public class IdPrepass : Prepass
     public IdPrepass(Shader idShader) : base("IdPrepass")
     {
         _idShader = idShader;
-        if (_idShader != null)
-            _idMat = CoreUtils.CreateEngineMaterial(_idShader);
-
         _filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
     }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (_idShader == null || _idMat == null)
+        if (_idShader == null)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -126,7 +122,6 @@ public class IdPrepass : Prepass
 
     public override void Dispose()
     {
-        if (_idMat != null)
-            CoreUtils.Destroy(_idMat);
+
     }
 }

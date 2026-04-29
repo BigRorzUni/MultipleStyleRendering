@@ -38,10 +38,15 @@ public class GpuGeneration : Prepass
     ComputeBuffer _bboxInputBuffer;
     int _bboxInputCapacity = 0;
 
+    ComputeBuffer _bboxRectBuffer;
     int _bboxRectBufferCapacity = 0;
 
+    ComputeBuffer _bboxMaskBuffer;
     int _bboxMaskBufferCapacity = 0;
     uint[] _bboxMaskInitData;
+
+    ComputeBuffer _countBuffer;
+    ComputeBuffer _indirectArgsBuffer;
 
     private class ComputePassData
     {
@@ -104,10 +109,6 @@ public class GpuGeneration : Prepass
         nprFrameData.countBuffer = null;
         nprFrameData.indirectArgsBuffer = null;
 
-        bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
-        bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
-
-
         if (nprFrameData.bboxes == null)
             nprFrameData.bboxes = new List<BoundingBox>();
         else
@@ -160,10 +161,15 @@ public class GpuGeneration : Prepass
         nprFrameData.bboxCount = gpuInputs.Count;
 
         NprFrameData.EnsureBufferCapacity(ref _bboxInputBuffer, ref _bboxInputCapacity, nprFrameData.bboxCount, Marshal.SizeOf<BBoxGenerationInput>());
-        NprFrameData.EnsureBufferCapacity(ref nprFrameData.rectBuffer, ref _bboxRectBufferCapacity, nprFrameData.bboxCount, Marshal.SizeOf<Vector4>());
-        NprFrameData.EnsureBufferCapacity(ref nprFrameData.maskBuffer, ref _bboxMaskBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
-        NprFrameData.EnsureFixedBuffer(ref nprFrameData.countBuffer, 1, sizeof(uint));
-        NprFrameData.EnsureFixedBuffer(ref nprFrameData.indirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
+        NprFrameData.EnsureBufferCapacity(ref _bboxRectBuffer, ref _bboxRectBufferCapacity, nprFrameData.bboxCount, Marshal.SizeOf<Vector4>());
+        NprFrameData.EnsureBufferCapacity(ref _bboxMaskBuffer, ref _bboxMaskBufferCapacity, nprFrameData.bboxCount, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _countBuffer, 1, sizeof(uint));
+        NprFrameData.EnsureFixedBuffer(ref _indirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
+
+        nprFrameData.rectBuffer = _bboxRectBuffer;
+        nprFrameData.maskBuffer = _bboxMaskBuffer;
+        nprFrameData.countBuffer = _countBuffer;
+        nprFrameData.indirectArgsBuffer = _indirectArgsBuffer;
 
         if (_bboxMaskInitData == null || _bboxMaskInitData.Length < _bboxMaskBufferCapacity)
             _bboxMaskInitData = new uint[_bboxMaskBufferCapacity];
@@ -255,6 +261,33 @@ public class GpuGeneration : Prepass
             _bboxInputBuffer.Release();
             _bboxInputBuffer = null;
         }
-    }
 
+        if (_bboxRectBuffer != null)
+        {
+            _bboxRectBuffer.Release();
+            _bboxRectBuffer = null;
+        }
+
+        if (_bboxMaskBuffer != null)
+        {
+            _bboxMaskBuffer.Release();
+            _bboxMaskBuffer = null;
+        }
+
+        if (_countBuffer != null)
+        {
+            _countBuffer.Release();
+            _countBuffer = null;
+        }
+
+        if (_indirectArgsBuffer != null)
+        {
+            _indirectArgsBuffer.Release();
+            _indirectArgsBuffer = null;
+        }
+
+        _bboxInputCapacity = 0;
+        _bboxRectBufferCapacity = 0;
+        _bboxMaskBufferCapacity = 0;
+    }
 }
