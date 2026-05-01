@@ -36,7 +36,7 @@ MonoBehaviour:
     currentTileSize: 32
     useMerging: 1
     useOcclusion: 1
-    testMode: 0
+    testMode: 1
     debugBBoxes: 1
     debugID: 0
 --- !u!114 &11400000
