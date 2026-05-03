@@ -32,6 +32,8 @@ public class DummyPass : EffectPass
 
         public ComputeBuffer maskBuffer;
         public ComputeBuffer indirectArgsBuffer;
+
+        public int bboxIndex;
     }
 
     public DummyPass(Shader shader, string name, int requiredIndex) : base(shader, name, StyleBits.ImageSpaceEffect.None)
@@ -81,8 +83,9 @@ public class DummyPass : EffectPass
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
-        foreach (var bbox in nprFrameData.bboxes)
+        for (int i = 0; i < nprFrameData.bboxes.Count; i++)
         {
+            BoundingBox bbox = nprFrameData.bboxes[i];
             if ((bbox.testMask & _testRequiredBit) == 0)
                 continue;
 
@@ -99,6 +102,7 @@ public class DummyPass : EffectPass
                 passData.requiredBit = _testRequiredBit;
 
                 passData.useOcclusion = 0;
+                passData.bboxIndex = i;
 
                 if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
                 {
@@ -114,7 +118,11 @@ public class DummyPass : EffectPass
                 {
                     data.mat.SetTexture(IdTexId, data.ids);
 
+                    data.mat.SetInt("_CurrentBboxIndex", data.bboxIndex); 
                     data.mat.SetInt(RequiredBitID, (int)data.requiredBit);
+
+                    if (data.useOcclusion != 0)
+                        data.mat.SetBuffer("_BboxVisibilityFlags", data.visibilityBuffer);
 
                     ctx.cmd.EnableScissorRect(new Rect(data.rect.x, data.rect.y, data.rect.width, data.rect.height));
                     CoreUtils.DrawFullScreen(ctx.cmd, data.mat, shaderPassId: 0);

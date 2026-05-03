@@ -127,7 +127,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     void OnValidate()
     {
-        // Create();
+        Create();
     }
 
     public override void Create()
@@ -403,8 +403,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             foreach (EffectPass pass in effect.Passes)
             {
-                // make sure multipass effects ping pong textures properly when i implement them
 
+                // allow effects to access urp supplied render passes e.g. normals and depth
                 pass.ConfigureInput(effect.RequiredInputs);
 
                 renderer.EnqueuePass(pass);
