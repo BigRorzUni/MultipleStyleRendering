@@ -89,7 +89,7 @@ Shader "Custom/OcclusionDebug"
 
             half4 Frag(Varyings i) : SV_Target
             {
-                return half4(1, 0, 0, 0.5);
+                return half4(1, 0, 0, 1);
             }
             ENDHLSL
         }
