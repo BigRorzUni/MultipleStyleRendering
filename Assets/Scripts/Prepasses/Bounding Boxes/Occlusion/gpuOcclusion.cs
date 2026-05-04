@@ -44,10 +44,10 @@ public class GpuOcclusion : Prepass
         if (_occlusionCompute == null)
             return;
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
+        if (NprConfig.RenderMode != NprRenderMode.GPU)
             return;
 
-        if (!NprTestingConfig.UseOcclusion)
+        if (!NprConfig.UseOcclusion)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();

@@ -111,7 +111,7 @@ public class TileGeneration : Prepass
         if (_tileGeneration == null)
             return;
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.Tiling)
+        if (NprConfig.RenderMode != NprRenderMode.Tiling)
             return;
 
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -127,7 +127,7 @@ public class TileGeneration : Prepass
             return;
 
         
-        if (NprTestingConfig.TestMode && nprFrameData.presentTestStyles == 0)
+        if (NprConfig.TestMode && nprFrameData.presentTestStyles == 0)
             return;
 
         

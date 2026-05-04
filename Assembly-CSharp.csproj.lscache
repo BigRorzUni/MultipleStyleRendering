@@ -90,9 +90,9 @@ Assets/Scripts/Profiling/
  Spawner.cs
  TestRunner.cs
 Assets/Scripts/_Pipeline/
+ NprConfig.cs
  NprFrameData.cs
  NprStylesRendererFeature.cs
- NprTestingConfig.cs
  Settings.cs
  StyleBits.cs
  StylisedTag.cs

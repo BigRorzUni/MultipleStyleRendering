@@ -1,4 +1,4 @@
-public static class NprTestingConfig
+public static class NprConfig
 {
     public static NprRenderMode RenderMode = NprRenderMode.CPU;
     // public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;

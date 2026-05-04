@@ -86,10 +86,10 @@ public class BboxDebugPass : ScriptableRenderPass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if (!NprTestingConfig.DebugBBoxes)
+        if (!NprConfig.DebugBBoxes)
             return;
 
-        if (NprTestingConfig.RenderMode == NprRenderMode.Fullscreen)
+        if (NprConfig.RenderMode == NprRenderMode.Fullscreen)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -103,8 +103,8 @@ public class BboxDebugPass : ScriptableRenderPass
         RenderTextureDescriptor camDesc = cameraData.cameraTargetDescriptor;
         Vector4 screenSize = new Vector4(camDesc.width, camDesc.height, 1f / camDesc.width, 1f / camDesc.height);
 
-        bool gpuMode = NprTestingConfig.RenderMode == NprRenderMode.GPU;
-        bool cpuMode = NprTestingConfig.RenderMode == NprRenderMode.CPU;
+        bool gpuMode = NprConfig.RenderMode == NprRenderMode.GPU;
+        bool cpuMode = NprConfig.RenderMode == NprRenderMode.CPU;
 
         ComputeBuffer rectBuffer = null;
         ComputeBuffer maskBuffer = null;
@@ -114,7 +114,7 @@ public class BboxDebugPass : ScriptableRenderPass
         int bboxInstanceCount = 0;
         bool useIndirect = false;
 
-        if (gpuMode || NprTestingConfig.RenderMode == NprRenderMode.Tiling)
+        if (gpuMode || NprConfig.RenderMode == NprRenderMode.Tiling)
         {
             if (nprFrameData.rectBuffer == null || nprFrameData.maskBuffer == null)
                 return;
@@ -149,7 +149,7 @@ public class BboxDebugPass : ScriptableRenderPass
                 BoundingBox bbox = nprFrameData.bboxes[i];
                 rectData[i] = new Vector4(bbox.box.x, bbox.box.y, bbox.box.width, bbox.box.height);
 
-                if (NprTestingConfig.TestMode)
+                if (NprConfig.TestMode)
                     maskData[i] = bbox.testMask;
                 else
                     maskData[i] = (uint)bbox.styles;
@@ -217,7 +217,7 @@ public class BboxDebugPass : ScriptableRenderPass
             }
         }
 
-        if (!NprTestingConfig.UseOcclusion)
+        if (!NprConfig.UseOcclusion)
             return;
 
         if (_occlusionMat == null)

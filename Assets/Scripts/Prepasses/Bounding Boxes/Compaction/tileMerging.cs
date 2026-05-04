@@ -98,10 +98,10 @@ public class TileMerging : Prepass
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
+        if (NprConfig.RenderMode != NprRenderMode.GPU)
             return;
 
-        if (!NprTestingConfig.UseMerging)
+        if (!NprConfig.UseMerging)
             return;
 
         if (_tileMerging == null)

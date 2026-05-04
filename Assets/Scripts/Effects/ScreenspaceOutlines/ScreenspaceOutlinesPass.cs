@@ -159,7 +159,7 @@ public class ScreenspaceOutlinesPass : EffectPass
 
                 passData.useOcclusion = 0;
 
-                if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+                if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                     passData.useOcclusion = 1;
@@ -227,7 +227,7 @@ public class ScreenspaceOutlinesPass : EffectPass
 
             passData.useOcclusion = 0;
 
-            if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+            if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                 passData.useOcclusion = 1;

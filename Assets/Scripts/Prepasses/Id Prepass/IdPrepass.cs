@@ -90,7 +90,7 @@ public class IdPrepass : Prepass
             builder.AllowGlobalStateModification(true);
 
             passData.rendererList = rendererList;
-            passData.debug = NprTestingConfig.DebugID;
+            passData.debug = NprConfig.DebugID;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
@@ -113,7 +113,7 @@ public class IdPrepass : Prepass
 
             nprFrameData.presentImageBits |= tag.imageEffects;
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
                 nprFrameData.presentTestStyles |= tag.currentTestEffects;
         }
         }

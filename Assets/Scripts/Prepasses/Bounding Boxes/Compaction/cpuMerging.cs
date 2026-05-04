@@ -21,10 +21,10 @@ public class CpuMerging : Prepass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.CPU)
+        if (NprConfig.RenderMode != NprRenderMode.CPU)
             return;
 
-        if (!NprTestingConfig.UseMerging)
+        if (!NprConfig.UseMerging)
             return;
 
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
@@ -38,7 +38,7 @@ public class CpuMerging : Prepass
         {
             merged = true;
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
             {
                 foreach (var bboxA in nprFrameData.bboxes)
                 {

@@ -44,7 +44,7 @@ public class StylisedTag : MonoBehaviour
             ActiveTags.Add(this);
 
         Ensure();
-        if (!NprTestingConfig.TestMode)
+        if (!NprConfig.TestMode)
             Apply();
 #if UNITY_EDITOR
         Hook();
@@ -93,7 +93,7 @@ public class StylisedTag : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
             
-        if (NprTestingConfig.TestMode)
+        if (NprConfig.TestMode)
         {
             // Debug.Log("apply test effects");
             ApplyTestEffects();

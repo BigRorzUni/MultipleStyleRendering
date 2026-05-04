@@ -58,30 +58,30 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public void EnableTestMode(int styleCount)
     {
-        NprTestingConfig.TestMode = true;
+        NprConfig.TestMode = true;
         testEffectCount = Mathf.Clamp(styleCount, 0, 32);
         Create();
     }
 
     public void DisableTestMode()
     {
-        NprTestingConfig.TestMode = false;
+        NprConfig.TestMode = false;
         Create();
     }
 
     bool UseGpuMode()
     {
-        return NprTestingConfig.RenderMode == NprRenderMode.GPU;
+        return NprConfig.RenderMode == NprRenderMode.GPU;
     }
 
     bool UseCpuMode()
     {
-        return NprTestingConfig.RenderMode == NprRenderMode.CPU;
+        return NprConfig.RenderMode == NprRenderMode.CPU;
     }
 
     bool UseTiling()
     {
-        return NprTestingConfig.RenderMode == NprRenderMode.Tiling;
+        return NprConfig.RenderMode == NprRenderMode.Tiling;
     }
 
     bool UseBatchedScreenPasses()
@@ -91,21 +91,21 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     bool UseHeavyDummy()
     {
-        return NprTestingConfig.CurrentTestEffect == TestEffect.Heavy;
+        return NprConfig.CurrentTestEffect == TestEffect.Heavy;
     }
 
     private void ApplySettingsToConfig()
     {
-        NprTestingConfig.RenderMode = settings.renderMode;
-        NprTestingConfig.CurrentTestEffect = settings.currentTestEffect;
-        NprTestingConfig.CurrentTileSize = settings.currentTileSize;
+        NprConfig.RenderMode = settings.renderMode;
+        NprConfig.CurrentTestEffect = settings.currentTestEffect;
+        NprConfig.CurrentTileSize = settings.currentTileSize;
 
-        NprTestingConfig.UseMerging = settings.useMerging;
-        NprTestingConfig.UseOcclusion = settings.useOcclusion;
-        NprTestingConfig.TestMode = settings.testMode;
+        NprConfig.UseMerging = settings.useMerging;
+        NprConfig.UseOcclusion = settings.useOcclusion;
+        NprConfig.TestMode = settings.testMode;
 
-        NprTestingConfig.DebugBBoxes = settings.debugBBoxes;
-        NprTestingConfig.DebugID = settings.debugID;
+        NprConfig.DebugBBoxes = settings.debugBBoxes;
+        NprConfig.DebugID = settings.debugID;
     }
 
     private void ConfigureTagsForSettings()
@@ -116,7 +116,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             tag.SetTestEffectCount(TestEffectCount);
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
             {
                 tag.UseInspectorTestEffects();
             }
@@ -132,7 +132,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
     public override void Create()
     {
-        if (!NprTestingConfig.IsBenchmarkRunning && !NprTestingConfig.IsValidationRunning)
+        if (!NprConfig.IsBenchmarkRunning && !NprConfig.IsValidationRunning)
         {
             ApplySettingsToConfig();
             ConfigureTagsForSettings();
@@ -156,26 +156,26 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            if(NprTestingConfig.TestMode)
-                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, testEffectCount, NprTestingConfig.TestMode, (int)NprTestingConfig.CurrentTileSize);
+            if(NprConfig.TestMode)
+                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, testEffectCount, NprConfig.TestMode, (int)NprConfig.CurrentTileSize);
             else
-                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, (int)NprTestingConfig.CurrentTileSize);
+                _tileGenerationPrepass = new TileGeneration(tilingComputeShader, (int)NprConfig.CurrentTileSize);
         }
 
         if(UseCpuMode())
         {
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
                 _cpuGenerationPrepass = new CpuGeneration(testEffectCount, true);
             else
                 _cpuGenerationPrepass = new CpuGeneration();
 
-            if (NprTestingConfig.UseMerging)
+            if (NprConfig.UseMerging)
             {
                 _cpuMergingPrepass = new CpuMerging();
             }
 
             
-            if (NprTestingConfig.UseOcclusion)
+            if (NprConfig.UseOcclusion)
             {
                 if (cpuOcclusionComputeShader == null)
                 {
@@ -196,13 +196,13 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 return;
             }
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
                 _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader, testEffectCount, true);
             else
                 _gpuGenerationPrepass = new GpuGeneration(gpuGenerationComputeShader);
 
             
-            if (NprTestingConfig.UseOcclusion)
+            if (NprConfig.UseOcclusion)
             {
                 if (occlusionComputeShader == null)
                 {
@@ -213,7 +213,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 _gpuOcclusionPrepass = new GpuOcclusion(occlusionComputeShader);
             }
 
-            if(NprTestingConfig.UseMerging)
+            if(NprConfig.UseMerging)
             {
                 if (tileMergingComputeShader == null)
                 {
@@ -226,7 +226,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
 
 
-        if (NprTestingConfig.DebugBBoxes && !(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen))
+        if (NprConfig.DebugBBoxes && !(NprConfig.RenderMode == NprRenderMode.Fullscreen))
         {
             if (occlusionDebugShader == null)
             {
@@ -290,7 +290,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
 
 
-        if (NprTestingConfig.TestMode)
+        if (NprConfig.TestMode)
         {
             Shader chosenShader;
 
@@ -367,10 +367,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             if(_cpuGenerationPrepass != null)
                 renderer.EnqueuePass(_cpuGenerationPrepass);
         
-            if (NprTestingConfig.UseMerging && UseCpuMode() && _cpuMergingPrepass != null)
+            if (NprConfig.UseMerging && UseCpuMode() && _cpuMergingPrepass != null)
                 renderer.EnqueuePass(_cpuMergingPrepass);
 
-            if (NprTestingConfig.UseOcclusion && _cpuOcclusionprepass != null)
+            if (NprConfig.UseOcclusion && _cpuOcclusionprepass != null)
                 renderer.EnqueuePass(_cpuOcclusionprepass);
         }
         else if(UseGpuMode())
@@ -379,10 +379,10 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 renderer.EnqueuePass(_gpuGenerationPrepass);
         
 
-            if (NprTestingConfig.UseOcclusion && _gpuOcclusionPrepass != null)
+            if (NprConfig.UseOcclusion && _gpuOcclusionPrepass != null)
                 renderer.EnqueuePass(_gpuOcclusionPrepass);
 
-            if (NprTestingConfig.UseMerging && UseGpuMode())
+            if (NprConfig.UseMerging && UseGpuMode())
             {
                 if(_tileMergingPrepass != null)
                     renderer.EnqueuePass(_tileMergingPrepass);
@@ -411,7 +411,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             }
         }
 
-        if (NprTestingConfig.DebugBBoxes && _bboxDebugPass != null)
+        if (NprConfig.DebugBBoxes && _bboxDebugPass != null)
             renderer.EnqueuePass(_bboxDebugPass);
     }
 

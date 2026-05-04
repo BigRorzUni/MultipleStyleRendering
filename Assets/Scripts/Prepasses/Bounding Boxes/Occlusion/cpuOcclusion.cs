@@ -45,10 +45,10 @@ public class CpuOcclusion : Prepass
         if (_occlusionCompute == null)
             return;
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.CPU)
+        if (NprConfig.RenderMode != NprRenderMode.CPU)
             return;
 
-        if (!NprTestingConfig.UseOcclusion)
+        if (!NprConfig.UseOcclusion)
             return;
 
         UniversalResourceData frameData = frameContext.Get<UniversalResourceData>();
@@ -109,7 +109,7 @@ public class CpuOcclusion : Prepass
                 passData.compute = _occlusionCompute;
                 passData.kernel = _occlusionKernelSingle;
                 passData.bboxIndex = (uint)i;
-                if(NprTestingConfig.TestMode)
+                if(NprConfig.TestMode)
                     passData.expectedMask = bbox.testMask;
                 else
                     passData.expectedMask = (uint)bbox.styles;

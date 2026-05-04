@@ -332,7 +332,7 @@ public class TestRunner : MonoBehaviour
             }
         }
 
-        NprTestingConfig.IsBenchmarkRunning = true;
+        NprConfig.IsBenchmarkRunning = true;
 
         // turn off vsync for testin
         QualitySettings.vSyncCount = 0;
@@ -527,16 +527,16 @@ public class TestRunner : MonoBehaviour
                     }
 
                     // configure runtime before styles
-                    NprTestingConfig.SceneName = test.scene;
-                    NprTestingConfig.TestMode = true;
-                    NprTestingConfig.RenderMode = renderMode;
-                    NprTestingConfig.N = curN;
-                    NprTestingConfig.K = curK;
-                    NprTestingConfig.StylesPerObject = curS;
-                    NprTestingConfig.CurrentTestEffect = test.testEffect;
-                    NprTestingConfig.CurrentTileSize = test.tileSize;
-                    NprTestingConfig.UseMerging = test.useMerging;
-                    NprTestingConfig.UseOcclusion = test.useOcclusion;
+                    NprConfig.SceneName = test.scene;
+                    NprConfig.TestMode = true;
+                    NprConfig.RenderMode = renderMode;
+                    NprConfig.N = curN;
+                    NprConfig.K = curK;
+                    NprConfig.StylesPerObject = curS;
+                    NprConfig.CurrentTestEffect = test.testEffect;
+                    NprConfig.CurrentTileSize = test.tileSize;
+                    NprConfig.UseMerging = test.useMerging;
+                    NprConfig.UseOcclusion = test.useOcclusion;
 
                     // if (renderMode == NprRenderMode.GPU && test.useMerging)
                     //     NprTestingConfig.GPUMergeMethod = GpuMergeMethod.BucketedUnion; // not benchmarking the other one as it is not correct
@@ -620,13 +620,13 @@ public class TestRunner : MonoBehaviour
         }
 
         Debug.Log("Testing done!");
-        NprTestingConfig.IsBenchmarkRunning = false;
+        NprConfig.IsBenchmarkRunning = false;
         Application.Quit();
     }
 
     private void Start()
     {
-        if (!NprTestingConfig.IsBenchmarkRunning)
+        if (!NprConfig.IsBenchmarkRunning)
             return;
 
         CsvWriter.EnsureDirectoryExists(logDir);
@@ -647,7 +647,7 @@ public class TestRunner : MonoBehaviour
             return;
         }
 
-        NprTestingConfig.DebugBBoxes = false;
+        NprConfig.DebugBBoxes = false;
 
         StartCoroutine(RunAllTests());
     }

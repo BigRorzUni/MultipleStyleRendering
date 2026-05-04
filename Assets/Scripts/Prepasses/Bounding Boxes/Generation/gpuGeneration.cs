@@ -94,7 +94,7 @@ public class GpuGeneration : Prepass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if(NprTestingConfig.RenderMode == NprRenderMode.Fullscreen || NprTestingConfig.RenderMode == NprRenderMode.Tiling)
+        if(NprConfig.RenderMode == NprRenderMode.Fullscreen || NprConfig.RenderMode == NprRenderMode.Tiling)
             return;
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
         Camera camera = cameraData.camera;
@@ -125,10 +125,10 @@ public class GpuGeneration : Prepass
             GameObject obj = tag.gameObject;
             Renderer[] renderers = tag.Renderers;
 
-            if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+            if (!NprConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
                 continue;
 
-            if (NprTestingConfig.TestMode && tag.currentTestEffects == 0)
+            if (NprConfig.TestMode && tag.currentTestEffects == 0)
                 continue;
 
             foreach (Renderer renderer in renderers)
@@ -137,7 +137,7 @@ public class GpuGeneration : Prepass
                     continue;
 
                 uint mask;
-                if (NprTestingConfig.TestMode)
+                if (NprConfig.TestMode)
                 {
                     mask = tag.currentTestEffects;
                     nprFrameData.presentTestStyles |= tag.currentTestEffects;

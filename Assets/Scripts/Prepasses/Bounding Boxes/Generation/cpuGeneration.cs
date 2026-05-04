@@ -27,7 +27,7 @@ public class CpuGeneration : Prepass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if(NprTestingConfig.RenderMode != NprRenderMode.CPU)
+        if(NprConfig.RenderMode != NprRenderMode.CPU)
             return;
 
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -56,10 +56,10 @@ public class CpuGeneration : Prepass
             GameObject obj = tag.gameObject;
             Renderer[] renderers = tag.Renderers;
 
-            if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+            if (!NprConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
                 continue;
 
-            if (NprTestingConfig.TestMode && tag.currentTestEffects == 0)
+            if (NprConfig.TestMode && tag.currentTestEffects == 0)
                 continue;
 
             foreach (Renderer renderer in renderers)
@@ -70,7 +70,7 @@ public class CpuGeneration : Prepass
                 if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
                 {
                     BoundingBox bbox;
-                    if (NprTestingConfig.TestMode)
+                    if (NprConfig.TestMode)
                     {
                         bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
                         nprFrameData.presentTestStyles |= tag.currentTestEffects;

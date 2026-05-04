@@ -96,10 +96,10 @@ public class GpuMerging : Prepass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
+        if (NprConfig.RenderMode != NprRenderMode.GPU)
             return;
 
-        if (!NprTestingConfig.UseMerging)
+        if (!NprConfig.UseMerging)
             return;
 
         if (_bboxMerging == null)

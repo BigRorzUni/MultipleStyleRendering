@@ -104,7 +104,7 @@ public class DummyPass : EffectPass
                 passData.useOcclusion = 0;
                 passData.bboxIndex = i;
 
-                if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+                if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                     passData.useOcclusion = 1;
@@ -152,7 +152,7 @@ public class DummyPass : EffectPass
 
             passData.useOcclusion = 0;
 
-            if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+            if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                 passData.useOcclusion = 1;
