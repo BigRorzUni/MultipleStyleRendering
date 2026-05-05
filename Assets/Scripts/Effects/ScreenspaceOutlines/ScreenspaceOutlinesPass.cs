@@ -29,8 +29,8 @@ public class ScreenspaceOutlinesPass : EffectPass
     float _depthStrength = 1.0f;
     float _normalThreshold = 0.2f;
     float _normalStrength = 1.0f;
-    public Color _outlineColour = Color.black;
-    public float _outlineThickness = 1.5f;
+    public Color _outlineColour = Color.white;
+    public float _outlineThickness = 2.0f;
 
     private class PassData
     {
@@ -159,7 +159,7 @@ public class ScreenspaceOutlinesPass : EffectPass
 
                 passData.useOcclusion = 0;
 
-                if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+                if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
                 {
                     passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                     passData.useOcclusion = 1;
@@ -227,7 +227,7 @@ public class ScreenspaceOutlinesPass : EffectPass
 
             passData.useOcclusion = 0;
 
-            if (NprTestingConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
+            if (NprConfig.UseOcclusion && nprFrameData.visibilityBuffer != null)
             {
                 passData.visibilityBuffer = nprFrameData.visibilityBuffer;
                 passData.useOcclusion = 1;

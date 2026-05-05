@@ -49,7 +49,11 @@ public class TileMerging : Prepass
     ComputeBuffer _outputCountBuffer;
     ComputeBuffer _indirectArgsBuffer;
 
-    public TileMerging(ComputeShader tileMerging) : base("GpuTilingPrepass")
+    uint[] _tileMaskInitData;
+    readonly uint[] _outputCountInit = new uint[1];
+    readonly uint[] _indirectArgsInit = new uint[4];
+
+    public TileMerging(ComputeShader tileMerging) : base("TileMergingPrepass")
     {
         if (tileMerging != null)
         {
@@ -94,10 +98,10 @@ public class TileMerging : Prepass
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.GPU)
+        if (NprConfig.RenderMode != NprRenderMode.GPU)
             return;
 
-        if (!NprTestingConfig.UseMerging)
+        if (!NprConfig.UseMerging)
             return;
 
         if (_tileMerging == null)
@@ -122,14 +126,20 @@ public class TileMerging : Prepass
         NprFrameData.EnsureFixedBuffer(ref _outputCountBuffer, 1, sizeof(uint));
         NprFrameData.EnsureFixedBuffer(ref _indirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
-        uint[] tileMaskInit = new uint[_tileMaskBufferCapacity];
-        _tileMaskBuffer.SetData(tileMaskInit);
+        if (_tileMaskInitData == null || _tileMaskInitData.Length < _tileMaskBufferCapacity)
+            _tileMaskInitData = new uint[_tileMaskBufferCapacity];
 
-        uint[] outputCountInit = new uint[1] { 0u };
-        _outputCountBuffer.SetData(outputCountInit, 0, 0, 1);
+        System.Array.Clear(_tileMaskInitData, 0, _tileMaskBufferCapacity);
+        _tileMaskBuffer.SetData(_tileMaskInitData, 0, 0, _tileMaskBufferCapacity);
 
-        uint[] indirectArgsInit = new uint[4] { 6u, 0u, 0u, 0u };
-        _indirectArgsBuffer.SetData(indirectArgsInit, 0, 0, 4);
+        _outputCountInit[0] = 0u;
+        _outputCountBuffer.SetData(_outputCountInit, 0, 0, 1);
+
+        _indirectArgsInit[0] = 6u;
+        _indirectArgsInit[1] = 0u;
+        _indirectArgsInit[2] = 0u;
+        _indirectArgsInit[3] = 0u;
+        _indirectArgsBuffer.SetData(_indirectArgsInit, 0, 0, 4);
 
         using (var builder = renderGraph.AddComputePass("GPU Tile Merging", out ComputePassData passData, profilingSampler))
         {
@@ -241,5 +251,12 @@ public class TileMerging : Prepass
             _indirectArgsBuffer.Release();
             _indirectArgsBuffer = null;
         }
+
+        _tileMaskBufferCapacity = 0;
+        _outputRectBufferCapacity = 0;
+        _outputMaskBufferCapacity = 0;
+        _outputVisibilityBufferCapacity = 0;
+
+        _tileMaskInitData = null;
     }
 }

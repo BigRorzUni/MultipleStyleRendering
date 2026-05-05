@@ -40,7 +40,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
         if (!ShouldRun(frameData, cameraData, nprFrameData))
             return;
 
-        switch (NprTestingConfig.RenderMode)
+        switch (NprConfig.RenderMode)
         {
             case NprRenderMode.Fullscreen:
                 RunFullscreen(renderGraph, frameData, cameraData, nprFrameData);
@@ -62,7 +62,7 @@ public abstract class EffectPass : ScriptableRenderPass, IDisposable
 
     protected virtual bool ShouldRun(UniversalResourceData frameData, UniversalCameraData cameraData, NprFrameData nprFrameData)
     {
-        if (_requiredBit != StyleBits.ImageSpaceEffect.None && ((nprFrameData.presentImageBits & _requiredBit) == 0) && NprTestingConfig.RenderMode != NprRenderMode.Fullscreen)
+        if (_requiredBit != StyleBits.ImageSpaceEffect.None && ((nprFrameData.presentImageBits & _requiredBit) == 0) && NprConfig.RenderMode != NprRenderMode.Fullscreen)
             return false;
 
         return true;

@@ -45,7 +45,7 @@ public class OcclusionController : MonoBehaviour
         cam.transform.position = new Vector3(0f, 0f, -10f);
         cam.transform.rotation = Quaternion.identity;
 
-        // Reuse existing quad if one already exists
+        // reuse existing quad if one already exists
         if (quad == null)
         {
             GameObject existing = GameObject.Find("OcclusionQuad");
@@ -53,16 +53,20 @@ public class OcclusionController : MonoBehaviour
                 quad = existing;
         }
 
-        // Remove duplicates
-        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
-        foreach (var obj in allObjects)
+        // remove duplicates
+        if (quad != null)
         {
-            if (obj.name == "OcclusionQuad" && obj != quad)
+            for (int i = quad.transform.parent ? quad.transform.parent.childCount - 1 : -1; i >= 0; i--)
             {
-                if (Application.isPlaying)
-                    Destroy(obj);
-                else
-                    DestroyImmediate(obj);
+                Transform t = quad.transform.parent.GetChild(i);
+
+                if (t.gameObject.name == "OcclusionQuad" && t.gameObject != quad)
+                {
+                    if (Application.isPlaying)
+                        Destroy(t.gameObject);
+                    else
+                        DestroyImmediate(t.gameObject);
+                }
             }
         }
 

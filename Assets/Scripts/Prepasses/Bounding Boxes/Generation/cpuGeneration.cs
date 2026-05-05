@@ -9,6 +9,10 @@ public class CpuGeneration : Prepass
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
+    static readonly Vector3[] _worldCorners = new Vector3[8];
+    static readonly Vector3[] _camCorners = new Vector3[8];
+    static readonly List<Vector3> _clippedCamPoints = new List<Vector3>(16);
+
     public CpuGeneration(): base("CpuGeneration")
     {
 
@@ -23,7 +27,7 @@ public class CpuGeneration : Prepass
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
     {
-        if(NprTestingConfig.RenderMode != NprRenderMode.CPU)
+        if(NprConfig.RenderMode != NprRenderMode.CPU)
             return;
 
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -42,22 +46,20 @@ public class CpuGeneration : Prepass
         nprFrameData.presentTestStyles = 0;
         nprFrameData.visibilityBuffer = null; 
 
-        if (nprFrameData.bboxes == null)
-            nprFrameData.bboxes = new List<BoundingBox>();
-        else
-            nprFrameData.bboxes.Clear();
+        nprFrameData.bboxes.Clear();
 
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-
-        foreach (var tag in tags)
+        foreach (var tag in StylisedTag.ActiveTags)
         {
-            GameObject obj = tag.gameObject;
-            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
-
-            if (!NprTestingConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+            if (tag == null)
                 continue;
 
-            if (NprTestingConfig.TestMode && tag.currentTestEffects == 0)
+            GameObject obj = tag.gameObject;
+            Renderer[] renderers = tag.Renderers;
+
+            if (!NprConfig.TestMode && tag.imageEffects == StyleBits.ImageSpaceEffect.None)
+                continue;
+
+            if (NprConfig.TestMode && tag.currentTestEffects == 0)
                 continue;
 
             foreach (Renderer renderer in renderers)
@@ -68,7 +70,7 @@ public class CpuGeneration : Prepass
                 if (TryGetNearClippedScreenRect(renderer, camera, out RectInt screenRect))
                 {
                     BoundingBox bbox;
-                    if (NprTestingConfig.TestMode)
+                    if (NprConfig.TestMode)
                     {
                         bbox = BoundingBox.CreateTestBox(tag.currentTestEffects, screenRect);
                         nprFrameData.presentTestStyles |= tag.currentTestEffects;
@@ -98,22 +100,19 @@ public class CpuGeneration : Prepass
         {0,4}, {1,5}, {2,6}, {3,7}
     };
 
-    static Vector3[] GetBoxCorners(Bounds b)
+    static void GetBoxCorners(Bounds b, Vector3[] corners)
     {
         Vector3 c = b.center;
         Vector3 e = b.extents;
 
-        return new Vector3[8]
-        {
-            c + new Vector3(-e.x, -e.y, -e.z),
-            c + new Vector3(e.x, -e.y, -e.z),
-            c + new Vector3(-e.x, e.y, -e.z),
-            c + new Vector3(e.x, e.y, -e.z),
-            c + new Vector3(-e.x, -e.y, e.z),
-            c + new Vector3(e.x, -e.y, e.z),
-            c + new Vector3(-e.x, e.y, e.z),
-            c + new Vector3(e.x, e.y, e.z),
-        };
+        corners[0] = c + new Vector3(-e.x, -e.y, -e.z);
+        corners[1] = c + new Vector3(e.x, -e.y, -e.z);
+        corners[2] = c + new Vector3(-e.x, e.y, -e.z);
+        corners[3] = c + new Vector3(e.x, e.y, -e.z);
+        corners[4] = c + new Vector3(-e.x, -e.y, e.z);
+        corners[5] = c + new Vector3(e.x, -e.y, e.z);
+        corners[6] = c + new Vector3(-e.x, e.y, e.z);
+        corners[7] = c + new Vector3(e.x, e.y, e.z);
     }
 
     public static bool TryGetNearClippedScreenRect(Renderer renderer, Camera camera, out RectInt rect)
@@ -124,33 +123,32 @@ public class CpuGeneration : Prepass
             return false;
 
         // world-space corners bounding box
-        Vector3[] worldCorners = GetBoxCorners(renderer.bounds);
+        GetBoxCorners(renderer.bounds, _worldCorners);
 
         // transform corners from world -> camera space
         Matrix4x4 worldToCamera = camera.worldToCameraMatrix;
-        Vector3[] camCorners = new Vector3[8];
         for (int i = 0; i < 8; i++)
-            camCorners[i] = worldToCamera.MultiplyPoint(worldCorners[i]);
+            _camCorners[i] = worldToCamera.MultiplyPoint(_worldCorners[i]);
 
         // store all corners that are past the near plane (clipped)
         float nearZ = -camera.nearClipPlane;
         const float eps = 1e-5f;
 
-        List<Vector3> clippedCamPoints = new List<Vector3>();
+        _clippedCamPoints.Clear();
 
         // keep corners that arent behind the near plane
         for (int i = 0; i < 8; i++)
         {
-            if (camCorners[i].z <= nearZ + eps)
-                clippedCamPoints.Add(camCorners[i]);
+            if (_camCorners[i].z <= nearZ + eps)
+                _clippedCamPoints.Add(_camCorners[i]);
         }
 
         // clip each box edge against the near plane
         for (int i = 0; i < 12; i++)
         {
             // for each edge check if it crosses the near plane
-            Vector3 a = camCorners[BoxEdges[i, 0]];
-            Vector3 b = camCorners[BoxEdges[i, 1]];
+            Vector3 a = _camCorners[BoxEdges[i, 0]];
+            Vector3 b = _camCorners[BoxEdges[i, 1]];
 
             bool aIn = a.z <= nearZ + eps;
             bool bIn = b.z <= nearZ + eps;
@@ -161,12 +159,12 @@ public class CpuGeneration : Prepass
                 // use the parametric form of the line to find the plane intersection
                 float t = (nearZ - a.z) / (b.z - a.z);
                 Vector3 point = Vector3.Lerp(a, b, t);
-                clippedCamPoints.Add(point);
+                _clippedCamPoints.Add(point);
             }
         }
 
         // if no points are past the near plane then the box isn't visible
-        if (clippedCamPoints.Count == 0)
+        if (_clippedCamPoints.Count == 0)
             return false;
 
         // project valid points to screen space
@@ -176,10 +174,10 @@ public class CpuGeneration : Prepass
         float maxX = float.MinValue, maxY = float.MinValue;
         int valid = 0;
 
-        for (int i = 0; i < clippedCamPoints.Count; i++)
+        for (int i = 0; i < _clippedCamPoints.Count; i++)
         {
             // camera -> clip space
-            Vector4 p = new Vector4(clippedCamPoints[i].x, clippedCamPoints[i].y, clippedCamPoints[i].z, 1.0f);
+            Vector4 p = new Vector4(_clippedCamPoints[i].x, _clippedCamPoints[i].y, _clippedCamPoints[i].z, 1.0f);
             Vector4 clip = proj * p;
 
             // reject invalid projections

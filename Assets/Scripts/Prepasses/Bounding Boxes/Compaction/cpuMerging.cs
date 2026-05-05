@@ -9,6 +9,9 @@ public class CpuMerging : Prepass
     public int testStyleCount = 0;
     public bool _testModeEnabled;
 
+    readonly List<BoundingBox> _newBoxes = new List<BoundingBox>();
+    readonly List<BoundingBox> _toRemove = new List<BoundingBox>();
+
     public CpuMerging() : base("CpuMergingPrepass") { }
 
     public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameContext)
@@ -18,24 +21,24 @@ public class CpuMerging : Prepass
 
         NprFrameData nprFrameData = frameContext.Get<NprFrameData>();
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.CPU)
+        if (NprConfig.RenderMode != NprRenderMode.CPU)
             return;
 
-        if (!NprTestingConfig.UseMerging)
+        if (!NprConfig.UseMerging)
             return;
 
         if (nprFrameData.bboxes == null || nprFrameData.bboxes.Count == 0)
             return;
 
         bool merged = false;
-        List<BoundingBox> newBoxes = new List<BoundingBox>();
-        List<BoundingBox> toRemove = new List<BoundingBox>();
+        _newBoxes.Clear();
+        _toRemove.Clear();
 
         while (!merged)
         {
             merged = true;
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
             {
                 foreach (var bboxA in nprFrameData.bboxes)
                 {
@@ -89,16 +92,16 @@ public class CpuMerging : Prepass
                                         mergedBox.renderers.Add(r);
                                 }
 
-                                newBoxes.Add(mergedBox);
+                                _newBoxes.Add(mergedBox);
 
                                 // remove b if it has no bits left
                                 if (bboxB.testMask == 0)
-                                    toRemove.Add(bboxB);
+                                    _toRemove.Add(bboxB);
 
                                 // remove a if it has no bits left
                                 if (bboxA.testMask == 0)
                                 {
-                                    toRemove.Add(bboxA);
+                                    _toRemove.Add(bboxA);
                                     break;
                                 }
                             }
@@ -106,14 +109,14 @@ public class CpuMerging : Prepass
                     }
                 }
 
-                if (toRemove.Count > 0)
-                    nprFrameData.bboxes.RemoveAll(b => toRemove.Contains(b));
+                if (_toRemove.Count > 0)
+                    nprFrameData.bboxes.RemoveAll(b => _toRemove.Contains(b));
 
-                if (newBoxes.Count > 0)
-                    nprFrameData.bboxes.AddRange(newBoxes);
+                if (_newBoxes.Count > 0)
+                    nprFrameData.bboxes.AddRange(_newBoxes);
 
-                toRemove.Clear();
-                newBoxes.Clear();
+                _toRemove.Clear();
+                _newBoxes.Clear();
 
                 continue;
             }
@@ -170,16 +173,16 @@ public class CpuMerging : Prepass
                                     mergedBox.renderers.Add(r);
                             }
 
-                            newBoxes.Add(mergedBox);
+                            _newBoxes.Add(mergedBox);
 
                             // remove b if it has no bits left
                             if (bboxB.styles == 0)
-                                toRemove.Add(bboxB);
+                                _toRemove.Add(bboxB);
 
                             // remove a if it has no bits left
                             if (bboxA.styles == 0)
                             {
-                                toRemove.Add(bboxA);
+                                _toRemove.Add(bboxA);
                                 break;
                             }
                         }
@@ -187,14 +190,14 @@ public class CpuMerging : Prepass
                 }
             }
 
-            if (toRemove.Count > 0)
-                nprFrameData.bboxes.RemoveAll(b => toRemove.Contains(b));
+            if (_toRemove.Count > 0)
+                nprFrameData.bboxes.RemoveAll(b => _toRemove.Contains(b));
 
-            if (newBoxes.Count > 0)
-                nprFrameData.bboxes.AddRange(newBoxes);
+            if (_newBoxes.Count > 0)
+                nprFrameData.bboxes.AddRange(_newBoxes);
 
-            toRemove.Clear();
-            newBoxes.Clear();
+            _toRemove.Clear();
+            _newBoxes.Clear();
         }
 
         nprFrameData.bboxCount = nprFrameData.bboxes.Count;
@@ -202,5 +205,7 @@ public class CpuMerging : Prepass
 
     public override void Dispose()
     {
+        _newBoxes.Clear();
+        _toRemove.Clear();
     }
 }

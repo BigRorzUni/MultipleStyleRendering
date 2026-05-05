@@ -19,10 +19,9 @@ MonoBehaviour:
   ditheringShader: {fileID: 4800000, guid: 36849cc1d9e8a4040860295c35a4bdd7, type: 3}
   ditheringBatchedShader: {fileID: 4800000, guid: be1c89c3c964e469d9e5346fbe7da9c4, type: 3}
   gpuGenerationComputeShader: {fileID: 7200000, guid: 67c2b2a21be564cb382e4cddcb3a88d6, type: 3}
+  cpuOcclusionComputeShader: {fileID: 7200000, guid: 467c19f52cb2946afb7212dc39138ae1, type: 3}
   occlusionComputeShader: {fileID: 7200000, guid: 94ffc1c0ee4df42c4837ccb1cf94cc7b, type: 3}
-  cpuOcclusionComputeShader: {fileID: 7200000, guid: 9491810d7a2bf43bb8a99fe7ff061fd0, type: 3}
   occlusionDebugShader: {fileID: 4800000, guid: 2deea525d2fb74b6a8136fd646983fb3, type: 3}
-  bboxMergingComputeShader: {fileID: 7200000, guid: 7d4f086dc373041f8a68b2aaa3f825a4, type: 3}
   tileMergingComputeShader: {fileID: 7200000, guid: 8b8168d2533c049b486f4f62511f6066, type: 3}
   tilingComputeShader: {fileID: 7200000, guid: 7aff55e26ca8e474baaf7de6f04984a1, type: 3}
   bboxDebugShader: {fileID: 4800000, guid: 2cfe7300d5ceb4b4387a81089f4d12ec, type: 3}
@@ -33,7 +32,6 @@ MonoBehaviour:
   dummyHeavyBatchedShader: {fileID: 4800000, guid: 687ac4638c3844c56bd9946b210862a9, type: 3}
   settings:
     renderMode: 1
-    gpuMergeMethod: 1
     currentTestEffect: 0
     currentTileSize: 32
     useMerging: 1

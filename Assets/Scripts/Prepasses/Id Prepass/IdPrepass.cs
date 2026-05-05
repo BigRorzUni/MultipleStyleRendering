@@ -90,7 +90,7 @@ public class IdPrepass : Prepass
             builder.AllowGlobalStateModification(true);
 
             passData.rendererList = rendererList;
-            passData.debug = NprTestingConfig.DebugID;
+            passData.debug = NprConfig.DebugID;
 
             builder.SetRenderFunc(static (PassData data, RasterGraphContext ctx) =>
             {
@@ -106,15 +106,14 @@ public class IdPrepass : Prepass
             });
 
         
-        StylisedTag[] tags = Object.FindObjectsByType<StylisedTag>(FindObjectsSortMode.None);
-        foreach (var tag in tags)
+        foreach (var tag in StylisedTag.ActiveTags)
         {
             if (tag == null)
                 continue;
 
             nprFrameData.presentImageBits |= tag.imageEffects;
 
-            if (NprTestingConfig.TestMode)
+            if (NprConfig.TestMode)
                 nprFrameData.presentTestStyles |= tag.currentTestEffects;
         }
         }

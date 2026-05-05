@@ -42,6 +42,9 @@ public class TileGeneration : Prepass
     int _tileVisibilityCapacity = 0;
     uint[] _tileVisibilityInitData;
 
+    readonly uint[] _countInit = new uint[1];
+    readonly uint[] _argsInit = new uint[4];
+
     private class ComputePassData
     {
         public ComputeShader compute;
@@ -108,7 +111,7 @@ public class TileGeneration : Prepass
         if (_tileGeneration == null)
             return;
 
-        if (NprTestingConfig.RenderMode != NprRenderMode.Tiling)
+        if (NprConfig.RenderMode != NprRenderMode.Tiling)
             return;
 
         UniversalCameraData cameraData = frameContext.Get<UniversalCameraData>();
@@ -124,7 +127,7 @@ public class TileGeneration : Prepass
             return;
 
         
-        if (NprTestingConfig.TestMode && nprFrameData.presentTestStyles == 0)
+        if (NprConfig.TestMode && nprFrameData.presentTestStyles == 0)
             return;
 
         
@@ -154,11 +157,14 @@ public class TileGeneration : Prepass
         NprFrameData.EnsureFixedBuffer(ref _tileCountBuffer, 1, sizeof(uint));
         NprFrameData.EnsureFixedBuffer(ref _tileIndirectArgsBuffer, 4, sizeof(uint), ComputeBufferType.IndirectArguments);
 
-        uint[] countInit = new uint[1] { 0u };
-        _tileCountBuffer.SetData(countInit, 0, 0, 1);
+        _countInit[0] = 0u;
+        _tileCountBuffer.SetData(_countInit, 0, 0, 1);
 
-        uint[] argsInit = new uint[4] { 6u, 0u, 0u, 0u };
-        _tileIndirectArgsBuffer.SetData(argsInit, 0, 0, 4);
+        _argsInit[0] = 6u;
+        _argsInit[1] = 0u;
+        _argsInit[2] = 0u;
+        _argsInit[3] = 0u;
+        _tileIndirectArgsBuffer.SetData(_argsInit, 0, 0, 4);
 
         using (var builder = renderGraph.AddComputePass("ID Tile Generation", out ComputePassData passData, profilingSampler))
         {
@@ -310,5 +316,10 @@ public class TileGeneration : Prepass
             _tileVisibilityBuffer.Release();
             _tileVisibilityBuffer = null;
         }
+
+        _tileRectBufferCapacity = 0;
+        _tileMaskBufferCapacity = 0;
+        _tileVisibilityCapacity = 0;
+        _tileVisibilityInitData = null;
     }
 }

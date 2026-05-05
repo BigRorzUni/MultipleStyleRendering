@@ -4,7 +4,7 @@ set -euo pipefail
 PROJECT_PATH="/Users/bigrorz/UnityProjects/MultipleStyleRendering"
 
 APP_NAME="MultipleStyleRendering"
-PLAYER_EXEC="$PROJECT_PATH/Build/UnityProfiling.app/Contents/MacOS/$APP_NAME"
+PLAYER_EXEC="$PROJECT_PATH/UnityProfiling.app/Contents/MacOS/$APP_NAME"
 
 FRAMES="${1:-500}"
 WARMUP="${2:-500}"

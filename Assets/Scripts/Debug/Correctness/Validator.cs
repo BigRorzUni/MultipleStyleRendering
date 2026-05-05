@@ -67,7 +67,7 @@ public class Validator : MonoBehaviour
     private IEnumerator RunValidation()
     {
         isRunning = true;
-        NprTestingConfig.IsValidationRunning = true;
+        NprConfig.IsValidationRunning = true;
 
         if (targetCamera == null)
             targetCamera = Camera.main;
@@ -75,7 +75,7 @@ public class Validator : MonoBehaviour
         if (targetCamera == null)
         {
             Debug.LogError("No target camera found.");
-            NprTestingConfig.IsValidationRunning = false;
+            NprConfig.IsValidationRunning = false;
             isRunning = false;
             yield break;
         }
@@ -117,7 +117,7 @@ public class Validator : MonoBehaviour
         foreach (var tex in captures.Values)
             Destroy(tex);
 
-        NprTestingConfig.IsValidationRunning = false;
+        NprConfig.IsValidationRunning = false;
         isRunning = false;
 
         Debug.Log($"Visual validation complete. Output saved to: {GetOutputPath()}");
@@ -156,12 +156,12 @@ public class Validator : MonoBehaviour
 
     private IEnumerator ApplyVariant(ValidationVariant variant)
     {
-        NprTestingConfig.DebugBBoxes = false;
-        NprTestingConfig.DebugID = false;
+        NprConfig.DebugBBoxes = false;
+        NprConfig.DebugID = false;
 
-        NprTestingConfig.RenderMode = variant.renderMode;
-        NprTestingConfig.UseMerging = variant.useMerging;
-        NprTestingConfig.UseOcclusion = variant.useOcclusion;
+        NprConfig.RenderMode = variant.renderMode;
+        NprConfig.UseMerging = variant.useMerging;
+        NprConfig.UseOcclusion = variant.useOcclusion;
 
         RebuildRendererFeature();
 

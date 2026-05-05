@@ -52,8 +52,8 @@ void OcclusionCheckBatched(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_
 
         uint pixelMask = ReadMask32(pixel);
 
-        if ((pixelMask & expectedMask) != 0)
-            InterlockedOr(anyVisible, 2);
+        if (pixelMask == expectedMask)
+            InterlockedOr(anyVisible, 1);
     }
 
     GroupMemoryBarrierWithGroupSync();

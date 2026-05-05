@@ -44,6 +44,18 @@ Shader "Custom/Dummy"
             Varyings Vert (Attributes v)
             {
                 Varyings o;
+                if (_UseOcclusion != 0)
+                {
+                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
+
+                    if (visible == 0)
+                    {
+                        o.posCS = float4(0, 0, 0, 0);
+                        o.uv = 0;
+
+                        return o;
+                    }
+                }
                 o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
                 o.uv = GetFullScreenTriangleTexCoord(v.vertexID);
                 return o;
@@ -88,15 +100,6 @@ Shader "Custom/Dummy"
 
             float4 Frag (Varyings i) : SV_Target
             {
-                if (_UseOcclusion != 0)
-                {
-                    uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
-                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
-                    if (visible == 0)
-                        clip(-1);
-
-                }
-
                 uint mask = ReadMask32(i.uv);
 
                 // if no style applied then do nothing

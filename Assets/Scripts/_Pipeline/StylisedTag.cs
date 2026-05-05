@@ -10,6 +10,8 @@ using UnityEditor;
 [ExecuteAlways]
 public class StylisedTag : MonoBehaviour
 {
+    public static readonly List<StylisedTag> ActiveTags = new();
+
     [Header("Image Effects")]
     public StyleBits.ImageSpaceEffect imageEffects = StyleBits.ImageSpaceEffect.None;
 
@@ -23,13 +25,26 @@ public class StylisedTag : MonoBehaviour
     [SerializeField] public uint currentTestEffects;
 
     Renderer[] _renderers;
+    MaterialPropertyBlock _mpb;
 
     static readonly int ImageStyleId = Shader.PropertyToID("_ImageStyleID");
+
+    public Renderer[] Renderers
+    {
+        get
+        {
+            Ensure();
+            return _renderers;
+        }
+    }
     
     void OnEnable()
     {
+        if (!ActiveTags.Contains(this))
+            ActiveTags.Add(this);
+
         Ensure();
-        if (!NprTestingConfig.TestMode)
+        if (!NprConfig.TestMode)
             Apply();
 #if UNITY_EDITOR
         Hook();
@@ -38,6 +53,8 @@ public class StylisedTag : MonoBehaviour
 
     void OnDisable()
     {
+        ActiveTags.Remove(this);
+
 #if UNITY_EDITOR
         Unhook();
 #endif
@@ -60,6 +77,9 @@ public class StylisedTag : MonoBehaviour
         if (force || _renderers == null || _renderers.Length == 0)
             _renderers = GetComponentsInChildren<Renderer>(true);
 
+        if (_mpb == null)
+            _mpb = new MaterialPropertyBlock();
+
         if (runtimeTestEffects == null)
             runtimeTestEffects = new List<bool>();
 
@@ -73,7 +93,7 @@ public class StylisedTag : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
             
-        if (NprTestingConfig.TestMode)
+        if (NprConfig.TestMode)
         {
             // Debug.Log("apply test effects");
             ApplyTestEffects();
@@ -95,19 +115,18 @@ public class StylisedTag : MonoBehaviour
         {
             if (!r) continue;
 
-            MaterialPropertyBlock mpb = new MaterialPropertyBlock();
-            r.GetPropertyBlock(mpb);
+            r.GetPropertyBlock(_mpb);
             
             if (imageEffects != StyleBits.ImageSpaceEffect.None)
             {
-                mpb.SetInteger(ImageStyleId, (int)imageEffects);
+                _mpb.SetInteger(ImageStyleId, (int)imageEffects);
             }
             else
             {
-                mpb.SetInteger(ImageStyleId, 0);
+                _mpb.SetInteger(ImageStyleId, 0);
             }
 
-            r.SetPropertyBlock(mpb);
+            r.SetPropertyBlock(_mpb);
         }
     }
 
@@ -124,12 +143,11 @@ public class StylisedTag : MonoBehaviour
         {
             if (!r) continue;
 
-            var mpb = new MaterialPropertyBlock();
-            r.GetPropertyBlock(mpb);
+            r.GetPropertyBlock(_mpb);
 
-            mpb.SetInteger(ImageStyleId, (int)currentTestEffects);
+            _mpb.SetInteger(ImageStyleId, (int)currentTestEffects);
 
-            r.SetPropertyBlock(mpb);
+            r.SetPropertyBlock(_mpb);
         }
     }
 
@@ -261,8 +279,11 @@ public class StylisedTag : MonoBehaviour
     {
         if (s == PlayModeStateChange.EnteredEditMode)
         {
-            foreach (var tag in FindObjectsByType<StylisedTag>(FindObjectsSortMode.None))
+            foreach (var tag in ActiveTags)
             {
+                if (!tag)
+                    continue;
+
                 tag.Ensure(true);
                 tag.Apply();
             }
