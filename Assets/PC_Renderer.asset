@@ -31,7 +31,7 @@ MonoBehaviour:
   dummyHeavyShader: {fileID: 4800000, guid: cf6169ee1375845288f031852fbf42ea, type: 3}
   dummyHeavyBatchedShader: {fileID: 4800000, guid: 687ac4638c3844c56bd9946b210862a9, type: 3}
   settings:
-    renderMode: 1
+    renderMode: 2
     currentTestEffect: 0
     currentTileSize: 32
     useMerging: 1

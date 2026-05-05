@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_PATH="/Users/bigrorz/UnityProjects/MultipleStyleRendering"
-
 APP_NAME="MultipleStyleRendering"
+PROJECT_PATH="/Users/bigrorz/UnityProjects/$APP_NAME"
+
+
 PLAYER_EXEC="$PROJECT_PATH/UnityProfiling.app/Contents/MacOS/$APP_NAME"
 
 FRAMES="${1:-500}"
