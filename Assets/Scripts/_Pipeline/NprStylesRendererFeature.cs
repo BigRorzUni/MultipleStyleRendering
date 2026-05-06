@@ -344,14 +344,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             for (int i = 0; i < testEffectCount; i++)
                 imageEffects.Add(new DummyEffect($"TestEffect_{i}", chosenShader, i));
 
-            Debug.Log("Queued test pases");
+            // Debug.Log("Queued test pases");
         }
         else
         {
             imageEffects.Add(ditheringEffect);
             imageEffects.Add(outlinesEffect);
 
-            Debug.Log("queued proper rendering passes");
+            // Debug.Log("queued proper rendering passes");
         }
     }
 

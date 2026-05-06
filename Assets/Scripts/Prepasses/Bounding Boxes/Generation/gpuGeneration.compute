@@ -59,10 +59,10 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     // transform corners from world -> camera space
     float3 camCorners[8];
     [unroll]
-    for (int i = 0; i < 8; i++)
+    for (int worldCornerIdx = 0; worldCornerIdx < 8; worldCornerIdx++)
     {
-        float4 cam = mul(_WorldToCamera, float4(worldCorners[i], 1.0));
-        camCorners[i] = cam.xyz;
+        float4 cam = mul(_WorldToCamera, float4(worldCorners[worldCornerIdx], 1.0));
+        camCorners[worldCornerIdx] = cam.xyz;
     }
 
     // store all corners that are past the near plane (clipped)
@@ -71,21 +71,21 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
 
     // keep corners that arent behind the near plane
     [unroll]
-    for (int i = 0; i < 8; i++)
+    for (int cornerIdx = 0; cornerIdx < 8; cornerIdx++)
     {
-        if (camCorners[i].z <= _NearZ + eps)
+        if (camCorners[cornerIdx].z <= _NearZ + eps)
         {
-            clippedPoints[clippedCount] = camCorners[i];
+            clippedPoints[clippedCount] = camCorners[cornerIdx];
             clippedCount++;
         }
     }
 
     // clip each box edge against the near plane
     [unroll]
-    for (int i = 0; i < 12; i++)
+    for (int edgeIdx = 0; edgeIdx < 12; edgeIdx++)
     {
         // for each edge check if it crosses the near plane
-        uint2 edge = BoxEdges[i];
+        uint2 edge = BoxEdges[edgeIdx];
         float3 a = camCorners[edge.x];
         float3 b = camCorners[edge.y];
 
@@ -118,10 +118,10 @@ void GenerateBboxes(uint id : SV_DispatchThreadID)
     int valid = 0;
 
     [loop]
-    for (int i = 0; i < clippedCount; i++)
+    for (int pointIdx = 0; pointIdx < clippedCount; pointIdx++)
     {
         // camera -> clip space
-        float4 clip = mul(_Projection, float4(clippedPoints[i], 1.0));
+        float4 clip = mul(_Projection, float4(clippedPoints[pointIdx], 1.0));
 
         // reject invalid projections
         if (abs(clip.w) < eps)
