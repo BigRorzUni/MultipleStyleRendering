@@ -4,6 +4,7 @@ public static class NprConfig
     // public static GpuMergeMethod GPUMergeMethod = GpuMergeMethod.BucketedUnion;
     public static TestEffect CurrentTestEffect = TestEffect.Dummy;
     public static TileSize CurrentTileSize = TileSize.Size32;
+    
 
 
     public static bool UseMerging;
