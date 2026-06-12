@@ -1,4 +1,4 @@
-Shader "Custom/GreyscaleBatched"
+Shader "Custom/PosteriseBatched"
 {
     Properties
     {
@@ -11,7 +11,7 @@ Shader "Custom/GreyscaleBatched"
 
         Pass
         {
-            Name "GreyscaleBatched"
+            Name "PosteriseBatched"
             ZTest Always
             ZWrite Off
             Cull Off
@@ -86,7 +86,7 @@ Shader "Custom/GreyscaleBatched"
 
                 uint bboxMask = _BBoxMasks[bboxIndex];
 
-                // if this bbox does not have the greyscale bit then collapse it
+                // if this bbox does not have the posterise bit then collapse it
                 if ((bboxMask & _StyleBit) == 0u)
                 {
                     output.posCS = float4(-2.0, -2.0, 0.0, 1.0);
@@ -142,14 +142,24 @@ Shader "Custom/GreyscaleBatched"
             float4 Frag (Varyings i) : SV_Target
             {
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.screenUV);
+
                 uint mask = ReadMask32(i.screenUV);
 
                 if ((mask & _StyleBit) == 0u)
                     clip(-1);
 
-                float grey = dot(col.rgb, float3(0.299, 0.587, 0.114));
+                float3 c = col.rgb;
 
-                return float4(grey, grey, grey, col.a);
+                // approx gamma correction
+                c = pow(c, 1.0 / 2.2);
+
+                const float levels = 6.0;
+
+                // soft quantisation and back to linear space
+                c = floor(c * levels + 0.5) / levels;
+                c = pow(c, 2.2);
+
+                return float4(saturate(c), col.a);
             }
             ENDHLSL
         }

@@ -9,5 +9,6 @@ public static class StyleBits
         Outline = 1u << 0,
         Dithering = 1u << 1,
         Greyscale = 1u << 2,
+        Posterise = 1u << 3,
     }
 }

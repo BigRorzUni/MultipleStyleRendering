@@ -18,6 +18,8 @@ MonoBehaviour:
   ssOutlineBatchedShader: {fileID: 4800000, guid: e28d37ee60b0a4133991a3676324291a, type: 3}
   ditheringShader: {fileID: 4800000, guid: 36849cc1d9e8a4040860295c35a4bdd7, type: 3}
   ditheringBatchedShader: {fileID: 4800000, guid: be1c89c3c964e469d9e5346fbe7da9c4, type: 3}
+  greyscaleShader: {fileID: 4800000, guid: 1574abd15535d471bbe447cf40b3dd00, type: 3}
+  greyscaleBatchedShader: {fileID: 4800000, guid: 2d7195361894a4642805e17c0f0781f9, type: 3}
   gpuGenerationComputeShader: {fileID: 7200000, guid: 67c2b2a21be564cb382e4cddcb3a88d6, type: 3}
   cpuOcclusionComputeShader: {fileID: 7200000, guid: 467c19f52cb2946afb7212dc39138ae1, type: 3}
   occlusionComputeShader: {fileID: 7200000, guid: 94ffc1c0ee4df42c4837ccb1cf94cc7b, type: 3}
@@ -31,9 +33,9 @@ MonoBehaviour:
   dummyHeavyShader: {fileID: 4800000, guid: cf6169ee1375845288f031852fbf42ea, type: 3}
   dummyHeavyBatchedShader: {fileID: 4800000, guid: 687ac4638c3844c56bd9946b210862a9, type: 3}
   settings:
-    renderMode: 2
+    renderMode: 3
     currentTestEffect: 0
-    currentTileSize: 32
+    currentTileSize: 16
     useMerging: 1
     useOcclusion: 1
     testMode: 0

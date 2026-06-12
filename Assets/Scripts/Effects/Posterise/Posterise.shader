@@ -1,4 +1,4 @@
-Shader "Custom/Greyscale"
+Shader "Custom/Posterise"
 {
     Properties
     {
@@ -8,9 +8,10 @@ Shader "Custom/Greyscale"
     SubShader
     {
         Tags { "RenderPipeline"="UniversalPipeline" }
+
         Pass
         {
-            Name "Greyscale"
+            Name "Posterise"
             ZTest Always
             ZWrite Off
             Cull Off
@@ -19,8 +20,8 @@ Shader "Custom/Greyscale"
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma target 4.5
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D(_NprIdTexture);
             SAMPLER(sampler_NprIdTexture);
@@ -29,27 +30,27 @@ Shader "Custom/Greyscale"
             SAMPLER(sampler_SourceTex);
             float4 _SourceTex_TexelSize;
 
-            float4 _Rect;  // xy origin, zw width height
+            float4 _Rect;
             float2 _ScreenTexelSize;
 
             StructuredBuffer<uint> _BboxVisibilityFlags;
             int _UseOcclusion;
             int _CurrentBboxIndex;
+
             uint _StyleBit;
-            
 
-            struct Attributes 
-            { 
-                uint vertexID : SV_VertexID; 
+            struct Attributes
+            {
+                uint vertexID : SV_VertexID;
             };
 
-            struct Varyings  
-            { 
-                float4 posCS : SV_POSITION; 
-                float2 uv : TEXCOORD0; 
+            struct Varyings
+            {
+                float4 posCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
             };
 
-            Varyings Vert (Attributes v)
+            Varyings Vert(Attributes v)
             {
                 Varyings o;
                 o.posCS = GetFullScreenTriangleVertexPosition(v.vertexID);
@@ -69,25 +70,35 @@ Shader "Custom/Greyscale"
                 return r | (g << 8) | (b << 16) | (a << 24);
             }
 
-            float4 Frag (Varyings i) : SV_Target
+            float4 Frag(Varyings i) : SV_Target
             {
                 if (_UseOcclusion != 0)
                 {
                     uint visible = _BboxVisibilityFlags[_CurrentBboxIndex];
-                    // hidden (0) -> kill this fullscreen triangle inside the current scissor rect
+
                     if (visible == 0)
                         clip(-1);
                 }
 
                 float4 col = SAMPLE_TEXTURE2D(_SourceTex, sampler_SourceTex, i.uv);
+
                 uint mask = ReadMask32(i.uv);
 
                 if ((mask & _StyleBit) == 0u)
                     clip(-1);
 
-                float grey = dot(col.rgb, float3(0.299, 0.587, 0.114));
+                float3 c = col.rgb;
 
-                return float4(grey, grey, grey, col.a);
+                // approx gamma correction
+                c = pow(c, 1.0 / 2.2);
+
+                const float levels = 6.0;
+
+                // soft quantisation and back to linear space
+                c = floor(c * levels + 0.5) / levels;
+                c = pow(c, 2.2);
+
+                return float4(saturate(c), col.a);
             }
             ENDHLSL
         }

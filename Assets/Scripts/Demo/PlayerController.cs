@@ -47,7 +47,12 @@ public class PlayerController : MonoBehaviour
         {
             displayName = "Greyscale",
             imageEffect = StyleBits.ImageSpaceEffect.Greyscale,
-        }
+        },
+        new StyleOption
+        {
+            displayName = "Posterise",
+            imageEffect = StyleBits.ImageSpaceEffect.Posterise,
+        },
     };
 
     int currentStyleIndex = 0;

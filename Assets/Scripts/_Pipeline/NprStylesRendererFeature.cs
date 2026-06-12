@@ -24,7 +24,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     List<Effect> imageEffects = new();
     DitheringEffect ditheringEffect;
     ScreenspaceOutlinesEffect outlinesEffect;
-    GreyscaleEffect greyscaleEffect;
+    SimpleEffect greyscaleEffect;
+    SimpleEffect posteriseEffect;
 
     // shaders
     [SerializeField] private Shader idShader;
@@ -35,7 +36,8 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ditheringBatchedShader;
     [SerializeField] private Shader greyscaleShader;
     [SerializeField] private Shader greyscaleBatchedShader;
-    
+    [SerializeField] private Shader posteriseShader;
+    [SerializeField] private Shader posteriseBatchedShader;
 
     [SerializeField] private ComputeShader gpuGenerationComputeShader;
 
@@ -295,7 +297,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 Debug.LogError("Could not find shader 'Custom/GreyscaleBatched'");
                 return;
             }
-            greyscaleEffect = new GreyscaleEffect(greyscaleBatchedShader);
+            greyscaleEffect = new SimpleEffect(greyscaleBatchedShader, "Greyscale", StyleBits.ImageSpaceEffect.Greyscale);
         }
         else
         {
@@ -304,7 +306,26 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
                 Debug.LogError("Could not find shader 'Custom/Greyscale'");
                 return;
             }
-            greyscaleEffect = new GreyscaleEffect(greyscaleShader);
+            greyscaleEffect = new SimpleEffect(greyscaleShader, "Greyscale", StyleBits.ImageSpaceEffect.Greyscale);
+        }
+
+        if (UseBatchedScreenPasses())
+        {
+            if (posteriseBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/PosteriseBatched'");
+                return;
+            }
+            posteriseEffect = new SimpleEffect(posteriseBatchedShader, "Posterise", StyleBits.ImageSpaceEffect.Posterise);
+        }
+        else
+        {
+            if (posteriseShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Posterise'");
+                return;
+            }
+            posteriseEffect = new SimpleEffect(posteriseShader, "Posterise", StyleBits.ImageSpaceEffect.Posterise);
         }
 
         imageEffects.Clear();
@@ -370,9 +391,14 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         }
         else
         {
+            imageEffects.Add(posteriseEffect);
+
             imageEffects.Add(ditheringEffect);
-            imageEffects.Add(outlinesEffect);
+
+
             imageEffects.Add(greyscaleEffect);
+
+            imageEffects.Add(outlinesEffect);
 
             // Debug.Log("queued proper rendering passes");
         }
@@ -485,9 +511,6 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
 
             imageEffects.Clear();
         }
-
-        ditheringEffect = null;
-        outlinesEffect = null;
     }
 
 

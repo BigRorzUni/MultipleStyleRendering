@@ -1412,6 +1412,13 @@ MonoBehaviour:
   maxLookAngle: 85
   mouseLocked: 1
   ui: {fileID: 484906376}
+  availableStyles:
+  - displayName: Outlines
+    imageEffect: 1
+  - displayName: Dithering
+    imageEffect: 2
+  - displayName: Greyscale
+    imageEffect: 4
 --- !u!1001 &345993819
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7024,7 +7031,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 0
+  imageEffects: 4
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000100000000000000000000000000000000000001010000000000
   currentTestEffects: 100663360
