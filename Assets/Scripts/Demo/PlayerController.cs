@@ -42,6 +42,11 @@ public class PlayerController : MonoBehaviour
         {
             displayName = "Dithering",
             imageEffect = StyleBits.ImageSpaceEffect.Dithering,
+        },
+        new StyleOption
+        {
+            displayName = "Greyscale",
+            imageEffect = StyleBits.ImageSpaceEffect.Greyscale,
         }
     };
 

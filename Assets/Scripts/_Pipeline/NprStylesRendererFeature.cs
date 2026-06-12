@@ -24,6 +24,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     List<Effect> imageEffects = new();
     DitheringEffect ditheringEffect;
     ScreenspaceOutlinesEffect outlinesEffect;
+    GreyscaleEffect greyscaleEffect;
 
     // shaders
     [SerializeField] private Shader idShader;
@@ -32,6 +33,9 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
     [SerializeField] private Shader ssOutlineBatchedShader;
     [SerializeField] private Shader ditheringShader;
     [SerializeField] private Shader ditheringBatchedShader;
+    [SerializeField] private Shader greyscaleShader;
+    [SerializeField] private Shader greyscaleBatchedShader;
+    
 
     [SerializeField] private ComputeShader gpuGenerationComputeShader;
 
@@ -284,8 +288,26 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
             ditheringEffect = new DitheringEffect(ditheringShader);
         }
 
-        imageEffects.Clear();
+        if (UseBatchedScreenPasses())
+        {
+            if (greyscaleBatchedShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/GreyscaleBatched'");
+                return;
+            }
+            greyscaleEffect = new GreyscaleEffect(greyscaleBatchedShader);
+        }
+        else
+        {
+            if (greyscaleShader == null)
+            {
+                Debug.LogError("Could not find shader 'Custom/Greyscale'");
+                return;
+            }
+            greyscaleEffect = new GreyscaleEffect(greyscaleShader);
+        }
 
+        imageEffects.Clear();
 
 
 
@@ -350,6 +372,7 @@ public class NprStylesRendererFeature : ScriptableRendererFeature
         {
             imageEffects.Add(ditheringEffect);
             imageEffects.Add(outlinesEffect);
+            imageEffects.Add(greyscaleEffect);
 
             // Debug.Log("queued proper rendering passes");
         }
