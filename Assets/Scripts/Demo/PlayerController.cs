@@ -126,6 +126,8 @@ public class PlayerController : MonoBehaviour
         }
 
         HandleStyleSelection();
+
+        HandleStyleRaycast();
     }
 
     void HandleStyleSelection()
@@ -197,6 +199,52 @@ public class PlayerController : MonoBehaviour
         Debug.Log($"Switched mode to {mode}");
 
         feature.Create();
+    }
+
+
+    void HandleStyleRaycast()
+    {
+        if (Mouse.current == null)
+            return;
+
+        if (!Mouse.current.leftButton.wasPressedThisFrame && !Mouse.current.rightButton.wasPressedThisFrame)
+            return;
+
+        Ray ray = playerCamera.ViewportPointToRay( new Vector3(0.5f, 0.5f, 0f) );
+
+        if (!Physics.Raycast(ray, out RaycastHit hit))
+            return;
+
+        StylisedTag tag = hit.collider.GetComponentInParent<StylisedTag>();
+
+        if (tag == null)
+            return;
+
+        if (Mouse.current.leftButton.wasPressedThisFrame)
+            AddCurrentStyle(tag);
+
+        if (Mouse.current.rightButton.wasPressedThisFrame)
+            ClearStyles(tag);
+    }
+
+    void AddCurrentStyle(StylisedTag tag)
+    {
+        StyleOption style = availableStyles[currentStyleIndex];
+
+        tag.imageEffects |= style.imageEffect;
+
+        tag.Apply();
+
+        Debug.Log($"Added {style.displayName}");
+    }
+
+    void ClearStyles(StylisedTag tag)
+    {
+        tag.imageEffects = StyleBits.ImageSpaceEffect.None;
+
+        tag.Apply();
+
+        Debug.Log("Cleared styles");
     }
 
     void Look()
