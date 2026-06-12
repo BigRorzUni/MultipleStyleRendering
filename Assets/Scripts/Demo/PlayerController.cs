@@ -2,8 +2,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Reflection;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.Rendering.Universal;
 using Unity.VisualScripting;
+using System;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -28,6 +30,23 @@ public class PlayerController : MonoBehaviour
     NprStylesRendererFeature feature;
     [SerializeField] UI ui;
 
+    [Header("Style Selection")]
+    [SerializeField] List<StyleOption> availableStyles = new()
+    {
+        new StyleOption
+        {
+            displayName = "Outlines",
+            imageEffect = StyleBits.ImageSpaceEffect.Outline,
+        },
+        new StyleOption
+        {
+            displayName = "Dithering",
+            imageEffect = StyleBits.ImageSpaceEffect.Dithering,
+        }
+    };
+
+    int currentStyleIndex = 0;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
@@ -42,6 +61,16 @@ public class PlayerController : MonoBehaviour
 
         StartCoroutine(InitUI());
 
+        UpdateStyleUI();
+
+    }
+
+    void UpdateStyleUI()
+    {
+        if (ui == null || availableStyles.Count == 0)
+            return;
+
+        ui.SetStyle(availableStyles[currentStyleIndex].displayName);
     }
 
     IEnumerator InitUI()
@@ -77,6 +106,7 @@ public class PlayerController : MonoBehaviour
         Debug.LogError("NPR Renderer Feature not found");
     }
 
+
     void Update()
     {
         SwitchMode();
@@ -93,6 +123,34 @@ public class PlayerController : MonoBehaviour
             Cursor.lockState = mouseLocked ? CursorLockMode.Locked : CursorLockMode.None;
 
             Cursor.visible = !mouseLocked;
+        }
+
+        HandleStyleSelection();
+    }
+
+    void HandleStyleSelection()
+    {
+        if (availableStyles.Count == 0)
+            return;
+
+        if (Keyboard.current.qKey.wasPressedThisFrame)
+        {
+            currentStyleIndex--;
+
+            if (currentStyleIndex < 0)
+                currentStyleIndex = availableStyles.Count - 1;
+
+            UpdateStyleUI();
+        }
+
+        if (Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            currentStyleIndex++;
+
+            if (currentStyleIndex >= availableStyles.Count)
+                currentStyleIndex = 0;
+
+            UpdateStyleUI();
         }
     }
 
