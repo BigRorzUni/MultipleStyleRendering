@@ -284,9 +284,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'FPS
-
-'
+  m_text: 'FPS:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -760,7 +758,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 4294967295
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000000000000000000000000000000000000000
   currentTestEffects: 0
@@ -1188,6 +1186,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 10
@@ -1419,6 +1421,8 @@ MonoBehaviour:
     imageEffect: 2
   - displayName: Greyscale
     imageEffect: 4
+  - displayName: Posterise
+    imageEffect: 8
 --- !u!1001 &345993819
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1610,9 +1614,21 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.01
       objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1941,7 +1957,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Current Mode
+  m_text: 'Current Mode:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -2517,6 +2533,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 8
@@ -2845,7 +2865,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4415390646179835508, guid: dae7f8c3cbaf0fb439b0d7e0ab0fda1d, type: 3}
       propertyPath: m_RenderingLayerMask
-      value: 259
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2892,7 +2912,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 2
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0001010000000000000000000000000000000000000000000000000000000000
   currentTestEffects: 6
@@ -3377,7 +3397,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 2
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000000000000000000000000000000000000000
   currentTestEffects: 0
@@ -4549,9 +4569,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.01
       objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -5604,7 +5632,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 2
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000000000000000000000000000000000000000
   currentTestEffects: 0
@@ -7031,7 +7059,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 4
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000100000000000000000000000000000000000001010000000000
   currentTestEffects: 100663360
@@ -7286,7 +7314,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 4294967295
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000010000000001000000000000000000000000
   currentTestEffects: 540672
@@ -7358,7 +7386,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 1
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000000000000000000000000000000000000000
   currentTestEffects: 0
@@ -7779,7 +7807,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 1
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000000000000000000100000000000000000000000000
   currentTestEffects: 262144
@@ -7947,6 +7975,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 2
@@ -8250,6 +8282,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1389798427}
     m_Modifications:
+    - target: {fileID: 8306958691153974271, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
+      propertyPath: m_Convex
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8413436139187139603, guid: 3e53f9514e887d84b843f7c47f5c7f5f, type: 3}
       propertyPath: m_RootOrder
       value: 9
@@ -8442,7 +8478,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 04e64b16a62ba40cf9bd78db7dcc98d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StylisedTag
-  imageEffects: 2
+  imageEffects: 0
   testAssignmentMode: 0
   inspectorTestEffects: 0000000000000000000000010000010000000000000000000000000000000000
   currentTestEffects: 18432

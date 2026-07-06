@@ -4,8 +4,6 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.Rendering.Universal;
-using Unity.VisualScripting;
-using System;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -190,7 +188,7 @@ public class PlayerController : MonoBehaviour
 
         if (Keyboard.current.tabKey.wasPressedThisFrame)
         {
-            NprConfig.DebugBBoxes = !NprConfig.DebugBBoxes;
+            SetDebug();
         }
     }
 
@@ -207,6 +205,18 @@ public class PlayerController : MonoBehaviour
         ui.SetMode(mode.ToString());
 
         Debug.Log($"Switched mode to {mode}");
+
+        feature.Create();
+    }
+
+    void SetDebug()
+    {
+        if (feature == null)
+            return;
+
+        feature.settings.debugBBoxes = !feature.settings.debugBBoxes;
+
+        Debug.Log($"Switched debug mode to {feature.settings.debugBBoxes}");
 
         feature.Create();
     }

@@ -12,10 +12,7 @@ public sealed class SimpleEffect : Effect
 
     public override StyleBits.ImageSpaceEffect RequiredImageBits => _imageBits;
 
-    public SimpleEffect(
-        Shader shader,
-        string name,
-        StyleBits.ImageSpaceEffect imageBits)
+    public SimpleEffect(Shader shader, string name, StyleBits.ImageSpaceEffect imageBits)
     {
         _name = name;
         _imageBits = imageBits;
